@@ -6,7 +6,7 @@ if (!API_KEY) {
 }
 
 // ===== 2. SMART MODELS (ఆటో-ఫాల్‌బ్యాక్ సిస్టమ్) =====
-const MODELS = ["gemini-3.6-flash", "gemini-3.6-flash"];
+const MODELS = ["gemini-3.8-flash", "gemini-3.6-flash"];
 const chat = document.getElementById('chat');
 const input = document.getElementById('msg');
 const micBtn = document.getElementById('mic-btn');
