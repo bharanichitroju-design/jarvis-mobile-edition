@@ -4,7 +4,7 @@ if(!API_KEY){
     API_KEY = prompt('Enter your Gemini API Key:'); 
     if(API_KEY) localStorage.setItem('jarvis_key', API_KEY); 
 }
-const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
+const MODELS = ["gemini-2.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
 
 // ===== 2. MEMORY =====
 let MEMORY = [];
@@ -50,21 +50,21 @@ async function fetchToolJson(url, options={}, timeoutMs=10000){
 }
 
 async function handleTools(text){
-    const t = text.toLowerCase();
+    const t = text.toLowerCase().trim();
 
-    // YouTube Direct Open
+    // Direct YouTube Opening
     if(/^\s*(?:please\s+)?(?:open\s+youtube|youtube\s+open|youtube)(?:\s+please)?[\s,.!?]*$/i.test(text)){ 
         window.open('https://youtube.com', '_blank', 'noopener,noreferrer');
         return 'Opening YouTube, Boss.'; 
     }
 
-    // Google Direct Open
+    // Direct Google Opening
     if(/^\s*(?:please\s+)?(?:open\s+google|google\s+open|google)(?:\s+please)?[\s,.!?]*$/i.test(text)){ 
         window.open('https://google.com', '_blank', 'noopener,noreferrer');
         return 'Opening Google, Boss.'; 
     }
 
-    // URL Visit Command
+    // Direct URL Opening
     const urlCommand = text.match(/^\s*(?:open|visit|go to)\s+(https?:\/\/\S+)\s*$/i);
     if(urlCommand){
         try{
@@ -76,7 +76,6 @@ async function handleTools(text){
     }
 
     // Google Search
-    if(/^\s*(?:google\s+search|search\s+(?:on\s+)?google)(?:\s+for)?\s*$/i.test(text)) return 'Tell me what to search for on Google.';
     const googleSearch = text.match(/^\s*(?:google\s+search|search\s+(?:on\s+)?google)(?:\s+for)?\s+(.+?)\s*$/i);
     if(googleSearch){
         const query = googleSearch[1].trim();
@@ -159,17 +158,17 @@ async function runAgent(goal){
     return await callGemini(summaryPrompt);
 }
 
-// ===== 4. GEMINI BRAIN =====
+// ===== 4. GEMINI BRAIN & ROUTER =====
 async function callGemini(p){
     if(!API_KEY) throw new Error('Gemini API key is missing.');
 
-    // 1. స్థానిక టూల్స్ చెక్ చేయడం (YouTube direct open కోసం)
+    // 1. Tool Execution Check (Interceptor)
     const toolResult = await handleTools(p);
     if(toolResult !== null) {
         return toolResult;
     }
 
-    // 2. లేకపోతే Gemini AI కి పంపడం
+    // 2. Fallback to Gemini AI
     const contents = MEMORY.slice(-12).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
     contents.push({ role: 'user', parts: [{ text: p }] });
     
@@ -189,4 +188,3 @@ async function callGemini(p){
     }
     throw new Error('All models failed to respond.');
 }
-
