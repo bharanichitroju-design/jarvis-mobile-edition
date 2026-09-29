@@ -3,43 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>J.A.R.V.I.S - Bharani Edition</title>
+<title>J.A.R.V.I.S</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
- <header>
-   <h1>J.A.R.V.I.S</h1>
-   <p>MOBILE EDITION</p>
- </header>
-
- <div class="core-container">
-   <div class="outer-ring r1"></div>
-   <div class="outer-ring r2"></div>
-   <div class="rotating-text-box">
-     <div class="ring-text top-text">BHARANI</div>
-     <div class="center-core"></div>
-     <div class="ring-text bottom-text">JARVIS</div>
-   </div>
- </div>
- <p class="core-text">CORE ACTIVE</p>
-
- <div class="status">
-   <h2>SYSTEM STATUS</h2>
-   <div class="row"><span>AI CORE</span><b class="on">● ONLINE</b></div>
-   <div class="row"><span>NETWORK</span><b class="on">● ONLINE</b></div>
-   <div class="row"><span>VOICE</span><b class="on" id="voice-status">UNLOCKED</b></div>
-   <div class="row"><span>MEMORY</span><b class="on">UNLOCKED</b></div>
- </div>
-
- <div class="chat" id="chat"></div>
-
- <div class="input-area">
-   <input id="msg" placeholder="Ask J.A.R.V.I.S...">
-   <button id="send">SEND</button>
- </div>
-
- <script src="script.js"></script>
+<header><h1>J.A.R.V.I.S</h1><p>PERSONAL AI ASSISTANT</p></header>
+<div class="core">
+  <div class="ring r1"></div>
+  <div class="ring r2"></div>
+  <div class="core-title">B•H•A•R•A•N•I<br>J•A•R•V•I•S</div>
+</div>
+<p class="core-text">SYSTEM READY</p>
+<div class="status">
+  <h2>SYSTEM DIAGNOSTICS</h2>
+  <div class="row"><span>AI ENGINE</span><b class="on">● OPERATIONAL</b></div>
+  <div class="row"><span>CONNECTION</span><b class="on">● ONLINE</b></div>
+  <div class="row"><span>VOICE INTERFACE</span><b class="on">● READY</b></div>
+  <div class="row"><span>LONG-TERM MEMORY</span><b class="on">● ACTIVE</b></div>
+</div>
+<div class="chat" id="chat"></div>
+<div class="input-area">
+  <input id="msg" placeholder="Enter a command for J.A.R.V.I.S...">
+  <button id="send">EXECUTE</button>
+  <button id="mic-btn" aria-label="Activate voice input">🎙️</button>
+  <button id="cam-btn" aria-label="Analyze image">📷</button>
+  <button id="clear-btn">CLEAR MEMORY</button>
+  <input id="img-input" type="file" accept="image/*" style="display:none">
+</div>
+<script src="script.js"></script>
 </body>
 </html>
-
-
