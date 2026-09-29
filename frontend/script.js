@@ -31,7 +31,9 @@ const clearBtn = document.getElementById('clear-btn');
 const camBtn = document.getElementById('cam-btn');
 const imgInput = document.getElementById('img-input');
 
-MEMORY.forEach(m => add((m.role==='user'?'YOU: ':'J.A.R.V.I.S: ')+m.text, m.role==='user'?'user':'ai'));
+if (typeof add === 'function') {
+    MEMORY.forEach(m => add((m.role === 'user' ? 'YOU: ' : 'J.A.R.V.I.S: ') + m.text, m.role === 'user' ? 'user' : 'ai'));
+}
 
 // ===== 3. TOOLS (THE HANDS) - 15 TOOLS =====
 async function fetchToolJson(url, options={}, timeoutMs=10000){
@@ -50,15 +52,19 @@ async function fetchToolJson(url, options={}, timeoutMs=10000){
 async function handleTools(text){
     const t = text.toLowerCase();
 
+    // YouTube Direct Open
     if(/^\s*(?:please\s+)?(?:open\s+youtube|youtube\s+open|youtube)(?:\s+please)?[\s,.!?]*$/i.test(text)){ 
         window.open('https://youtube.com', '_blank', 'noopener,noreferrer');
         return 'Opening YouTube, Boss.'; 
     }
+
+    // Google Direct Open
     if(/^\s*(?:please\s+)?(?:open\s+google|google\s+open|google)(?:\s+please)?[\s,.!?]*$/i.test(text)){ 
         window.open('https://google.com', '_blank', 'noopener,noreferrer');
         return 'Opening Google, Boss.'; 
     }
 
+    // URL Visit Command
     const urlCommand = text.match(/^\s*(?:open|visit|go to)\s+(https?:\/\/\S+)\s*$/i);
     if(urlCommand){
         try{
@@ -69,6 +75,7 @@ async function handleTools(text){
         }catch(e){ return 'That link does not look valid.'; }
     }
 
+    // Google Search
     if(/^\s*(?:google\s+search|search\s+(?:on\s+)?google)(?:\s+for)?\s*$/i.test(text)) return 'Tell me what to search for on Google.';
     const googleSearch = text.match(/^\s*(?:google\s+search|search\s+(?:on\s+)?google)(?:\s+for)?\s+(.+?)\s*$/i);
     if(googleSearch){
@@ -78,6 +85,7 @@ async function handleTools(text){
         return 'Searching Google for ' + query + ', Boss.';
     }
 
+    // YouTube Search
     const playMatch = text.match(/^\s*play\s+(.+?)\s*$/i);
     const youtubeMatch = text.match(/^\s*youtube(?:\s+search)?(?:\s+for)?\s+(.+?)\s*$/i);
     const searchYoutubeMatch = text.match(/^\s*search\s+(?:on\s+)?youtube(?:\s+for)?\s+(.+?)\s*$/i);
@@ -87,6 +95,7 @@ async function handleTools(text){
         return 'Searching YouTube for ' + videoQuery + ', Boss.';
     }
 
+    // Wikipedia Search
     const searchMatch = text.match(/^\s*(?:search|look up)\s+(?:for\s+)?(.+?)\s*$/i);
     if(searchMatch){
         const query = searchMatch[1].trim();
@@ -100,6 +109,7 @@ async function handleTools(text){
             return 'Wikipedia summary: ' + result.title + (snippet ? ' ' + snippet : '');
         }catch(e){ return 'Search error, Boss.'; }
     }
+
     return null;
 }
 
@@ -129,22 +139,22 @@ function parseAgentToolPlan(responseText){
 }
 
 async function runAgent(goal){
-    add('J.A.R.V.I.S: Agent mode active.', 'ai');
-    add('J.A.R.V.I.S: Goal analyze chesthunna...', 'ai');
+    if(typeof add === 'function') add('J.A.R.V.I.S: Agent mode active.', 'ai');
+    if(typeof add === 'function') add('J.A.R.V.I.S: Goal analyze chesthunna...', 'ai');
     const planPrompt = 'Select tools from ["time","weather","news","crypto"]. Goal: ' + JSON.stringify(String(goal));
     let toolsToRun;
     try{
         toolsToRun = parseAgentToolPlan(await callGeminiRaw(planPrompt));
     }catch(error){
-        toolsToRun = fallbackAgentToolPlan(goal);
+        toolsToRun = [];
     }
     const results = {};
     for(let i = 0; i < toolsToRun.length; i++){
         const tool = toolsToRun[i];
-        add('J.A.R.V.I.S: [' + (i + 1) + '/' + toolsToRun.length + '] ' + AGENT_TOOL_NAMES[tool] + ' tool run chesthunna...', 'ai');
+        if(typeof add === 'function') add('J.A.R.V.I.S: [' + (i + 1) + '/' + toolsToRun.length + '] ' + AGENT_TOOL_NAMES[tool] + ' tool run chesthunna...', 'ai');
         try{ results[tool] = await AGENT_TOOLS[tool](); }catch(e){ results[tool] = 'Tool error'; }
     }
-    add('J.A.R.V.I.S: Results combine chesthunna...', 'ai');
+    if(typeof add === 'function') add('J.A.R.V.I.S: Results combine chesthunna...', 'ai');
     const summaryPrompt = 'Goal: ' + JSON.stringify(String(goal)) + '. Tool results: ' + JSON.stringify(results) + '. Give concise Telugu/English summary.';
     return await callGemini(summaryPrompt);
 }
@@ -152,8 +162,17 @@ async function runAgent(goal){
 // ===== 4. GEMINI BRAIN =====
 async function callGemini(p){
     if(!API_KEY) throw new Error('Gemini API key is missing.');
+
+    // 1. స్థానిక టూల్స్ చెక్ చేయడం (YouTube direct open కోసం)
+    const toolResult = await handleTools(p);
+    if(toolResult !== null) {
+        return toolResult;
+    }
+
+    // 2. లేకపోతే Gemini AI కి పంపడం
     const contents = MEMORY.slice(-12).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
     contents.push({ role: 'user', parts: [{ text: p }] });
+    
     for(const m of MODELS){
         try{
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${API_KEY}`, {
@@ -170,3 +189,4 @@ async function callGemini(p){
     }
     throw new Error('All models failed to respond.');
 }
+
