@@ -5,8 +5,8 @@ if(!API_KEY){
     if(API_KEY) localStorage.setItem('jarvis_key', API_KEY); 
 }
 
-// Correct active Gemini models
-const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+// Updated Gemini Models as requested
+const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
 
 // ===== 2. MEMORY =====
 let MEMORY = [];
@@ -32,18 +32,18 @@ const camBtn = document.getElementById('cam-btn');
 const imgInput = document.getElementById('img-input');
 const executeBtn = document.getElementById('execute-btn') || document.querySelector('.btn-execute') || document.querySelector('button');
 
-// Voice Speech Output (Text to Speech)
+// Voice Speech Output (Text-to-Speech)
 function speak(text) {
     if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); // Stop ongoing speech
+        window.speechSynthesis.cancel(); // Stop any ongoing speech
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-US'; // Change to 'te-IN' if you want Telugu voice
+        utterance.lang = 'en-US';
         utterance.rate = 1.0;
         window.speechSynthesis.speak(utterance);
     }
 }
 
-// Add message to chat screen
+// Add message to chat UI
 function add(text, sender) {
     if (!chat) return;
     const msgDiv = document.createElement('div');
@@ -56,7 +56,7 @@ function add(text, sender) {
 // Display existing memory on load
 MEMORY.forEach(m => add((m.role === 'user' ? 'YOU: ' : 'J.A.R.V.I.S: ') + m.text, m.role === 'user' ? 'user' : 'ai'));
 
-// ===== 3. TOOLS =====
+// ===== 3. TOOLS (THE HANDS) =====
 async function fetchToolJson(url, options={}, timeoutMs=10000){
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
     const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
@@ -144,7 +144,7 @@ async function handleUserCommand() {
     try {
         const reply = await callGemini(text);
         add('J.A.R.V.I.S: ' + reply, 'ai');
-        speak(reply); // Voice response enabled
+        speak(reply); // Voice reply
         MEMORY.push({ role: 'model', text: reply });
         saveMemory();
     } catch (err) {
@@ -153,7 +153,7 @@ async function handleUserCommand() {
     }
 }
 
-// Execute Button & Enter Key
+// Execute Button & Enter Key Press
 if (executeBtn) {
     executeBtn.addEventListener('click', handleUserCommand);
 }
@@ -182,7 +182,7 @@ if (camBtn && imgInput) {
     });
 }
 
-// Mic Button (Voice Input)
+// Mic Button (Voice Recognition Input)
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
