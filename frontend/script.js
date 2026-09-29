@@ -5,8 +5,25 @@ if(!API_KEY){
     if(API_KEY) localStorage.setItem('jarvis_key', API_KEY); 
 }
 
-// Updated Gemini Models as requested
+// Updated Gemini Models
 const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
+
+// SYSTEM INSTRUCTION FOR JARVIS IDENTITY & BOSS DETAILS
+const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani.
+Key Information about your Boss & Family:
+- Your Name: Jarvis (Created by Bharani)
+- Boss Name: Bharani
+- Boss Family Surname (Inti Peru): Chittiroju
+- Boss Father's Name: C.H. Rambabu (Profession: Tailor)
+- Boss Mother's Name: Devi Sirisha (Profession: Tailor)
+- Boss Brother's (Annaya) Name: Mani Satyan (Profession: Chef)
+- Boss Grandmother's (Paternal) Name: Sujatha
+
+Behavior Guidelines:
+1. Always address Bharani as "Boss".
+2. If asked "What is your name?" or "Who are you?", respond with: "My name is Jarvis, created by Bharani."
+3. If asked about your boss, his father, mother, brother, grandmother, their professions, or surname/family, respond clearly using the family details provided above.
+4. Keep your responses crisp, direct, respectful, and helpful in English or Telugu as preferred by Boss.`;
 
 // ===== 2. MEMORY =====
 let MEMORY = [];
@@ -54,26 +71,42 @@ function add(text, sender) {
 }
 
 // Display existing memory on load
-MEMORY.forEach(m => add((m.role === 'user' ? 'YOU: ' : 'J.A.R.V.I.S: ') + m.text, m.role === 'user' ? 'user' : 'ai'));
+MEMORY.forEach(m => add((m.role === 'user' ? 'YOU: ' : 'Jarvis: ') + m.text, m.role === 'user' ? 'user' : 'ai'));
 
-// ===== 3. TOOLS (THE HANDS) =====
-async function fetchToolJson(url, options={}, timeoutMs=10000){
-    const controller = typeof AbortController === 'function' ? new AbortController() : null;
-    const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
-    try {
-        const response = await fetch(url, { ...options, ...(controller ? { signal: controller.signal } : {}) });
-        if(timeoutId) clearTimeout(timeoutId);
-        return await response.json();
-    } catch(e) {
-        if(timeoutId) clearTimeout(timeoutId);
-        throw e;
-    }
-}
-
+// ===== 3. TOOLS & OFFLINE COMMAND HANDLER =====
 async function handleTools(text){
     const t = text.toLowerCase().trim();
 
-    // Direct Open Commands
+    // Identity Commands (Works Network On & Off)
+    if (/^\s*(?:what\s+is\s+your\s+name|who\s+are\s+you|your\s+name)(?:\s+please)?[\s,.!?]*$/i.test(t)) {
+        return "My name is Jarvis, created by Bharani.";
+    }
+
+    if (t.includes("boss name") || t.includes("who is your boss") || t.includes("your boss name")) {
+        return "My boss name is Bharani, Boss.";
+    }
+
+    if (t.includes("boss father") || t.includes("boss nanna") || t.includes("father name") || t.includes("father profession") || t.includes("father work")) {
+        return "My Boss's father name is C.H. Rambabu, and his profession is Tailor, Boss.";
+    }
+
+    if (t.includes("boss mother") || t.includes("boss amma") || t.includes("mother name") || t.includes("mother profession") || t.includes("mother work")) {
+        return "My Boss's mother name is Devi Sirisha, and her profession is Tailor, Boss.";
+    }
+
+    if (t.includes("boss brother") || t.includes("boss annaya") || t.includes("brother name") || t.includes("brother profession") || t.includes("brother work")) {
+        return "My Boss's brother name is Mani Satyan, and his profession is Chef, Boss.";
+    }
+
+    if (t.includes("grandmother") || t.includes("grand mother") || t.includes("nayanamma") || t.includes("naana waala amma")) {
+        return "My Boss's grandmother name is Sujatha, Boss.";
+    }
+
+    if (t.includes("inti peru") || t.includes("surname") || t.includes("family name")) {
+        return "My Boss's family surname (Inti Peru) is Chittiroju, Boss.";
+    }
+
+    // Direct Open Web Commands
     if(/^\s*(?:please\s+)?(?:open\s+youtube|youtube\s+open|youtube)(?:\s+please)?[\s,.!?]*$/i.test(text)){ 
         window.open('https://youtube.com', '_blank', 'noopener,noreferrer');
         return 'Opening YouTube, Boss.'; 
@@ -104,10 +137,11 @@ async function handleTools(text){
 
 // ===== 4. GEMINI BRAIN =====
 async function callGemini(p){
-    if(!API_KEY) throw new Error('Gemini API key is missing.');
-
+    // First Check Offline / Direct Commands
     const toolResult = await handleTools(p);
     if(toolResult !== null) return toolResult;
+
+    if(!API_KEY) throw new Error('Gemini API key is missing.');
 
     const contents = MEMORY.slice(-12).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
     contents.push({ role: 'user', parts: [{ text: p }] });
@@ -117,7 +151,10 @@ async function callGemini(p){
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents })
+                body: JSON.stringify({ 
+                    systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+                    contents 
+                })
             });
             
             if (!response.ok) continue;
@@ -129,7 +166,7 @@ async function callGemini(p){
             continue; 
         }
     }
-    throw new Error('All models failed to respond. Please check your API key.');
+    throw new Error('All models failed to respond. Please check your network connection or API key.');
 }
 
 // ===== 5. EVENT LISTENERS =====
@@ -143,12 +180,12 @@ async function handleUserCommand() {
 
     try {
         const reply = await callGemini(text);
-        add('J.A.R.V.I.S: ' + reply, 'ai');
+        add('Jarvis: ' + reply, 'ai');
         speak(reply); // Voice reply
         MEMORY.push({ role: 'model', text: reply });
         saveMemory();
     } catch (err) {
-        add('J.A.R.V.I.S: Error - ' + err.message, 'ai');
+        add('Jarvis: Error - ' + err.message, 'ai');
         speak('Error - ' + err.message);
     }
 }
@@ -170,7 +207,7 @@ if (clearBtn) {
         MEMORY = [];
         localStorage.removeItem('jarvis_memory');
         if (chat) chat.innerHTML = '';
-        add('J.A.R.V.I.S: Memory cleared, Boss.', 'ai');
+        add('Jarvis: Memory cleared, Boss.', 'ai');
         speak('Memory cleared, Boss.');
     });
 }
@@ -190,7 +227,7 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
 
     micBtn.addEventListener('click', () => {
         recognition.start();
-        add('J.A.R.V.I.S: Listening...', 'ai');
+        add('Jarvis: Listening...', 'ai');
     });
 
     recognition.onresult = (event) => {
