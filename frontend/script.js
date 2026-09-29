@@ -1,20 +1,23 @@
-// ===== 1. API KEY SETUP =====
+// ===== 1. API KEY =====
 let API_KEY = localStorage.getItem('jarvis_key');
 if(!API_KEY){ 
     API_KEY = prompt('Enter your Gemini API Key:'); 
     if(API_KEY) localStorage.setItem('jarvis_key', API_KEY); 
 }
-const MODELS = ["gemini-2.5-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
+const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
 
-// ===== 2. MEMORY MANAGEMENT =====
+// ===== 2. MEMORY =====
 let MEMORY = [];
 try {
     const storedMemory = JSON.parse(localStorage.getItem('jarvis_memory') || '[]');
     if (Array.isArray(storedMemory)) {
-        MEMORY = storedMemory.filter(m => m && (m.role === 'user' || m.role === 'model') && typeof m.text === 'string');
+        MEMORY = storedMemory.filter(m => m && (m.role === 'user' || m.role === 'model') && typeof m.text === 'string' && !(m.role === 'model' && /^(?:Your strong password:|ఇదిగో strong password:)/i.test(m.text)));
+        if (MEMORY.length !== storedMemory.length) localStorage.setItem('jarvis_memory', JSON.stringify(MEMORY));
+    } else {
+        localStorage.removeItem('jarvis_memory');
     }
-} catch (e) { 
-    localStorage.removeItem('jarvis_memory'); 
+} catch (e) {
+    localStorage.removeItem('jarvis_memory');
 }
 
 function saveMemory(){ 
@@ -28,93 +31,135 @@ const clearBtn = document.getElementById('clear-btn');
 const camBtn = document.getElementById('cam-btn');
 const imgInput = document.getElementById('img-input');
 
-// Render existing memory to UI if add function exists
-if(typeof add === 'function') {
-    MEMORY.forEach(m => add((m.role === 'user' ? 'YOU: ' : 'J.A.R.V.I.S: ') + m.text, m.role === 'user' ? 'user' : 'ai'));
+MEMORY.forEach(m => add((m.role==='user'?'YOU: ':'J.A.R.V.I.S: ')+m.text, m.role==='user'?'user':'ai'));
+
+// ===== 3. TOOLS (THE HANDS) - 15 TOOLS =====
+async function fetchToolJson(url, options={}, timeoutMs=10000){
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+    try {
+        const response = await fetch(url, { ...options, ...(controller ? { signal: controller.signal } : {}) });
+        if(timeoutId) clearTimeout(timeoutId);
+        return await response.json();
+    } catch(e) {
+        if(timeoutId) clearTimeout(timeoutId);
+        throw e;
+    }
 }
 
-// ===== 3. TOOLS & DIRECT EXECUTION (THE HANDS) =====
 async function handleTools(text){
-    const t = text.toLowerCase().trim();
+    const t = text.toLowerCase();
 
-    // Direct YouTube Opening
-    if(t.includes('open youtube') || t === 'youtube'){
+    if(/^\s*(?:please\s+)?(?:open\s+youtube|youtube\s+open|youtube)(?:\s+please)?[\s,.!?]*$/i.test(text)){ 
         window.open('https://youtube.com', '_blank', 'noopener,noreferrer');
-        return 'Opening YouTube for you, Boss.';
+        return 'Opening YouTube, Boss.'; 
     }
-
-    // Direct Google Opening
-    if(t.includes('open google') || t === 'google'){
+    if(/^\s*(?:please\s+)?(?:open\s+google|google\s+open|google)(?:\s+please)?[\s,.!?]*$/i.test(text)){ 
         window.open('https://google.com', '_blank', 'noopener,noreferrer');
-        return 'Opening Google for you, Boss.';
+        return 'Opening Google, Boss.'; 
     }
 
-    // Alarm Feature Integration
-    const alarmMatch = text.match(/(?:set\s+)?alarm\s+(?:at\s+)?(\d{1,2}):(\d{2})\s*(am|pm)?/i);
-    if(alarmMatch){
-        const hours = parseInt(alarmMatch[1]);
-        const minutes = parseInt(alarmMatch[2]);
-        const ampm = alarmMatch[3] ? alarmMatch[3].toUpperCase() : '';
-        
-        let targetHours = hours;
-        if(ampm === 'PM' && hours < 12) targetHours += 12;
-        if(ampm === 'AM' && hours === 12) targetHours = 0;
-
-        const now = new Date();
-        const targetTime = new Date();
-        targetTime.setHours(targetHours, minutes, 0, 0);
-
-        if(targetTime <= now){
-            targetTime.setDate(targetTime.getDate() + 1); // Next day if time passed
-        }
-
-        const timeout = targetTime.getTime() - now.getTime();
-        setTimeout(() => {
-            alert("🔔 Alarm ringing, Boss!");
-            if('speechSynthesis' in window){
-                const utterance = new SpeechSynthesisUtterance("Alarm ringing, Boss!");
-                window.speechSynthesis.speak(utterance);
-            }
-        }, timeout);
-
-        return `Alarm successfully set for ${alarmMatch[1]}:${alarmMatch[2]} ${ampm}, Boss.`;
-    }
-
-    // Custom URL Opening
-    const urlCommand = text.match(/(?:open|visit|go to)\s+(https?:\/\/\S+)/i);
+    const urlCommand = text.match(/^\s*(?:open|visit|go to)\s+(https?:\/\/\S+)\s*$/i);
     if(urlCommand){
         try{
             const destination = new URL(urlCommand[1]);
+            if(destination.protocol !== 'https:' && destination.protocol !== 'http:') return 'Only http and https links can be opened.';
             window.open(destination.href, '_blank', 'noopener,noreferrer');
             return 'Opening ' + destination.hostname + ', Boss.';
-        }catch(e){ 
-            return 'That link does not look valid.'; 
-        }
+        }catch(e){ return 'That link does not look valid.'; }
     }
 
-    return null; // Return null if no local tool matches, will route to Gemini AI
+    if(/^\s*(?:google\s+search|search\s+(?:on\s+)?google)(?:\s+for)?\s*$/i.test(text)) return 'Tell me what to search for on Google.';
+    const googleSearch = text.match(/^\s*(?:google\s+search|search\s+(?:on\s+)?google)(?:\s+for)?\s+(.+?)\s*$/i);
+    if(googleSearch){
+        const query = googleSearch[1].trim();
+        if(!query) return 'Tell me what to search for on Google.';
+        window.open('https://www.google.com/search?q=' + encodeURIComponent(query), '_blank', 'noopener,noreferrer');
+        return 'Searching Google for ' + query + ', Boss.';
+    }
+
+    const playMatch = text.match(/^\s*play\s+(.+?)\s*$/i);
+    const youtubeMatch = text.match(/^\s*youtube(?:\s+search)?(?:\s+for)?\s+(.+?)\s*$/i);
+    const searchYoutubeMatch = text.match(/^\s*search\s+(?:on\s+)?youtube(?:\s+for)?\s+(.+?)\s*$/i);
+    const videoQuery = (playMatch || youtubeMatch || searchYoutubeMatch)?.[1]?.trim();
+    if(videoQuery){
+        window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent(videoQuery), '_blank', 'noopener,noreferrer');
+        return 'Searching YouTube for ' + videoQuery + ', Boss.';
+    }
+
+    const searchMatch = text.match(/^\s*(?:search|look up)\s+(?:for\s+)?(.+?)\s*$/i);
+    if(searchMatch){
+        const query = searchMatch[1].trim();
+        if(!query) return 'Tell me what to search for.';
+        try{
+            const url = 'https://en.wikipedia.org/w/api.php?action=query&list=search&srlimit=1&srsearch=' + encodeURIComponent(query) + '&format=json&origin=*';
+            const data = await fetchToolJson(url);
+            const result = data?.query?.search?.[0];
+            if(!result) return 'I could not find that, Boss.';
+            const snippet = String(result.snippet || '').replace(/<[^>]*>/g, '').replace(/"/g, '"').replace(/&#39;/g, "'").replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+            return 'Wikipedia summary: ' + result.title + (snippet ? ' ' + snippet : '');
+        }catch(e){ return 'Search error, Boss.'; }
+    }
+    return null;
 }
 
-// ===== 4. GEMINI BRAIN & CONTROLLER =====
+// ===== 3.5. AGENT MODE ENGINE =====
+const AGENT_TOOLS = Object.freeze({
+    time: async () => handleTools('current time'),
+    weather: async () => handleTools('weather'),
+    news: async () => handleTools('news'),
+    crypto: async () => handleTools('bitcoin')
+});
+const AGENT_TOOL_NAMES = Object.freeze({ time: 'time', weather: 'weather', news: 'news', crypto: 'crypto' });
+
+function isAgentModeRequest(text=''){
+    const value = String(text || '');
+    if(/\b(?:agent(?:\s+mode)?|run\s+(?:the\s+)?agent|use\s+(?:the\s+)?agent)\b/i.test(value)) return true;
+    if(/\b(?:briefing|research|analy[sz]e|analysis)\b/i.test(value)) return true;
+    return /\bplan\b/i.test(value) && /\b(?:time|weather|news|crypto|bitcoin|btc)\b/i.test(value);
+}
+
+function parseAgentToolPlan(responseText){
+    const text = String(responseText || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    const start = text.indexOf('['), end = text.lastIndexOf(']');
+    if(start < 0 || end < start) throw new Error('Agent plan format incorrect.');
+    let parsed = JSON.parse(text.slice(start, end + 1));
+    const allowed = new Set(Object.keys(AGENT_TOOLS));
+    return [...new Set(parsed.filter(item => typeof item === 'string').map(item => item.trim().toLowerCase()).filter(item => allowed.has(item)))];
+}
+
+async function runAgent(goal){
+    add('J.A.R.V.I.S: Agent mode active.', 'ai');
+    add('J.A.R.V.I.S: Goal analyze chesthunna...', 'ai');
+    const planPrompt = 'Select tools from ["time","weather","news","crypto"]. Goal: ' + JSON.stringify(String(goal));
+    let toolsToRun;
+    try{
+        toolsToRun = parseAgentToolPlan(await callGeminiRaw(planPrompt));
+    }catch(error){
+        toolsToRun = fallbackAgentToolPlan(goal);
+    }
+    const results = {};
+    for(let i = 0; i < toolsToRun.length; i++){
+        const tool = toolsToRun[i];
+        add('J.A.R.V.I.S: [' + (i + 1) + '/' + toolsToRun.length + '] ' + AGENT_TOOL_NAMES[tool] + ' tool run chesthunna...', 'ai');
+        try{ results[tool] = await AGENT_TOOLS[tool](); }catch(e){ results[tool] = 'Tool error'; }
+    }
+    add('J.A.R.V.I.S: Results combine chesthunna...', 'ai');
+    const summaryPrompt = 'Goal: ' + JSON.stringify(String(goal)) + '. Tool results: ' + JSON.stringify(results) + '. Give concise Telugu/English summary.';
+    return await callGemini(summaryPrompt);
+}
+
+// ===== 4. GEMINI BRAIN =====
 async function callGemini(p){
     if(!API_KEY) throw new Error('Gemini API key is missing.');
-
-    // First, check if the input triggers a local tool action
-    const toolResult = await handleTools(p);
-    if(toolResult) {
-        return toolResult;
-    }
-
-    // Otherwise, send context to Gemini AI
-    const contents = MEMORY.slice(-12).map(m => ({role: m.role, parts: [{text: m.text}]}));
-    contents.push({role: 'user', parts: [{text: p}]});
-
+    const contents = MEMORY.slice(-12).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+    contents.push({ role: 'user', parts: [{ text: p }] });
     for(const m of MODELS){
         try{
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${API_KEY}`, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({contents})
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents })
             });
             const res = await response.json();
             const text = res?.candidates?.[0]?.content?.parts?.[0]?.text;
