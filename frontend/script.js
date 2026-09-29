@@ -4,7 +4,9 @@ if(!API_KEY){
     API_KEY = prompt('Enter your Gemini API Key:'); 
     if(API_KEY) localStorage.setItem('jarvis_key', API_KEY); 
 }
-const MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+
+// Correct active Gemini models
+const MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
 
 // ===== 2. MEMORY =====
 let MEMORY = [];
@@ -28,7 +30,18 @@ const micBtn = document.getElementById('mic-btn');
 const clearBtn = document.getElementById('clear-btn');
 const camBtn = document.getElementById('cam-btn');
 const imgInput = document.getElementById('img-input');
-const executeBtn = document.getElementById('execute-btn') || document.querySelector('.btn-execute');
+const executeBtn = document.getElementById('execute-btn') || document.querySelector('.btn-execute') || document.querySelector('button');
+
+// Voice Speech Output (Text to Speech)
+function speak(text) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel(); // Stop ongoing speech
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US'; // Change to 'te-IN' if you want Telugu voice
+        utterance.rate = 1.0;
+        window.speechSynthesis.speak(utterance);
+    }
+}
 
 // Add message to chat screen
 function add(text, sender) {
@@ -43,7 +56,7 @@ function add(text, sender) {
 // Display existing memory on load
 MEMORY.forEach(m => add((m.role === 'user' ? 'YOU: ' : 'J.A.R.V.I.S: ') + m.text, m.role === 'user' ? 'user' : 'ai'));
 
-// ===== 3. TOOLS (THE HANDS) =====
+// ===== 3. TOOLS =====
 async function fetchToolJson(url, options={}, timeoutMs=10000){
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
     const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
@@ -106,6 +119,9 @@ async function callGemini(p){
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ contents })
             });
+            
+            if (!response.ok) continue;
+
             const res = await response.json();
             const text = res?.candidates?.[0]?.content?.parts?.[0]?.text;
             if(text) return text;
@@ -113,10 +129,10 @@ async function callGemini(p){
             continue; 
         }
     }
-    throw new Error('All models failed to respond.');
+    throw new Error('All models failed to respond. Please check your API key.');
 }
 
-// ===== 5. EVENT LISTENERS (KEY FIX) =====
+// ===== 5. EVENT LISTENERS =====
 async function handleUserCommand() {
     const text = input ? input.value.trim() : '';
     if (!text) return;
@@ -128,14 +144,16 @@ async function handleUserCommand() {
     try {
         const reply = await callGemini(text);
         add('J.A.R.V.I.S: ' + reply, 'ai');
+        speak(reply); // Voice response enabled
         MEMORY.push({ role: 'model', text: reply });
         saveMemory();
     } catch (err) {
         add('J.A.R.V.I.S: Error - ' + err.message, 'ai');
+        speak('Error - ' + err.message);
     }
 }
 
-// Execute Button or Enter Key Press
+// Execute Button & Enter Key
 if (executeBtn) {
     executeBtn.addEventListener('click', handleUserCommand);
 }
@@ -153,10 +171,18 @@ if (clearBtn) {
         localStorage.removeItem('jarvis_memory');
         if (chat) chat.innerHTML = '';
         add('J.A.R.V.I.S: Memory cleared, Boss.', 'ai');
+        speak('Memory cleared, Boss.');
     });
 }
 
-// Mic Button (Voice Recognition)
+// Camera Button Fix
+if (camBtn && imgInput) {
+    camBtn.addEventListener('click', () => {
+        imgInput.click();
+    });
+}
+
+// Mic Button (Voice Input)
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
