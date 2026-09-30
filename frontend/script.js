@@ -40,6 +40,9 @@ function saveMemory(){
     localStorage.setItem('jarvis_memory', JSON.stringify(MEMORY)); 
 }
 
+// Global variable to hold temporary image data
+let pendingImageData = null;
+
 // UI Elements
 const chat = document.getElementById('chat');
 const input = document.getElementById('msg');
@@ -93,9 +96,6 @@ function speak(text) {
     }
 }
 
-
-
-
 // Add message to chat UI
 function add(text, sender) {
     if (!chat) return;
@@ -107,132 +107,134 @@ function add(text, sender) {
 }
 
 // Display existing memory on load
-MEMORY.forEach(m => add((m.role === 'user' ? 'YOU: ' : 'Jarvis: ') + m.text, m.role === 'user' ? 'user' : 'ai'));
+MEMORY.forEach(m => add(`${m.role === 'user' ? 'You' : 'Jarvis'}: ${m.text}`, m.role === 'user' ? 'user' : 'ai'));
 
-// ===== 3. TOOLS & OFFLINE COMMAND HANDLER =====
-async function handleTools(text){
-    const t = text.toLowerCase().trim();
-
-    // Identity Commands (Works Network On & Off)
-    if (/^\s*(?:what\s+is\s+your\s+name|who\s+are\s+you|your\s+name)(?:\s+please)?[\s,.!?]*$/i.test(t)) {
+// Hardcoded Commands Function
+function handleHardcoded(text) {
+    const query = text.toLowerCase().trim();
+    if (query.includes("who created you") || query.includes("who is your creator")) {
         return "My name is Jarvis, created by Bharani.";
     }
-
-    if (t.includes("boss name") || t.includes("who is your boss") || t.includes("your boss name")) {
-        return "My boss name is Bharani, Boss.";
+    if (query.includes("boss father") || query.includes("father's name") || query.includes("father name")) {
+        return "My Boss's Father name is C.H. Rambabu, and his profession is Tailor.";
     }
-
-    if (t.includes("boss father") || t.includes("boss nanna") || t.includes("father name") || t.includes("father profession") || t.includes("father work")) {
-        return "My Boss's father name is C.H. Rambabu, and his profession is Tailor, Boss.";
+    if (query.includes("boss mother") || query.includes("mother's name") || query.includes("mother name")) {
+        return "My Boss's Mother name is Devi Sirisha, and her profession is Tailor.";
     }
-
-    if (t.includes("boss mother") || t.includes("boss amma") || t.includes("mother name") || t.includes("mother profession") || t.includes("mother work")) {
-        return "My Boss's mother name is Devi Sirisha, and her profession is Tailor, Boss.";
+    if (query.includes("boss brother") || query.includes("brother's name") || query.includes("brother name")) {
+        return "My Boss's Brother name is Mani Satyan, and his profession is Chef.";
     }
-
-    if (t.includes("boss brother") || t.includes("boss annaya") || t.includes("brother name") || t.includes("brother profession") || t.includes("brother work")) {
-        return "My Boss's brother name is Mani Satyan, and his profession is Chef, Boss.";
+    if (query.includes("boss grandmother") || query.includes("grandmother's name") || query.includes("grandmother name")) {
+        return "My Boss's Grandmother's name is Sujatha.";
     }
-
-    if (t.includes("grandmother") || t.includes("grand mother") || t.includes("nayanamma") || t.includes("naana waala amma")) {
-        return "My Boss's grandmother name is Sujatha, Boss.";
+    if (query.includes("boss family") || query.includes("family name") || query.includes("inti peru") || query.includes("surname")) {
+        return "My Boss's family surname (Inti Peru) is Chittiroju.";
     }
-
-    if (t.includes("inti peru") || t.includes("surname") || t.includes("family name")) {
-        return "My Boss's family surname (Inti Peru) is Chittiroju, Boss.";
+    
+    // Direct link triggers
+    if (query.includes("open youtube")) {
+        window.open("https://youtube.com", "_blank");
+        return "Opening YouTube, Boss.";
     }
-
-    // Direct Open Web Commands
-    if(/^\s*(?:please\s+)?(?:open\s+youtube|youtube\s+open|youtube)(?:\s+please)?[\s,.!?]*$/i.test(text)){ 
-        window.open('https://youtube.com', '_blank', 'noopener,noreferrer');
-        return 'Opening YouTube, Boss.'; 
+    if (query.includes("play song") || query.includes("play music")) {
+        const songSearch = query.replace("play song", "").replace("play music", "").trim();
+        const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(songSearch)}`;
+        window.open(youtubeUrl, "_blank");
+        return `Searching YouTube for "${songSearch}", Boss.`;
     }
-
-    if(/^\s*(?:please\s+)?(?:open\s+google|google\s+open|google)(?:\s+please)?[\s,.!?]*$/i.test(text)){ 
-        window.open('https://google.com', '_blank', 'noopener,noreferrer');
-        return 'Opening Google, Boss.'; 
+    if (query.includes("google search") || query.includes("search google")) {
+        const googleSearch = query.replace("google search", "").replace("search google", "").trim();
+        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(googleSearch)}`;
+        window.open(searchUrl, "_blank");
+        return `Searching Google for "${googleSearch}", Boss.`;
     }
-
-    // Search Commands
-    const playMatch = text.match(/^\s*(?:play|youtube|search youtube for)\s+(.+?)\s*$/i);
-    if(playMatch && playMatch[1]){
-        const query = playMatch[1].trim();
-        window.open('https://www.youtube.com/results?search_query=' + encodeURIComponent(query), '_blank', 'noopener,noreferrer');
-        return 'Searching YouTube for ' + query + ', Boss.';
-    }
-
-    const googleSearch = text.match(/^\s*(?:google search|search google for)\s+(.+?)\s*$/i);
-    if(googleSearch && googleSearch[1]){
-        const query = googleSearch[1].trim();
-        window.open('https://www.google.com/search?q=' + encodeURIComponent(query), '_blank', 'noopener,noreferrer');
-        return 'Searching Google for ' + query + ', Boss.';
-    }
-
     return null;
 }
 
-// ===== 4. GEMINI BRAIN =====
-async function callGemini(p){
-    // First Check Offline / Direct Commands
-    const toolResult = await handleTools(p);
-    if(toolResult !== null) return toolResult;
-
-    if(!API_KEY) throw new Error('Gemini API key is missing.');
-
-    const contents = MEMORY.slice(-12).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
-    contents.push({ role: 'user', parts: [{ text: p }] });
+// ===== 3. GEMINI API CALL =====
+async function callGemini(text) {
+    if(!API_KEY) return "Error: API Key is missing.";
     
-    for(const m of MODELS){
-        try{
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${API_KEY}`, {
+    const contents = MEMORY.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+    
+    const userPart = [];
+    if (text) userPart.push({ text: text });
+    if (pendingImageData) {
+        userPart.push({
+            inline_data: {
+                mime_type: pendingImageData.mimeType,
+                data: pendingImageData.data
+            }
+        });
+        pendingImageData = null; // Reset image data after usage
+    }
+    
+    contents.push({ role: 'user', parts: userPart });
+
+    for (let model of MODELS) {
+        try {
+            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-                    contents 
+                body: JSON.stringify({
+                    contents: contents,
+                    system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] }
                 })
             });
-            
-            if (!response.ok) continue;
-
-            const res = await response.json();
-            const text = res?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if(text) return text;
-        }catch(e){ 
-            continue; 
+            if (res.ok) {
+                const data = await res.json();
+                return data.candidates[0].content.parts[0].text;
+            }
+        } catch (e) {
+            console.error(e);
         }
     }
-    throw new Error('All models failed to respond. Please check your network connection or API key.');
+    return "Error: All AI models failed to respond. Please check your network connection or API Key.";
 }
 
-// ===== 5. EVENT LISTENERS =====
+// User Command Execution Function
 async function handleUserCommand() {
     const text = input ? input.value.trim() : '';
-    if (!text) return;
+    if (!text && !pendingImageData) return;
 
-    add('YOU: ' + text, 'user');
-    MEMORY.push({ role: 'user', text });
     if (input) input.value = '';
+
+    if (text) {
+        add(`You: ${text}`, 'user');
+        MEMORY.push({ role: 'user', text: text });
+    } else if (pendingImageData) {
+        add(`You: [Uploaded Image]`, 'user');
+    }
+
+    // Check hardcoded response first (if text exists)
+    const hcReply = text ? handleHardcoded(text) : null;
+    if (hcReply) {
+        add(`Jarvis: ${hcReply}`, 'ai');
+        MEMORY.push({ role: 'model', text: hcReply });
+        saveMemory();
+        speak(hcReply);
+        return;
+    }
 
     try {
         const reply = await callGemini(text);
-        add('Jarvis: ' + reply, 'ai');
-        speak(reply); // Voice reply
+        add(`Jarvis: ${reply}`, 'ai');
         MEMORY.push({ role: 'model', text: reply });
         saveMemory();
+        speak(reply);
     } catch (err) {
-        add('Jarvis: Error - ' + err.message, 'ai');
-        speak('Error - ' + err.message);
+        add(`Jarvis: Error: ${err.message}`, 'ai');
+        speak(`Error: ${err.message}`);
     }
 }
 
-// Execute Button & Enter Key Press
+// Event Listeners for UI
 if (executeBtn) {
     executeBtn.addEventListener('click', handleUserCommand);
 }
 
 if (input) {
-    input.addEventListener('keypress', (e) => {
+    input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') handleUserCommand();
     });
 }
@@ -243,25 +245,51 @@ if (clearBtn) {
         MEMORY = [];
         localStorage.removeItem('jarvis_memory');
         if (chat) chat.innerHTML = '';
-        add('Jarvis: Memory cleared, Boss.', 'ai');
-        speak('Memory cleared, Boss.');
+        add('Jarvis: Memory Cleared, Boss.', 'ai');
+        speak('Memory Cleared, Boss.');
     });
 }
 
-// Camera Button Fix
+// Camera / Image Upload Handling (Camera or Photos Choice)
 if (camBtn && imgInput) {
     camBtn.addEventListener('click', () => {
+        const useCamera = confirm("Click 'OK' to use Camera, or 'Cancel' to choose from Photos/Gallery.");
+        if (useCamera) {
+            imgInput.setAttribute('capture', 'environment');
+        } else {
+            imgInput.removeAttribute('capture');
+        }
         imgInput.click();
+    });
+
+    imgInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const base64Data = evt.target.result.split(',')[1];
+                pendingImageData = {
+                    mimeType: file.type,
+                    data: base64Data
+                };
+                handleUserCommand(); // Automatically process the image once selected
+            };
+            reader.readAsDataURL(file);
+        }
     });
 }
 
-// Mic Button (Voice Recognition Input)
+// Mic Button (Voice Recognition Input with Auto Speech Stop)
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
 
     micBtn.addEventListener('click', () => {
+        // Stop any ongoing assistant audio output immediately when mic is pressed
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
         recognition.start();
         add('Jarvis: Listening...', 'ai');
     });
