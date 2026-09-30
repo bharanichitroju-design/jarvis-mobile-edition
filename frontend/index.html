@@ -7,7 +7,11 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header><h1>J.A.R.V.I.S</h1><p>PERSONAL AI ASSISTANT</p></header>
+<header>
+  <button id="settings-btn" class="settings-icon" aria-label="Settings">⚙️</button>
+  <h1>J.A.R.V.I.S</h1>
+  <p>PERSONAL AI ASSISTANT</p>
+</header>
 <div class="core">
   <div class="ring r1"></div>
   <div class="ring r2"></div>
@@ -24,12 +28,24 @@
 <div class="chat" id="chat"></div>
 <div class="input-area">
   <input id="msg" placeholder="Enter a command for J.A.R.V.I.S...">
-  <button id="send">EXECUTE</button>
+  <button id="execute-btn">EXECUTE</button>
   <button id="mic-btn" aria-label="Activate voice input">🎙️</button>
   <button id="cam-btn" aria-label="Analyze image">📷</button>
   <button id="clear-btn">CLEAR MEMORY</button>
   <input id="img-input" type="file" accept="image/*" style="display:none">
 </div>
+
+<!-- History Modal Popup -->
+<div id="history-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>History</h2>
+      <span id="close-history" class="close-btn">&times;</span>
+    </div>
+    <div id="history-list" class="history-container"></div>
+  </div>
+</div>
+
 <script src="script.js"></script>
 </body>
 </html>
