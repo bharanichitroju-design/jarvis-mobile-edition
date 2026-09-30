@@ -52,32 +52,39 @@ const executeBtn = document.getElementById('execute-btn') || document.querySelec
 // Voice Speech Output (Text-to-Speech)
 function speak(text) {
     if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel(); // Stop any ongoing speech
+        window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
         utterance.rate = 1.0;
-        utterance.pitch = 0.9; // Slightly lower pitch for a deeper assistant voice
 
-        // Function to select a male voice
         const setVoice = () => {
             const voices = window.speechSynthesis.getVoices();
-            // Look for common male/assistant voice names
-            const maleVoice = voices.find(voice => 
-                voice.lang.includes('en') && (
-                    voice.name.toLowerCase().includes('male') ||
-                    voice.name.toLowerCase().includes('david') ||
-                    voice.name.toLowerCase().includes('alex') ||
-                    voice.name.toLowerCase().includes('google us english')
-                )
+            
+            // 1. మలే/మేల్ పేరున్న వాయిస్ కోసం వెతుకుతుంది
+            let maleVoice = voices.find(voice => 
+                voice.lang.includes('en') && 
+                voice.name.toLowerCase().includes('male')
             );
 
+            // 2. ఒకవేళ 'male' అని లేకపోతే సాధారణ మేల్ వాయిస్ పేర్ల కోసం వెతుకుతుంది
+            if (!maleVoice) {
+                maleVoice = voices.find(voice => 
+                    voice.lang.includes('en') && (
+                        voice.name.toLowerCase().includes('david') ||
+                        voice.name.toLowerCase().includes('george') ||
+                        voice.name.toLowerCase().includes('google us english')
+                    )
+                );
+            }
+
+            // మేల్ వాయిస్ దొరికితే సెట్ చేస్తుంది
             if (maleVoice) {
                 utterance.voice = maleVoice;
             }
+
             window.speechSynthesis.speak(utterance);
         };
 
-        // Handle asynchronous loading of voices in browsers like Chrome
         if (window.speechSynthesis.getVoices().length === 0) {
             window.speechSynthesis.onvoiceschanged = setVoice;
         } else {
@@ -85,6 +92,8 @@ function speak(text) {
         }
     }
 }
+
+
 
 
 // Add message to chat UI
