@@ -25,7 +25,7 @@ Behavior Guidelines:
 3. If asked about your boss, his father, mother, brother, grandmother, their professions, or surname/family, respond clearly using the family details provided above.
 4. Keep your responses crisp, direct, respectful, and helpful in English or Telugu as preferred by Boss.`;
 
-// ===== 2. MEMORY =====
+// ===== 2. MEMORY & HISTORY =====
 let MEMORY = [];
 try {
     const storedMemory = JSON.parse(localStorage.getItem('jarvis_memory') || '[]');
@@ -40,7 +40,6 @@ function saveMemory(){
     localStorage.setItem('jarvis_memory', JSON.stringify(MEMORY)); 
 }
 
-// Global variable to hold temporary image data
 let pendingImageData = null;
 
 // UI Elements
@@ -52,6 +51,12 @@ const camBtn = document.getElementById('cam-btn');
 const imgInput = document.getElementById('img-input');
 const executeBtn = document.getElementById('execute-btn') || document.querySelector('.btn-execute') || document.querySelector('button');
 
+// History UI Elements
+const settingsBtn = document.getElementById('settings-btn');
+const historyModal = document.getElementById('history-modal');
+const closeHistory = document.getElementById('close-history');
+const historyList = document.getElementById('history-list');
+
 // Voice Speech Output (Text-to-Speech)
 function speak(text) {
     if ('speechSynthesis' in window) {
@@ -62,14 +67,11 @@ function speak(text) {
 
         const setVoice = () => {
             const voices = window.speechSynthesis.getVoices();
-            
-            // 1. మలే/మేల్ పేరున్న వాయిస్ కోసం వెతుకుతుంది
             let maleVoice = voices.find(voice => 
                 voice.lang.includes('en') && 
                 voice.name.toLowerCase().includes('male')
             );
 
-            // 2. ఒకవేళ 'male' అని లేకపోతే సాధారణ మేల్ వాయిస్ పేర్ల కోసం వెతుకుతుంది
             if (!maleVoice) {
                 maleVoice = voices.find(voice => 
                     voice.lang.includes('en') && (
@@ -80,7 +82,6 @@ function speak(text) {
                 );
             }
 
-            // మేల్ వాయిస్ దొరికితే సెట్ చేస్తుంది
             if (maleVoice) {
                 utterance.voice = maleVoice;
             }
@@ -131,7 +132,6 @@ function handleHardcoded(text) {
         return "My Boss's family surname (Inti Peru) is Chittiroju.";
     }
     
-    // Direct link triggers
     if (query.includes("open youtube")) {
         window.open("https://youtube.com", "_blank");
         return "Opening YouTube, Boss.";
@@ -166,7 +166,7 @@ async function callGemini(text) {
                 data: pendingImageData.data
             }
         });
-        pendingImageData = null; // Reset image data after usage
+        pendingImageData = null;
     }
     
     contents.push({ role: 'user', parts: userPart });
@@ -206,7 +206,6 @@ async function handleUserCommand() {
         add(`You: [Uploaded Image]`, 'user');
     }
 
-    // Check hardcoded response first (if text exists)
     const hcReply = text ? handleHardcoded(text) : null;
     if (hcReply) {
         add(`Jarvis: ${hcReply}`, 'ai');
@@ -239,9 +238,18 @@ if (input) {
     });
 }
 
-// Clear Memory Button
+// Clear Memory Button - Save current chat into permanent History before clearing
 if (clearBtn) {
     clearBtn.addEventListener('click', () => {
+        if (MEMORY.length > 0) {
+            let historyStore = JSON.parse(localStorage.getItem('jarvis_history_store') || '[]');
+            historyStore.push({
+                timestamp: new Date().toLocaleString(),
+                chats: [...MEMORY]
+            });
+            localStorage.setItem('jarvis_history_store', JSON.stringify(historyStore));
+        }
+
         MEMORY = [];
         localStorage.removeItem('jarvis_memory');
         if (chat) chat.innerHTML = '';
@@ -250,7 +258,71 @@ if (clearBtn) {
     });
 }
 
-// Camera / Image Upload Handling (Camera or Photos Choice)
+// History Feature Implementation
+function renderHistory() {
+    if (!historyList) return;
+    historyList.innerHTML = '';
+    let historyStore = JSON.parse(localStorage.getItem('jarvis_history_store') || '[]');
+
+    if (historyStore.length === 0) {
+        historyList.innerHTML = '<div style="color:#0ff; opacity:0.6;">No chat history found.</div>';
+        return;
+    }
+
+    historyStore.forEach((session, index) => {
+        const sessionDiv = document.createElement('div');
+        sessionDiv.className = 'history-item';
+        
+        let sessionContent = `<strong>[Session: ${session.timestamp}]</strong><br>`;
+        session.chats.forEach(c => {
+            sessionContent += `<b>${c.role === 'user' ? 'You' : 'Jarvis'}:</b> ${c.text}<br>`;
+        });
+        sessionDiv.innerHTML = sessionContent;
+
+        // Long Press / Click to Delete
+        let pressTimer;
+        const deleteSession = () => {
+            if (confirm("Delete this history session, Boss?")) {
+                historyStore.splice(index, 1);
+                localStorage.setItem('jarvis_history_store', JSON.stringify(historyStore));
+                renderHistory();
+            }
+        };
+
+        sessionDiv.addEventListener('touchstart', () => {
+            pressTimer = setTimeout(deleteSession, 800);
+        });
+        sessionDiv.addEventListener('touchend', () => clearTimeout(pressTimer));
+        
+        sessionDiv.addEventListener('mousedown', () => {
+            pressTimer = setTimeout(deleteSession, 800);
+        });
+        sessionDiv.addEventListener('mouseup', () => clearTimeout(pressTimer));
+
+        historyList.appendChild(sessionDiv);
+    });
+}
+
+if (settingsBtn) {
+    settingsBtn.addEventListener('click', () => {
+        renderHistory();
+        if (historyModal) historyModal.style.display = 'block';
+    });
+}
+
+if (closeHistory) {
+    closeHistory.addEventListener('click', () => {
+        if (historyModal) historyModal.style.display = 'none';
+    });
+}
+
+window.addEventListener('click', (e) => {
+    if (e.target === historyModal) {
+        historyModal.style.display = 'none';
+    }
+});
+
+// Camera / Image Upload Handling
 if (camBtn && imgInput) {
     camBtn.addEventListener('click', () => {
         const useCamera = confirm("Click 'OK' to use Camera, or 'Cancel' to choose from Photos/Gallery.");
@@ -267,26 +339,25 @@ if (camBtn && imgInput) {
         if (file) {
             const reader = new FileReader();
             reader.onload = function(evt) {
-                const base64Data = evt.target.result.split(',')[1];
+                const base64Data = evt.result.split(',')[1];
                 pendingImageData = {
                     mimeType: file.type,
                     data: base64Data
                 };
-                handleUserCommand(); // Automatically process the image once selected
+                handleUserCommand();
             };
             reader.readAsDataURL(file);
         }
     });
 }
 
-// Mic Button (Voice Recognition Input with Auto Speech Stop)
+// Mic Button (Voice Input)
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
 
     micBtn.addEventListener('click', () => {
-        // Stop any ongoing assistant audio output immediately when mic is pressed
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
         }
