@@ -56,9 +56,36 @@ function speak(text) {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
         utterance.rate = 1.0;
-        window.speechSynthesis.speak(utterance);
+        utterance.pitch = 0.9; // Slightly lower pitch for a deeper assistant voice
+
+        // Function to select a male voice
+        const setVoice = () => {
+            const voices = window.speechSynthesis.getVoices();
+            // Look for common male/assistant voice names
+            const maleVoice = voices.find(voice => 
+                voice.lang.includes('en') && (
+                    voice.name.toLowerCase().includes('male') ||
+                    voice.name.toLowerCase().includes('david') ||
+                    voice.name.toLowerCase().includes('alex') ||
+                    voice.name.toLowerCase().includes('google us english')
+                )
+            );
+
+            if (maleVoice) {
+                utterance.voice = maleVoice;
+            }
+            window.speechSynthesis.speak(utterance);
+        };
+
+        // Handle asynchronous loading of voices in browsers like Chrome
+        if (window.speechSynthesis.getVoices().length === 0) {
+            window.speechSynthesis.onvoiceschanged = setVoice;
+        } else {
+            setVoice();
+        }
     }
 }
+
 
 // Add message to chat UI
 function add(text, sender) {
