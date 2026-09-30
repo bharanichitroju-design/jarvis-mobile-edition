@@ -238,13 +238,27 @@ if (input) {
     });
 }
 
-// Clear Memory Button - Save current chat into permanent History before clearing
+// Function to format Date & Time accurately with seconds
+function getFormattedTimestamp() {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString();
+    const timeStr = now.toLocaleTimeString(); // Includes Hours, Minutes, and Seconds
+    return `${dateStr} ${timeStr}`;
+}
+
+// Clear Memory Button - Saves current chat session to permanent History
 if (clearBtn) {
     clearBtn.addEventListener('click', () => {
         if (MEMORY.length > 0) {
             let historyStore = JSON.parse(localStorage.getItem('jarvis_history_store') || '[]');
+            
+            // Extract the first user message as the main heading topic
+            const firstUserMsg = MEMORY.find(m => m.role === 'user');
+            const mainTopic = firstUserMsg ? firstUserMsg.text : "Conversation Session";
+
             historyStore.push({
-                timestamp: new Date().toLocaleString(),
+                timestamp: getFormattedTimestamp(),
+                topic: mainTopic,
                 chats: [...MEMORY]
             });
             localStorage.setItem('jarvis_history_store', JSON.stringify(historyStore));
@@ -258,14 +272,14 @@ if (clearBtn) {
     });
 }
 
-// History Feature Implementation
+// Render History Items (Structured 2-Line Format)
 function renderHistory() {
     if (!historyList) return;
     historyList.innerHTML = '';
     let historyStore = JSON.parse(localStorage.getItem('jarvis_history_store') || '[]');
 
     if (historyStore.length === 0) {
-        historyList.innerHTML = '<div style="color:#0ff; opacity:0.6;">No chat history found.</div>';
+        historyList.innerHTML = '<div style="color:#0ff; opacity:0.6; padding:10px;">No chat history found.</div>';
         return;
     }
 
@@ -273,15 +287,32 @@ function renderHistory() {
         const sessionDiv = document.createElement('div');
         sessionDiv.className = 'history-item';
         
-        let sessionContent = `<strong>[Session: ${session.timestamp}]</strong><br>`;
-        session.chats.forEach(c => {
-            sessionContent += `<b>${c.role === 'user' ? 'You' : 'Jarvis'}:</b> ${c.text}<br>`;
-        });
-        sessionDiv.innerHTML = sessionContent;
+        // 1st Line: Date and Time with Seconds
+        // 2nd Line: Main Topic (First Message)
+        sessionDiv.innerHTML = `
+            <div style="font-weight:bold; color:#0ff; font-size:10px;">⏱️ ${session.timestamp}</div>
+            <div style="margin-top:4px; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+               💬 <b>${session.topic}</b>
+            </div>
+            <div class="full-chat-details" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed rgba(0,255,255,0.3);"></div>
+        `;
 
-        // Long Press / Click to Delete
+        const detailsDiv = sessionDiv.querySelector('.full-chat-details');
+        
+        // Fill full conversation inside the details container
+        session.chats.forEach(c => {
+            const msgP = document.createElement('div');
+            msgP.style.margin = "4px 0";
+            msgP.innerHTML = `<b>${c.role === 'user' ? 'You' : 'Jarvis'}:</b> ${c.text}`;
+            detailsDiv.appendChild(msgP);
+        });
+
+        // Click to Expand / Collapse Full Chat
+        let isLongPress = false;
         let pressTimer;
+
         const deleteSession = () => {
+            isLongPress = true;
             if (confirm("Delete this history session, Boss?")) {
                 historyStore.splice(index, 1);
                 localStorage.setItem('jarvis_history_store', JSON.stringify(historyStore));
@@ -289,15 +320,27 @@ function renderHistory() {
             }
         };
 
-        sessionDiv.addEventListener('touchstart', () => {
+        // Long Press Logic for Mobile & Desktop
+        const startPress = () => {
+            isLongPress = false;
             pressTimer = setTimeout(deleteSession, 800);
+        };
+
+        const cancelPress = () => {
+            clearTimeout(pressTimer);
+        };
+
+        sessionDiv.addEventListener('touchstart', startPress);
+        sessionDiv.addEventListener('touchend', cancelPress);
+        sessionDiv.addEventListener('mousedown', startPress);
+        sessionDiv.addEventListener('mouseup', cancelPress);
+
+        // Click Event to Toggle Chat
+        sessionDiv.addEventListener('click', () => {
+            if (!isLongPress) {
+                detailsDiv.style.display = detailsDiv.style.display === 'none' ? 'block' : 'none';
+            }
         });
-        sessionDiv.addEventListener('touchend', () => clearTimeout(pressTimer));
-        
-        sessionDiv.addEventListener('mousedown', () => {
-            pressTimer = setTimeout(deleteSession, 800);
-        });
-        sessionDiv.addEventListener('mouseup', () => clearTimeout(pressTimer));
 
         historyList.appendChild(sessionDiv);
     });
