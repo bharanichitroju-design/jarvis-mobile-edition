@@ -6,7 +6,7 @@ if(!API_KEY){
 }
 
 // Updated Gemini Models
-const MODELS = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-flash-latest"];
+const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
 
 // SYSTEM INSTRUCTION FOR JARVIS IDENTITY & BOSS DETAILS
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani.
@@ -112,7 +112,7 @@ MEMORY.forEach(m => add(`${m.role === 'user' ? 'You' : 'Jarvis'}: ${m.text}`, m.
 
 // Hardcoded Commands Function
 function handleHardcoded(text) {
-    if (!text) return null;
+    if(!text) return null;
     const query = text.toLowerCase().trim();
     if (query.includes("who created you") || query.includes("who is your creator")) {
         return "My name is Jarvis, created by Bharani.";
@@ -156,24 +156,20 @@ function handleHardcoded(text) {
 async function callGemini(text) {
     if(!API_KEY) return "Error: API Key is missing.";
     
-    // Convert previous memory to proper structure
-    const contents = MEMORY.slice(-10).map(m => ({
-        role: m.role,
-        parts: [{ text: m.text }]
-    }));
+    const contents = MEMORY.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
     
-    const userParts = [];
+    const userPart = [];
     
-    // Add text if available, or default text if only image is uploaded
+    // టెక్స్ట్ ఉంటే ప్రొవైడ్ చేయాలి, లేదా ఇమేజ్ మాత్రమే ఉంటే డిఫాల్ట్ టెక్స్ట్ పంపాలి
     if (text) {
-        userParts.push({ text: text });
+        userPart.push({ text: text });
     } else if (pendingImageData) {
-        userParts.push({ text: "Please describe or analyze this image, Boss." });
+        userPart.push({ text: "What is in this image, Boss?" });
     }
-    
-    // Add image payload if available
+
+    // ఇమేజ్ డేటా ఉంటే సరిగ్గా ఇన్‌లైన్ డేటాగా జోడించడం
     if (pendingImageData) {
-        userParts.push({
+        userPart.push({
             inline_data: {
                 mime_type: pendingImageData.mimeType,
                 data: pendingImageData.data
@@ -181,7 +177,7 @@ async function callGemini(text) {
         });
     }
     
-    contents.push({ role: 'user', parts: userParts });
+    contents.push({ role: 'user', parts: userPart });
 
     for (let model of MODELS) {
         try {
@@ -195,14 +191,14 @@ async function callGemini(text) {
             });
             if (res.ok) {
                 const data = await res.json();
-                // Clear image after successful call
-                pendingImageData = null;
+                pendingImageData = null; // రెస్పాన్స్ వచ్చాక ఇమేజ్ ని క్లియర్ చేయడం
                 return data.candidates[0].content.parts[0].text;
             }
         } catch (e) {
-            console.error(`Model ${model} failed:`, e);
+            console.error(e);
         }
     }
+    
     pendingImageData = null;
     return "Error: All AI models failed to respond. Please check your network connection or API Key.";
 }
@@ -214,16 +210,15 @@ async function handleUserCommand() {
 
     if (input) input.value = '';
 
-    // UI Message Handling
     if (text && pendingImageData) {
-        add(`You: [Uploaded Image] ${text}`, 'user');
-        MEMORY.push({ role: 'user', text: `[Uploaded Image] ${text}` });
+        add(`You: [Image Uploaded] ${text}`, 'user');
+        MEMORY.push({ role: 'user', text: `[Image Uploaded] ${text}` });
     } else if (text) {
         add(`You: ${text}`, 'user');
         MEMORY.push({ role: 'user', text: text });
     } else if (pendingImageData) {
         add(`You: [Uploaded Image]`, 'user');
-        MEMORY.push({ role: 'user', text: "[Uploaded Image]" });
+        MEMORY.push({ role: 'user', text: '[Uploaded Image]' });
     }
 
     const hcReply = text ? handleHardcoded(text) : null;
@@ -237,24 +232,15 @@ async function handleUserCommand() {
     }
 
     try {
-        add('Jarvis: Processing...', 'ai');
         const reply = await callGemini(text);
-        
-        // Remove "Processing..." message before adding real reply
-        if (chat && chat.lastChild && chat.lastChild.innerText === 'Jarvis: Processing...') {
-            chat.removeChild(chat.lastChild);
-        }
-
         add(`Jarvis: ${reply}`, 'ai');
         MEMORY.push({ role: 'model', text: reply });
         saveMemory();
         speak(reply);
     } catch (err) {
-        if (chat && chat.lastChild && chat.lastChild.innerText === 'Jarvis: Processing...') {
-            chat.removeChild(chat.lastChild);
-        }
         add(`Jarvis: Error: ${err.message}`, 'ai');
         speak(`Error: ${err.message}`);
+        pendingImageData = null;
     }
 }
 
@@ -283,6 +269,7 @@ if (clearBtn) {
         if (MEMORY.length > 0) {
             let historyStore = JSON.parse(localStorage.getItem('jarvis_history_store') || '[]');
             
+            // Extract the first user message as the main heading topic
             const firstUserMsg = MEMORY.find(m => m.role === 'user');
             const mainTopic = firstUserMsg ? firstUserMsg.text : "Conversation Session";
 
@@ -317,6 +304,8 @@ function renderHistory() {
         const sessionDiv = document.createElement('div');
         sessionDiv.className = 'history-item';
         
+        // 1st Line: Date and Time with Seconds
+        // 2nd Line: Main Topic (First Message)
         sessionDiv.innerHTML = `
             <div style="font-weight:bold; color:#0ff; font-size:10px;">⏱️ ${session.timestamp}</div>
             <div style="margin-top:4px; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
@@ -327,6 +316,7 @@ function renderHistory() {
 
         const detailsDiv = sessionDiv.querySelector('.full-chat-details');
         
+        // Fill full conversation inside the details container
         session.chats.forEach(c => {
             const msgP = document.createElement('div');
             msgP.style.margin = "4px 0";
@@ -334,6 +324,7 @@ function renderHistory() {
             detailsDiv.appendChild(msgP);
         });
 
+        // Click to Expand / Collapse Full Chat
         let isLongPress = false;
         let pressTimer;
 
@@ -346,6 +337,7 @@ function renderHistory() {
             }
         };
 
+        // Long Press Logic for Mobile & Desktop
         const startPress = () => {
             isLongPress = false;
             pressTimer = setTimeout(deleteSession, 800);
@@ -360,6 +352,7 @@ function renderHistory() {
         sessionDiv.addEventListener('mousedown', startPress);
         sessionDiv.addEventListener('mouseup', cancelPress);
 
+        // Click Event to Toggle Chat
         sessionDiv.addEventListener('click', () => {
             if (!isLongPress) {
                 detailsDiv.style.display = detailsDiv.style.display === 'none' ? 'block' : 'none';
@@ -389,7 +382,7 @@ window.addEventListener('click', (e) => {
     }
 });
 
-// Camera / Image Upload Handling - Fixed Version
+// Camera / Image Upload Handling
 if (camBtn && imgInput) {
     camBtn.addEventListener('click', () => {
         const useCamera = confirm("Click 'OK' to use Camera, or 'Cancel' to choose from Photos/Gallery.");
@@ -411,12 +404,11 @@ if (camBtn && imgInput) {
                     mimeType: file.type,
                     data: base64Data
                 };
-                // Automatically send image for analysis
                 handleUserCommand();
             };
             reader.readAsDataURL(file);
         }
-        // Reset file input so same image can be re-uploaded if needed
+        // ఇమేజ్ అప్‌లోడ్ ముగిసిన తర్వాత input value క్లియర్ చేయడం వల్ల మళ్ళీ ఒకే ఫైల్ ఎంచుకున్నా పనిచేస్తుంది
         imgInput.value = '';
     });
 }
