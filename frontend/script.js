@@ -57,6 +57,41 @@ const historyModal = document.getElementById('history-modal');
 const closeHistory = document.getElementById('close-history');
 const historyList = document.getElementById('history-list');
 
+// ===== EXTRA UI BUTTONS FOR LIVE ANALYSIS & GOOGLE SEARCH =====
+let liveBtn = document.getElementById('live-btn');
+let searchToggleBtn = document.getElementById('search-btn');
+let googleSearchEnabled = true; // Default Google Search On
+let liveStreamInterval = null;
+
+// Dynamically inject extra control buttons if not present in HTML
+const controlContainer = document.querySelector('.controls') || (input ? input.parentElement : document.body);
+if (controlContainer) {
+    if (!liveBtn) {
+        liveBtn = document.createElement('button');
+        liveBtn.id = 'live-btn';
+        liveBtn.innerText = '📹 Live Off';
+        liveBtn.style.cssText = 'background: rgba(0,255,255,0.1); color: #0ff; border: 1px solid #0ff; padding: 6px 10px; margin: 2px; border-radius: 6px; cursor: pointer; font-size: 11px;';
+        controlContainer.appendChild(liveBtn);
+    }
+    if (!searchToggleBtn) {
+        searchToggleBtn = document.createElement('button');
+        searchToggleBtn.id = 'search-btn';
+        searchToggleBtn.innerText = '🔍 Search On';
+        searchToggleBtn.style.cssText = 'background: rgba(0,255,255,0.2); color: #0ff; border: 1px solid #0ff; padding: 6px 10px; margin: 2px; border-radius: 6px; cursor: pointer; font-size: 11px;';
+        controlContainer.appendChild(searchToggleBtn);
+    }
+}
+
+// Toggle Google Search
+if (searchToggleBtn) {
+    searchToggleBtn.addEventListener('click', () => {
+        googleSearchEnabled = !googleSearchEnabled;
+        searchToggleBtn.innerText = googleSearchEnabled ? '🔍 Search On' : '🔍 Search Off';
+        searchToggleBtn.style.background = googleSearchEnabled ? 'rgba(0,255,255,0.2)' : 'rgba(255,0,0,0.2)';
+        searchToggleBtn.style.color = googleSearchEnabled ? '#0ff' : '#f55';
+    });
+}
+
 // Voice Speech Output (Text-to-Speech)
 function speak(text) {
     if ('speechSynthesis' in window) {
@@ -160,14 +195,13 @@ async function callGemini(text) {
     
     const userPart = [];
     
-    // టెక్స్ట్ ఉంటే ప్రొవైడ్ చేయాలి, లేదా ఇమేజ్ మాత్రమే ఉంటే డిఫాల్ట్ టెక్స్ట్ పంపాలి
     if (text) {
         userPart.push({ text: text });
     } else if (pendingImageData) {
-        userPart.push({ text: "What is in this image, Boss?" });
+        userPart.push({ text: "What is in this image, Boss? Describe it clearly." });
     }
 
-    // ఇమేజ్ డేటా ఉంటే సరిగ్గా ఇన్‌లైన్ డేటాగా జోడించడం
+    // Camera Image Data Fix
     if (pendingImageData) {
         userPart.push({
             inline_data: {
@@ -179,20 +213,29 @@ async function callGemini(text) {
     
     contents.push({ role: 'user', parts: userPart });
 
+    // Payload configuration with optional Google Search Tooling
+    const requestPayload = {
+        contents: contents,
+        system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] }
+    };
+
+    if (googleSearchEnabled) {
+        requestPayload.tools = [{ google_search: {} }];
+    }
+
     for (let model of MODELS) {
         try {
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: contents,
-                    system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] }
-                })
+                body: JSON.stringify(requestPayload)
             });
             if (res.ok) {
                 const data = await res.json();
-                pendingImageData = null; // రెస్పాన్స్ వచ్చాక ఇమేజ్ ని క్లియర్ చేయడం
-                return data.candidates[0].content.parts[0].text;
+                pendingImageData = null; // Clear image buffer after successful call
+                const parts = data.candidates[0].content.parts;
+                let replyText = parts.map(p => p.text || '').join('');
+                return replyText || "Image analyzed successfully, Boss.";
             }
         } catch (e) {
             console.error(e);
@@ -208,15 +251,17 @@ async function handleUserCommand() {
     const text = input ? input.value.trim() : '';
     if (!text && !pendingImageData) return;
 
+    const currentImageData = pendingImageData; // Store local copy
+
     if (input) input.value = '';
 
-    if (text && pendingImageData) {
+    if (text && currentImageData) {
         add(`You: [Image Uploaded] ${text}`, 'user');
         MEMORY.push({ role: 'user', text: `[Image Uploaded] ${text}` });
     } else if (text) {
         add(`You: ${text}`, 'user');
         MEMORY.push({ role: 'user', text: text });
-    } else if (pendingImageData) {
+    } else if (currentImageData) {
         add(`You: [Uploaded Image]`, 'user');
         MEMORY.push({ role: 'user', text: '[Uploaded Image]' });
     }
@@ -244,6 +289,65 @@ async function handleUserCommand() {
     }
 }
 
+// ===== LIVE DISPLAY/CAMERA STREAMING ANALYSIS =====
+if (liveBtn) {
+    liveBtn.addEventListener('click', async () => {
+        if (liveStreamInterval) {
+            clearInterval(liveStreamInterval);
+            liveStreamInterval = null;
+            liveBtn.innerText = '📹 Live Off';
+            liveBtn.style.background = 'rgba(0,255,255,0.1)';
+            add('Jarvis: Live mode stopped, Boss.', 'ai');
+            return;
+        }
+
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true }).catch(() => {
+                return navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            });
+
+            const video = document.createElement('video');
+            video.srcObject = stream;
+            await video.play();
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            liveBtn.innerText = '🔴 Live On';
+            liveBtn.style.background = 'rgba(255,0,0,0.4)';
+            add('Jarvis: Live analysis started, Boss.', 'ai');
+
+            liveStreamInterval = setInterval(async () => {
+                canvas.width = video.videoWidth || 640;
+                canvas.height = video.videoHeight || 480;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const base64Image = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+                
+                pendingImageData = {
+                    mimeType: 'image/jpeg',
+                    data: base64Image
+                };
+
+                const liveAnalysis = await callGemini("Briefly describe what you see in front of you, Boss.");
+                if (liveAnalysis) {
+                    add(`Jarvis (Live): ${liveAnalysis}`, 'ai');
+                    speak(liveAnalysis);
+                }
+            }, 8000); // Analyzes every 8 seconds
+
+            stream.getVideoTracks()[0].onended = () => {
+                if (liveStreamInterval) clearInterval(liveStreamInterval);
+                liveStreamInterval = null;
+                liveBtn.innerText = '📹 Live Off';
+                liveBtn.style.background = 'rgba(0,255,255,0.1)';
+            };
+
+        } catch (err) {
+            add(`Jarvis: Unable to access live screen/camera: ${err.message}`, 'ai');
+        }
+    });
+}
+
 // Event Listeners for UI
 if (executeBtn) {
     executeBtn.addEventListener('click', handleUserCommand);
@@ -269,7 +373,6 @@ if (clearBtn) {
         if (MEMORY.length > 0) {
             let historyStore = JSON.parse(localStorage.getItem('jarvis_history_store') || '[]');
             
-            // Extract the first user message as the main heading topic
             const firstUserMsg = MEMORY.find(m => m.role === 'user');
             const mainTopic = firstUserMsg ? firstUserMsg.text : "Conversation Session";
 
@@ -304,8 +407,6 @@ function renderHistory() {
         const sessionDiv = document.createElement('div');
         sessionDiv.className = 'history-item';
         
-        // 1st Line: Date and Time with Seconds
-        // 2nd Line: Main Topic (First Message)
         sessionDiv.innerHTML = `
             <div style="font-weight:bold; color:#0ff; font-size:10px;">⏱️ ${session.timestamp}</div>
             <div style="margin-top:4px; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
@@ -316,7 +417,6 @@ function renderHistory() {
 
         const detailsDiv = sessionDiv.querySelector('.full-chat-details');
         
-        // Fill full conversation inside the details container
         session.chats.forEach(c => {
             const msgP = document.createElement('div');
             msgP.style.margin = "4px 0";
@@ -324,7 +424,6 @@ function renderHistory() {
             detailsDiv.appendChild(msgP);
         });
 
-        // Click to Expand / Collapse Full Chat
         let isLongPress = false;
         let pressTimer;
 
@@ -337,7 +436,6 @@ function renderHistory() {
             }
         };
 
-        // Long Press Logic for Mobile & Desktop
         const startPress = () => {
             isLongPress = false;
             pressTimer = setTimeout(deleteSession, 800);
@@ -352,7 +450,6 @@ function renderHistory() {
         sessionDiv.addEventListener('mousedown', startPress);
         sessionDiv.addEventListener('mouseup', cancelPress);
 
-        // Click Event to Toggle Chat
         sessionDiv.addEventListener('click', () => {
             if (!isLongPress) {
                 detailsDiv.style.display = detailsDiv.style.display === 'none' ? 'block' : 'none';
@@ -382,7 +479,7 @@ window.addEventListener('click', (e) => {
     }
 });
 
-// Camera / Image Upload Handling
+// Camera / Image Upload Handling (Fixed flow)
 if (camBtn && imgInput) {
     camBtn.addEventListener('click', () => {
         const useCamera = confirm("Click 'OK' to use Camera, or 'Cancel' to choose from Photos/Gallery.");
@@ -408,7 +505,6 @@ if (camBtn && imgInput) {
             };
             reader.readAsDataURL(file);
         }
-        // ఇమేజ్ అప్‌లోడ్ ముగిసిన తర్వాత input value క్లియర్ చేయడం వల్ల మళ్ళీ ఒకే ఫైల్ ఎంచుకున్నా పనిచేస్తుంది
         imgInput.value = '';
     });
 }
