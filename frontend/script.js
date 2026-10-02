@@ -57,6 +57,12 @@ const historyModal = document.getElementById('history-modal');
 const closeHistory = document.getElementById('close-history');
 const historyList = document.getElementById('history-list');
 
+// Media Popup UI Elements
+const mediaModal = document.getElementById('media-modal');
+const closeMedia = document.getElementById('close-media');
+const optCamera = document.getElementById('opt-camera');
+const optGallery = document.getElementById('opt-gallery');
+
 // Voice Speech Output (Text-to-Speech)
 function speak(text) {
     if ('speechSynthesis' in window) {
@@ -152,7 +158,7 @@ function handleHardcoded(text) {
     return null;
 }
 
-// ===== 3. GEMINI API CALL (FIXED) =====
+// ===== 3. GEMINI API CALL =====
 async function callGemini(text) {
     if(!API_KEY) return "Error: API Key is missing, Boss.";
     
@@ -206,7 +212,7 @@ async function callGemini(text) {
     return "Error: All AI models failed to process the request. Please check your network connection or Gemini API Key, Boss.";
 }
 
-// User Command Execution Function (FIXED)
+// User Command Execution Function
 async function handleUserCommand() {
     const text = input ? input.value.trim() : '';
     if (!text && !pendingImageData) return;
@@ -377,24 +383,46 @@ if (closeHistory) {
     });
 }
 
+// ===== CAMERA / GALLERY SELECTION MODAL LOGIC =====
+if (camBtn && mediaModal) {
+    camBtn.addEventListener('click', () => {
+        mediaModal.style.display = 'block';
+    });
+}
+
+if (closeMedia) {
+    closeMedia.addEventListener('click', () => {
+        mediaModal.style.display = 'none';
+    });
+}
+
+if (optCamera) {
+    optCamera.addEventListener('click', () => {
+        mediaModal.style.display = 'none';
+        imgInput.setAttribute('capture', 'environment');
+        imgInput.click();
+    });
+}
+
+if (optGallery) {
+    optGallery.addEventListener('click', () => {
+        mediaModal.style.display = 'none';
+        imgInput.removeAttribute('capture');
+        imgInput.click();
+    });
+}
+
 window.addEventListener('click', (e) => {
     if (e.target === historyModal) {
         historyModal.style.display = 'none';
     }
+    if (e.target === mediaModal) {
+        mediaModal.style.display = 'none';
+    }
 });
 
-// ===== CAMERA & GALLERY IMAGE UPLOAD HANDLING (FIXED) =====
-if (camBtn && imgInput) {
-    camBtn.addEventListener('click', () => {
-        const useCamera = confirm("Click 'OK' to take photo from Camera, or 'Cancel' to choose from Gallery, Boss.");
-        if (useCamera) {
-            imgInput.setAttribute('capture', 'environment');
-        } else {
-            imgInput.removeAttribute('capture');
-        }
-        imgInput.click();
-    });
-
+// ===== IMAGE UPLOAD FILE HANDLING =====
+if (imgInput) {
     imgInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -405,12 +433,11 @@ if (camBtn && imgInput) {
                     mimeType: file.type,
                     data: base64Data
                 };
-                // Trigger command processing AFTER image file reading completes
                 handleUserCommand();
             };
             reader.readAsDataURL(file);
         }
-        imgInput.value = ''; // Reset input element so selecting same photo triggers change event
+        imgInput.value = '';
     });
 }
 
