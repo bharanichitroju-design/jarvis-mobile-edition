@@ -152,32 +152,32 @@ function handleHardcoded(text) {
     return null;
 }
 
-// ===== 3. GEMINI API CALL =====
+// ===== 3. GEMINI API CALL (FIXED) =====
 async function callGemini(text) {
-    if(!API_KEY) return "Error: API Key is missing.";
+    if(!API_KEY) return "Error: API Key is missing, Boss.";
     
     const contents = MEMORY.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
     
-    const userPart = [];
+    const userParts = [];
     
-    // టెక్స్ట్ ఉంటే ప్రొవైడ్ చేయాలి, లేదా ఇమేజ్ మాత్రమే ఉంటే డిఫాల్ట్ టెక్స్ట్ పంపాలి
+    // 1. Add Text Prompt
     if (text) {
-        userPart.push({ text: text });
+        userParts.push({ text: text });
     } else if (pendingImageData) {
-        userPart.push({ text: "What is in this image, Boss?" });
+        userParts.push({ text: "What is in this image, Boss? Describe it in detail." });
     }
 
-    // ఇమేజ్ డేటా ఉంటే సరిగ్గా ఇన్‌లైన్ డేటాగా జోడించడం
+    // 2. Add Image Data Correctly
     if (pendingImageData) {
-        userPart.push({
+        userParts.push({
             inline_data: {
                 mime_type: pendingImageData.mimeType,
                 data: pendingImageData.data
             }
         });
     }
-    
-    contents.push({ role: 'user', parts: userPart });
+
+    contents.push({ role: 'user', parts: userParts });
 
     for (let model of MODELS) {
         try {
@@ -189,46 +189,53 @@ async function callGemini(text) {
                     system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] }
                 })
             });
+
             if (res.ok) {
                 const data = await res.json();
-                pendingImageData = null; // రెస్పాన్స్ వచ్చాక ఇమేజ్ ని క్లియర్ చేయడం
-                return data.candidates[0].content.parts[0].text;
+                pendingImageData = null; // Reset image data after successful response
+                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    return data.candidates[0].content.parts[0].text;
+                }
             }
         } catch (e) {
-            console.error(e);
+            console.error("Model failed: " + model, e);
         }
     }
     
     pendingImageData = null;
-    return "Error: All AI models failed to respond. Please check your network connection or API Key.";
+    return "Error: All AI models failed to process the request. Please check your network connection or Gemini API Key, Boss.";
 }
 
-// User Command Execution Function
+// User Command Execution Function (FIXED)
 async function handleUserCommand() {
     const text = input ? input.value.trim() : '';
     if (!text && !pendingImageData) return;
 
-    if (input) input.value = '';
+    const currentImageData = pendingImageData; // Store local reference
 
-    if (text && pendingImageData) {
+    if (text && currentImageData) {
         add(`You: [Image Uploaded] ${text}`, 'user');
         MEMORY.push({ role: 'user', text: `[Image Uploaded] ${text}` });
     } else if (text) {
         add(`You: ${text}`, 'user');
         MEMORY.push({ role: 'user', text: text });
-    } else if (pendingImageData) {
-        add(`You: [Uploaded Image]`, 'user');
-        MEMORY.push({ role: 'user', text: '[Uploaded Image]' });
+    } else if (currentImageData) {
+        add(`You: [Image Uploaded] Analysing image...`, 'user');
+        MEMORY.push({ role: 'user', text: '[Uploaded Image for Analysis]' });
     }
 
-    const hcReply = text ? handleHardcoded(text) : null;
-    if (hcReply) {
-        add(`Jarvis: ${hcReply}`, 'ai');
-        MEMORY.push({ role: 'model', text: hcReply });
-        saveMemory();
-        speak(hcReply);
-        pendingImageData = null;
-        return;
+    if (input) input.value = '';
+
+    // Hardcoded logic only if no image is attached
+    if (!currentImageData) {
+        const hcReply = handleHardcoded(text);
+        if (hcReply) {
+            add(`Jarvis: ${hcReply}`, 'ai');
+            MEMORY.push({ role: 'model', text: hcReply });
+            saveMemory();
+            speak(hcReply);
+            return;
+        }
     }
 
     try {
@@ -239,7 +246,7 @@ async function handleUserCommand() {
         speak(reply);
     } catch (err) {
         add(`Jarvis: Error: ${err.message}`, 'ai');
-        speak(`Error: ${err.message}`);
+        speak(`Error processing request, Boss.`);
         pendingImageData = null;
     }
 }
@@ -259,7 +266,7 @@ if (input) {
 function getFormattedTimestamp() {
     const now = new Date();
     const dateStr = now.toLocaleDateString();
-    const timeStr = now.toLocaleTimeString(); // Includes Hours, Minutes, and Seconds
+    const timeStr = now.toLocaleTimeString();
     return `${dateStr} ${timeStr}`;
 }
 
@@ -269,7 +276,6 @@ if (clearBtn) {
         if (MEMORY.length > 0) {
             let historyStore = JSON.parse(localStorage.getItem('jarvis_history_store') || '[]');
             
-            // Extract the first user message as the main heading topic
             const firstUserMsg = MEMORY.find(m => m.role === 'user');
             const mainTopic = firstUserMsg ? firstUserMsg.text : "Conversation Session";
 
@@ -282,6 +288,7 @@ if (clearBtn) {
         }
 
         MEMORY = [];
+        pendingImageData = null;
         localStorage.removeItem('jarvis_memory');
         if (chat) chat.innerHTML = '';
         add('Jarvis: Memory Cleared, Boss.', 'ai');
@@ -304,8 +311,6 @@ function renderHistory() {
         const sessionDiv = document.createElement('div');
         sessionDiv.className = 'history-item';
         
-        // 1st Line: Date and Time with Seconds
-        // 2nd Line: Main Topic (First Message)
         sessionDiv.innerHTML = `
             <div style="font-weight:bold; color:#0ff; font-size:10px;">⏱️ ${session.timestamp}</div>
             <div style="margin-top:4px; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
@@ -316,7 +321,6 @@ function renderHistory() {
 
         const detailsDiv = sessionDiv.querySelector('.full-chat-details');
         
-        // Fill full conversation inside the details container
         session.chats.forEach(c => {
             const msgP = document.createElement('div');
             msgP.style.margin = "4px 0";
@@ -324,7 +328,6 @@ function renderHistory() {
             detailsDiv.appendChild(msgP);
         });
 
-        // Click to Expand / Collapse Full Chat
         let isLongPress = false;
         let pressTimer;
 
@@ -337,7 +340,6 @@ function renderHistory() {
             }
         };
 
-        // Long Press Logic for Mobile & Desktop
         const startPress = () => {
             isLongPress = false;
             pressTimer = setTimeout(deleteSession, 800);
@@ -352,7 +354,6 @@ function renderHistory() {
         sessionDiv.addEventListener('mousedown', startPress);
         sessionDiv.addEventListener('mouseup', cancelPress);
 
-        // Click Event to Toggle Chat
         sessionDiv.addEventListener('click', () => {
             if (!isLongPress) {
                 detailsDiv.style.display = detailsDiv.style.display === 'none' ? 'block' : 'none';
@@ -382,10 +383,10 @@ window.addEventListener('click', (e) => {
     }
 });
 
-// Camera / Image Upload Handling
+// ===== CAMERA & GALLERY IMAGE UPLOAD HANDLING (FIXED) =====
 if (camBtn && imgInput) {
     camBtn.addEventListener('click', () => {
-        const useCamera = confirm("Click 'OK' to use Camera, or 'Cancel' to choose from Photos/Gallery.");
+        const useCamera = confirm("Click 'OK' to take photo from Camera, or 'Cancel' to choose from Gallery, Boss.");
         if (useCamera) {
             imgInput.setAttribute('capture', 'environment');
         } else {
@@ -404,12 +405,12 @@ if (camBtn && imgInput) {
                     mimeType: file.type,
                     data: base64Data
                 };
+                // Trigger command processing AFTER image file reading completes
                 handleUserCommand();
             };
             reader.readAsDataURL(file);
         }
-        // ఇమేజ్ అప్‌లోడ్ ముగిసిన తర్వాత input value క్లియర్ చేయడం వల్ల మళ్ళీ ఒకే ఫైల్ ఎంచుకున్నా పనిచేస్తుంది
-        imgInput.value = '';
+        imgInput.value = ''; // Reset input element so selecting same photo triggers change event
     });
 }
 
