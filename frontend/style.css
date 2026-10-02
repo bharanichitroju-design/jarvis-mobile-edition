@@ -47,6 +47,7 @@ button{background:#0ff;color:#000;border:none;padding:10px 16px;font-weight:bold
   width: 100%;
   height: 100%;
   background-color: rgba(0,0,0,0.85);
+  backdrop-filter: blur(4px);
 }
 .modal-content {
   background-color: #000;
@@ -60,6 +61,23 @@ button{background:#0ff;color:#000;border:none;padding:10px 16px;font-weight:bold
   display: flex;
   flex-direction: column;
 }
+
+/* Neon Flashing Glow Box Effect */
+.neon-glow-box {
+  animation: flashGlow 2s infinite alternate;
+}
+
+@keyframes flashGlow {
+  0% {
+    border-color: #0ff;
+    box-shadow: 0 0 10px #0ff, inset 0 0 5px #0ff;
+  }
+  100% {
+    border-color: #0088ff;
+    box-shadow: 0 0 25px #0ff, 0 0 40px #0088ff, inset 0 0 15px #0ff;
+  }
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -69,15 +87,17 @@ button{background:#0ff;color:#000;border:none;padding:10px 16px;font-weight:bold
   margin-bottom: 12px;
 }
 .modal-header h2 {
-  font-size: 16px;
+  font-size: 14px;
   letter-spacing: 2px;
   color: #0ff;
+  text-shadow: 0 0 8px #0ff;
 }
 .close-btn {
   color: #0ff;
   font-size: 24px;
   font-weight: bold;
   cursor: pointer;
+  text-shadow: 0 0 10px #0ff;
 }
 .history-container {
   overflow-y: auto;
@@ -95,6 +115,60 @@ button{background:#0ff;color:#000;border:none;padding:10px 16px;font-weight:bold
 }
 .history-item:active {
   background: rgba(0, 255, 255, 0.2);
+}
+
+/* Media Selection Popup Layout */
+.media-options-container {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  align-items: center;
+  padding: 20px 10px;
+}
+
+.media-card {
+  flex: 1;
+  background: rgba(0, 255, 255, 0.05);
+  border: 2px solid #0ff;
+  padding: 20px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  user-select: none;
+}
+
+.glowing-border {
+  animation: borderFlip 1.5s infinite alternate;
+}
+
+@keyframes borderFlip {
+  0% {
+    box-shadow: 0 0 8px #0ff;
+    transform: scale(1);
+  }
+  100% {
+    box-shadow: 0 0 20px #0ff, 0 0 30px #00aaff;
+    transform: scale(1.03);
+  }
+}
+
+.media-card:hover, .media-card:active {
+  background: rgba(0, 255, 255, 0.25);
+  transform: scale(1.05);
+}
+
+.media-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.media-title {
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  color: #0ff;
+  text-shadow: 0 0 10px #0ff;
 }
 
 @media(max-width:600px){
