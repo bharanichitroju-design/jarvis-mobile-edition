@@ -1,71 +1,152 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en" data-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>J.A.R.V.I.S</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0d12">
+  <meta name="description" content="J.A.R.V.I.S personal AI assistant">
+  <title>J.A.R.V.I.S — Personal AI</title>
+  
+  <!-- Existing CSS -->
+  <link rel="stylesheet" href="style.css?v=jarvis-stage-grid-scroll-v8-20260930-final">
+
+  <!-- 👇 ORBS LIBRARY ADDED HERE 👇 -->
+  <script src="https://cdn.jsdelivr.net/npm/orbs@latest/dist/orbs.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/orbs@latest/dist/orbs.css">
+  
+  <!-- 👇 INLINE STYLE FOR THE NEW ORB CONTAINER 👇 -->
+  <style>
+    /* Container for the live Orb */
+    #jarvis-core-container {
+      width: 150px;       /* Size of the orb */
+      height: 150px;
+      margin: 0 auto 20px auto; /* Center it horizontally */
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    /* Ensure canvas inside looks good */
+    #jarvis-core-container canvas {
+      border-radius: 50%;
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.4); /* Cyan Glow */
+      filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.6));
+    }
+  </style>
 </head>
 <body>
-<header>
-  <button id="settings-btn" class="settings-icon" aria-label="Settings">⚙️</button>
-  <h1>J.A.R.V.I.S</h1>
-  <p>PERSONAL AI ASSISTANT</p>
-</header>
-<div class="core">
-  <div class="ring r1"></div>
-  <div class="ring r2"></div>
-  <div class="core-title">B•H•A•R•A•N•I<br>J•A•R•V•I•S</div>
-</div>
-<p class="core-text">SYSTEM READY</p>
-<div class="status">
-  <h2>SYSTEM DIAGNOSTICS</h2>
-  <div class="row"><span>AI ENGINE</span><b class="on">● OPERATIONAL</b></div>
-  <div class="row"><span>CONNECTION</span><b class="on">● ONLINE</b></div>
-  <div class="row"><span>VOICE INTERFACE</span><b class="on">● READY</b></div>
-  <div class="row"><span>LONG-TERM MEMORY</span><b class="on">● ACTIVE</b></div>
-</div>
-<div class="chat" id="chat"></div>
-<div class="input-area">
-  <input id="msg" placeholder="Enter a command for J.A.R.V.I.S...">
-  <button id="execute-btn">EXECUTE</button>
-  <button id="mic-btn" aria-label="Activate voice input">🎙️</button>
-  <button id="cam-btn" aria-label="Analyze image">📷</button>
-  <button id="clear-btn">CLEAR MEMORY</button>
-  <input id="img-input" type="file" accept="image/*" style="display:none">
-</div>
-
-<!-- History Modal Popup -->
-<div id="history-modal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h2>History</h2>
-      <span id="close-history" class="close-btn">&times;</span>
-    </div>
-    <div id="history-list" class="history-container"></div>
-  </div>
-</div>
-
-<!-- Camera / Gallery Selection Modal Popup -->
-<div id="media-modal" class="modal">
-  <div class="modal-content neon-glow-box">
-    <div class="modal-header">
-      <h2>SELECT MEDIA SOURCE</h2>
-      <span id="close-media" class="close-btn">&times;</span>
-    </div>
-    <div class="media-options-container">
-      <div id="opt-camera" class="media-card glowing-border">
-        <div class="media-icon">📷</div>
-        <div class="media-title">PHOTO</div>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+      <div class="sidebar-top">
+        <a class="brand" href="./" aria-label="J.A.R.V.I.S home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15"/><path d="M18 7v22M7 18h22M10.2 10.2l15.6 15.6M25.8 10.2 10.2 25.8"/><circle cx="18" cy="18" r="4"/></svg>
+          </span>
+          <span class="brand-copy"><strong>J.A.R.V.I.S</strong><small>PERSONAL AI</small></span>
+        </a>
+        <button class="icon-button sidebar-collapse" id="sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
       </div>
-      <div id="opt-gallery" class="media-card glowing-border">
-        <div class="media-icon">🖼️</div>
-        <div class="media-title">GALLERY</div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<script src="script.js"></script>
+      <button class="new-chat" id="new-chat" type="button">
+        <span class="new-chat-icon" aria-hidden="true">+</span><span>New chat</span>
+      </button>
+
+      <div class="history-heading"><span>RECENT</span><span class="history-count" id="history-count"></span></div>
+      <div class="history-list" id="history-list" role="group" aria-label="Conversation history"></div>
+      <div class="sidebar-spacer"></div>
+
+      <div class="sidebar-footer">
+        <button class="sidebar-link" id="settings-open" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1a1.7 1.7 0 0 1-2.4 2.4l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a1.7 1.7 0 0 1-3.4 0v-.2a1.7 1.7 0 0 0-2.9-1.2l-.1.1a1.7 1.7 0 0 1-2.4-2.4l.1-.1a1.7 1.7 0 0 0-1.2-2.9H4a1.7 1.7 0 0 1 0-3.4h.2a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a1.7 1.7 0 0 1 2.4-2.4l.1.1a1.7 1.7 0 0 0 2.9-1.2V2a1.7 1.7 0 0 1 3.4 0v.2a1.7 1.7 0 0 0 2.9 1.2l.1-.1a1.7 1.7 0 0 1 2.4 2.4l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a1.7 1.7 0 0 1 0 3.4h-.2a1.7 1.7 0 0 0-1.2 2.9Z"/></svg>
+          <span>Settings</span>
+        </button>
+        <div class="profile-row"><span class="profile-avatar">V</span><span class="profile-name">Vamshi</span><span class="profile-label">PERSONAL</span></div>
+      </div>
+    </aside>
+
+    <button class="sidebar-backdrop" id="sidebar-backdrop" type="button" aria-label="Close navigation" hidden></button>
+
+    <main class="main-area">
+      <header class="topbar">
+        <button class="icon-button menu-button" id="menu-btn" type="button" aria-label="Open navigation" title="Open navigation">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="topbar-title"><span>J.A.R.V.I.S</span><span class="topbar-divider">/</span><span class="topbar-subtitle">Personal assistant</span></div>
+        <div class="topbar-actions">
+          <span class="ready-badge"><span class="ready-dot"></span> READY</span>
+          <button class="icon-button clear-button" id="clear-btn" type="button" aria-label="Clear current conversation" title="Clear current conversation">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-.8 13H6.8L6 7m4 3v6m4-6v6"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <section class="conversation-stage" id="conversation-stage" aria-label="Conversation" tabindex="0">
+        <div class="welcome" id="welcome">
+          
+          <!-- 👇 OLD STATIC HERO-ORB REPLACED BY LIVE CANVAS CONTAINER 👇 -->
+          <div id="jarvis-core-container" aria-hidden="true">
+             <!-- JavaScript will inject the <canvas> here automatically -->
+          </div>
+          
+          <div class="welcome-copy">
+            <p class="eyebrow"><span></span> YOUR PERSONAL AI</p>
+            <h1>How can I help today?</h1>
+            <p class="welcome-subtitle">A thoughtful assistant for ideas, answers and everyday tasks.</p>
+          </div>
+          <div class="prompt-grid" aria-label="Suggested prompts">
+            <button class="prompt-card" type="button" data-prompt="Jarvis, give me my morning briefing">
+              <span class="prompt-icon">✦</span><span><strong>Morning briefing</strong><small>Start your day informed</small></span><span class="prompt-arrow">↗</span>
+            </button>
+            <button class="prompt-card" type="button" data-prompt="What is the weather today?">
+              <span class="prompt-icon">◌</span><span><strong>Check the weather</strong><small>Get a local forecast</small></span><span class="prompt-arrow">↗</span>
+            </button>
+            <button class="prompt-card" type="button" data-prompt="What is the current Bitcoin price?">
+              <span class="prompt-icon">◇</span><span><strong>Market snapshot</strong><small>Check Bitcoin today</small></span><span class="prompt-arrow">↗</span>
+            </button>
+            <button class="prompt-card" type="button" data-prompt="Tell me a useful idea for today">
+              <span class="prompt-icon">⌁</span><span><strong>Explore an idea</strong><small>Think something through</small></span><span class="prompt-arrow">↗</span>
+            </button>
+          </div>
+        </div>
+        <div class="chat" id="chat" role="log" aria-label="Chat messages" aria-live="polite" aria-relevant="additions text" tabindex="0"></div>
+      </section>
+
+      <footer class="composer-dock">
+        <div class="thinking-status" id="thinking-status" aria-live="polite" hidden>
+          <span class="thinking-orb" aria-hidden="true"><i class="thinking-ring"></i><i class="thinking-core"></i></span>
+          <span id="thinking-label">J.A.R.V.I.S is thinking</span><span class="thinking-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        </div>
+        <div class="composer-shell">
+          <button class="composer-tool" id="cam-btn" type="button" aria-label="Analyze image" title="Attach an image">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8.5h3l1.4-2h7.2l1.4 2h3v10H4z"/><circle cx="12" cy="13.5" r="3.2"/></svg>
+          </button>
+          <textarea id="msg" rows="1" placeholder="Message J.A.R.V.I.S..." aria-label="Message J.A.R.V.I.S"></textarea>
+          <input id="img-input" type="file" accept="image/*" hidden>
+          <div class="composer-actions">
+            <button class="composer-tool voice-button" id="mic-btn" type="button" aria-label="Activate voice input" title="Voice input">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3m-4 0h8"/></svg>
+            </button>
+            <button class="send-button" id="send" type="button" aria-label="Send message" title="Send message">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg>
+            </button>
+          </div>
+        </div>
+        <p class="composer-note">ENTER TO SEND <span>·</span> SHIFT + ENTER FOR A NEW LINE <span class="note-separator">·</span> J.A.R.V.I.S can make mistakes</p>
+      </footer>
+    </main>
+
+    <div class="settings-scrim" id="settings-scrim" hidden></div>
+    <aside class="settings-panel" id="settings-panel" aria-labelledby="settings-title" aria-modal="true" role="dialog" hidden>
+      <div class="settings-header"><div><p class="eyebrow">PREFERENCES</p><h2 id="settings-title">Settings</h2></div><button class="icon-button" id="settings-close" type="button" aria-label="Close settings">×</button></div>
+      <div class="settings-group"><label for="theme-select">Appearance</label><p>Set the tone of your workspace.</p><select id="theme-select"><option value="dark">Midnight · dark</option><option value="light">Silver · light</option></select></div>
+      <div class="settings-group"><strong>Conversation history</strong><p>Your conversations are saved in this browser profile.</p></div>
+      <div class="settings-bottom"><button class="danger-button" id="clear-memory-setting" type="button">Clear current conversation</button><p>J.A.R.V.I.S · Personal AI</p></div>
+    </aside>
+  </div>
+
+  <script src="script.js?v=jarvis-chat-scroll-v6-20260930"></script>
 </body>
 </html>
