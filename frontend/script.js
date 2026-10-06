@@ -116,49 +116,201 @@ function add(text, sender) {
 // Display existing memory on load
 MEMORY.forEach(m => add(`${m.role === 'user' ? 'You' : 'Jarvis'}: ${m.text}`, m.role === 'user' ? 'user' : 'ai'));
 
-// Hardcoded Commands Function
-function handleHardcoded(text) {
-    if(!text) return null;
-    const query = text.toLowerCase().trim();
-    if (query.includes("who created you") || query.includes("who is your creator")) {
+// ===== 3. TOOLS (15 SKILLS ROUTER) =====
+async function handleTools(text) {
+    if (!text) return null;
+    const t = text.toLowerCase().trim();
+
+    // 1. Time
+    if (/\btime\b/.test(t) || t.includes('టైమ్') || t.includes('సమయం')) {
+        return `The time is ${new Date().toLocaleTimeString()}, Boss.`;
+    }
+
+    // 2. Weather
+    if (t.includes('weather') || t.includes('వాతావరణం')) {
+        return new Promise((res) => {
+            if (!navigator.geolocation) return res("Geolocation is not supported by your browser, Boss.");
+            navigator.geolocation.getCurrentPosition(async (p) => {
+                try {
+                    const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${p.coords.latitude}&longitude=${p.coords.longitude}&current_weather=true`);
+                    const d = await r.json();
+                    res(`It is ${d.current_weather.temperature} degrees Celsius now, Boss.`);
+                } catch(e) {
+                    res("Weather service error, Boss.");
+                }
+            }, () => res("I need location permission for weather, Boss."));
+        });
+    }
+
+    // 3. Timer
+    if (t.includes('timer') || t.includes('టైమర్')) {
+        const m = t.match(/(\d+)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?)?/i);
+        if (m) {
+            const amount = parseInt(m[1]);
+            const unit = (m[2] || 'seconds').toLowerCase();
+            let factor = 1000;
+            if (/hours?|hrs?/.test(unit)) factor = 3600000;
+            else if (/minutes?|mins?/.test(unit)) factor = 60000;
+            const duration = amount * factor;
+            setTimeout(() => {
+                speak(`టైమర్ పూర్తయింది. ${amount} ${unit} అయ్యాయి, Boss.`);
+                add(`Jarvis: Timer finished for ${amount} ${unit}, Boss!`, 'ai');
+            }, duration);
+            return `Timer set for ${amount} ${unit}, Boss.`;
+        }
+    }
+
+    // 4. Dice / Coin
+    if (t.includes('dice') || t.includes('coin') || t.includes('toss') || t.includes('నాణే')) {
+        if (t.includes('coin') || t.includes('toss') || t.includes('నాణే')) {
+            const res = Math.random() < 0.5 ? 'Heads' : 'Tails';
+            return `Coin toss result is ${res}, Boss.`;
+        } else {
+            const roll = Math.floor(Math.random() * 6) + 1;
+            return `You rolled a ${roll}, Boss.`;
+        }
+    }
+
+    // 5. Joke
+    if (t.includes('joke') || t.includes('జోక్')) {
+        const jokes = [
+            "Why don't scientists trust atoms? Because they make up everything!",
+            "Parallel lines have so much in common. It's a shame they'll never meet.",
+            "Why did the computer go to the doctor? Because it had a virus!"
+        ];
+        return jokes[Math.floor(Math.random() * jokes.length)];
+    }
+
+    // 6. Quote
+    if (t.includes('quote') || t.includes('కోట్') || t.includes('motivational')) {
+        const quotes = [
+            "The only way to do great work is to love what you do, Boss.",
+            "Believe you can and you're halfway there.",
+            "Action is the foundational key to all success."
+        ];
+        return quotes[Math.floor(Math.random() * quotes.length)];
+    }
+
+    // 7. News
+    if (t.includes('news') || t.includes('వార్తలు')) {
+        window.open("https://news.google.com", "_blank");
+        return "Opening Google News for headlines, Boss.";
+    }
+
+    // 8. Translate
+    if (t.includes('translate')) {
+        const q = t.replace(/translate\s*(than)?/i, '').trim() || 'hello';
+        try {
+            const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(q)}&langpair=en|te`);
+            const d = await r.json();
+            return `In Telugu: ${d.responseData.translatedText}`;
+        } catch(e) {
+            return "Translate error, Boss.";
+        }
+    }
+
+    // 9. Currency
+    if (t.includes('currency') || t.includes('convert') || t.includes('rupee') || t.includes('dollar')) {
+        try {
+            const r = await fetch("https://open.er-api.com/v6/latest/USD");
+            const d = await r.json();
+            const inr = d.rates.INR;
+            return `Current rate: 1 USD is approximately ${inr.toFixed(2)} INR, Boss.`;
+        } catch(e) {
+            return "Currency conversion service error, Boss.";
+        }
+    }
+
+    // 10. Meaning / Dictionary
+    if (t.includes('meaning') || t.includes(' अर्थ ') || t.includes('అర్థం')) {
+        const word = t.replace(/(meaning of|meaning|అర్థం)/gi, '').trim();
+        if (word) {
+            try {
+                const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+                const d = await r.json();
+                if (d[0] && d[0].meanings[0].definitions[0]) {
+                    return `Meaning of ${word}: ${d[0].meanings[0].definitions[0].definition}`;
+                }
+            } catch(e) {}
+        }
+    }
+
+    // 11. Password Generator
+    if (t.includes('password') || t.includes('పాస్‌వర్డ్')) {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
+        let pwd = "";
+        for (let i = 0; i < 12; i++) {
+            pwd += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return `Generated strong password: ${pwd}`;
+    }
+
+    // 12. Search
+    if (t.includes('google search') || t.includes('search google') || t.includes('search')) {
+        const googleSearch = t.replace(/(google search|search google|search)/gi, "").trim();
+        if (googleSearch) {
+            const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(googleSearch)}`;
+            window.open(searchUrl, "_blank");
+            return `Searching Google for "${googleSearch}", Boss.`;
+        }
+    }
+
+    // 13. Open Apps
+    if (t.includes('open app') || t.includes('open youtube') || t.includes('open google')) {
+        if (t.includes('youtube')) {
+            window.open("https://youtube.com", "_blank");
+            return "Opening YouTube, Boss.";
+        } else if (t.includes('google')) {
+            window.open("https://google.com", "_blank");
+            return "Opening Google, Boss.";
+        }
+    }
+
+    // 14. Play Songs
+    if (t.includes('play song') || t.includes('play music') || t.includes('play')) {
+        const songSearch = t.replace(/(play song|play music|play)/gi, "").trim();
+        if (songSearch) {
+            const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(songSearch)}`;
+            window.open(youtubeUrl, "_blank");
+            return `Searching and playing "${songSearch}" on YouTube, Boss.`;
+        }
+    }
+
+    // 15. Crypto
+    if (t.includes('crypto') || t.includes('bitcoin') || t.includes('eth')) {
+        try {
+            const r = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd");
+            const d = await r.json();
+            return `Bitcoin: $${d.bitcoin.usd}, Ethereum: $${d.ethereum.usd}, Boss.`;
+        } catch(e) {
+            return "Crypto price fetch failed, Boss.";
+        }
+    }
+
+    // Hardcoded Boss details check
+    if (t.includes("who created you") || t.includes("who is your creator")) {
         return "My name is Jarvis, created by Bharani.";
     }
-    if (query.includes("boss father") || query.includes("father's name") || query.includes("father name")) {
+    if (t.includes("boss father") || t.includes("father's name") || t.includes("father name")) {
         return "My Boss's Father name is C.H. Rambabu, and his profession is Tailor.";
     }
-    if (query.includes("boss mother") || query.includes("mother's name") || query.includes("mother name")) {
+    if (t.includes("boss mother") || t.includes("mother's name") || t.includes("mother name")) {
         return "My Boss's Mother name is Devi Sirisha, and her profession is Tailor.";
     }
-    if (query.includes("boss brother") || query.includes("brother's name") || query.includes("brother name")) {
+    if (t.includes("boss brother") || t.includes("brother's name") || t.includes("brother name")) {
         return "My Boss's Brother name is Mani Satyan, and his profession is Chef.";
     }
-    if (query.includes("boss grandmother") || query.includes("grandmother's name") || query.includes("grandmother name")) {
+    if (t.includes("boss grandmother") || t.includes("grandmother's name") || t.includes("grandmother name")) {
         return "My Boss's Grandmother's name is Sujatha.";
     }
-    if (query.includes("boss family") || query.includes("family name") || query.includes("inti peru") || query.includes("surname")) {
+    if (t.includes("boss family") || t.includes("family name") || t.includes("inti peru") || t.includes("surname")) {
         return "My Boss's family surname (Inti Peru) is Chittiroju.";
     }
-    
-    if (query.includes("open youtube")) {
-        window.open("https://youtube.com", "_blank");
-        return "Opening YouTube, Boss.";
-    }
-    if (query.includes("play song") || query.includes("play music")) {
-        const songSearch = query.replace("play song", "").replace("play music", "").trim();
-        const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(songSearch)}`;
-        window.open(youtubeUrl, "_blank");
-        return `Searching YouTube for "${songSearch}", Boss.`;
-    }
-    if (query.includes("google search") || query.includes("search google")) {
-        const googleSearch = query.replace("google search", "").replace("search google", "").trim();
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(googleSearch)}`;
-        window.open(searchUrl, "_blank");
-        return `Searching Google for "${googleSearch}", Boss.`;
-    }
-    return null;
+
+    return null; // Match అవ్వకపోతే Gemini Brain కి వెళ్తుంది
 }
 
-// ===== 3. GEMINI API CALL =====
+// ===== 4. GEMINI API CALL =====
 async function callGemini(text) {
     if(!API_KEY) return "Error: API Key is missing, Boss.";
     
@@ -166,14 +318,12 @@ async function callGemini(text) {
     
     const userParts = [];
     
-    // 1. Add Text Prompt
     if (text) {
         userParts.push({ text: text });
     } else if (pendingImageData) {
         userParts.push({ text: "What is in this image, Boss? Describe it in detail." });
     }
 
-    // 2. Add Image Data Correctly
     if (pendingImageData) {
         userParts.push({
             inline_data: {
@@ -198,7 +348,7 @@ async function callGemini(text) {
 
             if (res.ok) {
                 const data = await res.json();
-                pendingImageData = null; // Reset image data after successful response
+                pendingImageData = null;
                 if (data.candidates && data.candidates[0].content.parts[0].text) {
                     return data.candidates[0].content.parts[0].text;
                 }
@@ -217,7 +367,7 @@ async function handleUserCommand() {
     const text = input ? input.value.trim() : '';
     if (!text && !pendingImageData) return;
 
-    const currentImageData = pendingImageData; // Store local reference
+    const currentImageData = pendingImageData;
 
     if (text && currentImageData) {
         add(`You: [Image Uploaded] ${text}`, 'user');
@@ -232,14 +382,14 @@ async function handleUserCommand() {
 
     if (input) input.value = '';
 
-    // Hardcoded logic only if no image is attached
+    // First check 15 Tools & Local Commands
     if (!currentImageData) {
-        const hcReply = handleHardcoded(text);
-        if (hcReply) {
-            add(`Jarvis: ${hcReply}`, 'ai');
-            MEMORY.push({ role: 'model', text: hcReply });
+        const toolReply = await handleTools(text);
+        if (toolReply) {
+            add(`Jarvis: ${toolReply}`, 'ai');
+            MEMORY.push({ role: 'model', text: toolReply });
             saveMemory();
-            speak(hcReply);
+            speak(toolReply);
             return;
         }
     }
@@ -268,7 +418,6 @@ if (input) {
     });
 }
 
-// Function to format Date & Time accurately with seconds
 function getFormattedTimestamp() {
     const now = new Date();
     const dateStr = now.toLocaleDateString();
@@ -276,7 +425,7 @@ function getFormattedTimestamp() {
     return `${dateStr} ${timeStr}`;
 }
 
-// Clear Memory Button - Saves current chat session to permanent History
+// Clear Memory Button
 if (clearBtn) {
     clearBtn.addEventListener('click', () => {
         if (MEMORY.length > 0) {
@@ -302,7 +451,7 @@ if (clearBtn) {
     });
 }
 
-// Render History Items (Structured 2-Line Format)
+// Render History Items
 function renderHistory() {
     if (!historyList) return;
     historyList.innerHTML = '';
@@ -383,7 +532,7 @@ if (closeHistory) {
     });
 }
 
-// ===== CAMERA / GALLERY SELECTION MODAL LOGIC =====
+// Media Popup Controls
 if (camBtn && mediaModal) {
     camBtn.addEventListener('click', () => {
         mediaModal.style.display = 'block';
@@ -421,7 +570,7 @@ window.addEventListener('click', (e) => {
     }
 });
 
-// ===== IMAGE UPLOAD FILE HANDLING =====
+// Image Upload
 if (imgInput) {
     imgInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -441,7 +590,7 @@ if (imgInput) {
     });
 }
 
-// Mic Button (Voice Input)
+// Mic Input
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
