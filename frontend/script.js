@@ -5,8 +5,8 @@ if(!API_KEY){
     if(API_KEY) localStorage.setItem('jarvis_key', API_KEY); 
 }
 
-// Updated Gemini Models
-const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
+// Corrected Valid Gemini Models
+const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 
 // SYSTEM INSTRUCTION FOR JARVIS IDENTITY & BOSS DETAILS
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani.
@@ -195,11 +195,11 @@ function handleHardcoded(text) {
         return `Current date and time is ${now.toLocaleDateString()} ${now.toLocaleTimeString()}, Boss.`;
     }
 
-    // Tool 8: Weather Info Search
+    // Tool 8: Weather Info Search (Fixed Popup Issue)
     if (query.includes("weather")) {
         const city = query.replace("weather in", "").replace("weather", "").trim() || "current location";
         const weatherUrl = `https://www.google.com/search?q=weather+${encodeURIComponent(city)}`;
-        window.open(weatherUrl, "_blank");
+        window.location.href = weatherUrl;
         return `Checking weather conditions for ${city}, Boss.`;
     }
 
