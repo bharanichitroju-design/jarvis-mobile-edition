@@ -5,8 +5,8 @@ if(!API_KEY){
     if(API_KEY) localStorage.setItem('jarvis_key', API_KEY); 
 }
 
-// Corrected Valid Gemini Models
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+// Updated Gemini Models
+const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
 
 // SYSTEM INSTRUCTION FOR JARVIS IDENTITY & BOSS DETAILS
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani.
@@ -116,12 +116,10 @@ function add(text, sender) {
 // Display existing memory on load
 MEMORY.forEach(m => add(`${m.role === 'user' ? 'You' : 'Jarvis'}: ${m.text}`, m.role === 'user' ? 'user' : 'ai'));
 
-// Hardcoded Commands Function (Contains 15 Tools)
+// Hardcoded Commands Function
 function handleHardcoded(text) {
     if(!text) return null;
     const query = text.toLowerCase().trim();
-
-    // Family Details & Identity Handlers
     if (query.includes("who created you") || query.includes("who is your creator")) {
         return "My name is Jarvis, created by Bharani.";
     }
@@ -140,132 +138,23 @@ function handleHardcoded(text) {
     if (query.includes("boss family") || query.includes("family name") || query.includes("inti peru") || query.includes("surname")) {
         return "My Boss's family surname (Inti Peru) is Chittiroju.";
     }
-
-    // ===== 15 TOOLS INTEGRATION =====
-
-    // Tool 1: Open YouTube
-    if (query === "open youtube") {
+    
+    if (query.includes("open youtube")) {
         window.open("https://youtube.com", "_blank");
         return "Opening YouTube, Boss.";
     }
-
-    // Tool 2: Open Google
-    if (query === "open google") {
-        window.open("https://google.com", "_blank");
-        return "Opening Google, Boss.";
+    if (query.includes("play song") || query.includes("play music")) {
+        const songSearch = query.replace("play song", "").replace("play music", "").trim();
+        const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(songSearch)}`;
+        window.open(youtubeUrl, "_blank");
+        return `Searching YouTube for "${songSearch}", Boss.`;
     }
-
-    // Tool 3: URL Navigation
-    if (query.startsWith("open site ") || query.startsWith("open website ")) {
-        let url = query.replace("open site ", "").replace("open website ", "").trim();
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-            url = "https://" + url;
-        }
-        window.open(url, "_blank");
-        return `Navigating to ${url}, Boss.`;
-    }
-
-    // Tool 4: Google Search
     if (query.includes("google search") || query.includes("search google")) {
         const googleSearch = query.replace("google search", "").replace("search google", "").trim();
         const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(googleSearch)}`;
         window.open(searchUrl, "_blank");
         return `Searching Google for "${googleSearch}", Boss.`;
     }
-
-    // Tool 5: YouTube Search / Play Music
-    if (query.includes("play song") || query.includes("play music") || query.includes("youtube search")) {
-        const songSearch = query.replace("play song", "").replace("play music", "").replace("youtube search", "").trim();
-        const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(songSearch)}`;
-        window.open(youtubeUrl, "_blank");
-        return `Searching YouTube for "${songSearch}", Boss.`;
-    }
-
-    // Tool 6: Wikipedia Search
-    if (query.startsWith("wikipedia ") || query.startsWith("wiki ")) {
-        const term = query.replace("wikipedia ", "").replace("wiki ", "").trim();
-        const wikiUrl = `https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(term)}`;
-        window.open(wikiUrl, "_blank");
-        return `Looking up "${term}" on Wikipedia, Boss.`;
-    }
-
-    // Tool 7: Current Time & Date
-    if (query.includes("time") || query.includes("date") || query.includes("what time")) {
-        const now = new Date();
-        return `Current date and time is ${now.toLocaleDateString()} ${now.toLocaleTimeString()}, Boss.`;
-    }
-
-    // Tool 8: Weather Info Search (Fixed Popup Issue)
-    if (query.includes("weather")) {
-        const city = query.replace("weather in", "").replace("weather", "").trim() || "current location";
-        const weatherUrl = `https://www.google.com/search?q=weather+${encodeURIComponent(city)}`;
-        window.location.href = weatherUrl;
-        return `Checking weather conditions for ${city}, Boss.`;
-    }
-
-    // Tool 9: Timer Setup (In seconds/minutes)
-    if (query.startsWith("set timer for ")) {
-        const parts = query.replace("set timer for ", "").split(" ");
-        const duration = parseInt(parts[0]);
-        const unit = parts[1] || "seconds";
-        let ms = duration * 1000;
-        if (unit.includes("min")) ms = duration * 60 * 1000;
-        
-        if (!isNaN(duration)) {
-            setTimeout(() => {
-                alert(`Timer Finished for ${duration} ${unit}, Boss!`);
-                speak(`Timer Finished for ${duration} ${unit}, Boss!`);
-            }, ms);
-            return `Timer set for ${duration} ${unit}, Boss.`;
-        }
-    }
-
-    // Tool 10: Roll a Dice
-    if (query.includes("roll a dice") || query.includes("roll dice")) {
-        const diceResult = Math.floor(Math.random() * 6) + 1;
-        return `The dice rolled a ${diceResult}, Boss.`;
-    }
-
-    // Tool 11: Flip a Coin
-    if (query.includes("flip a coin") || query.includes("coin flip")) {
-        const coin = Math.random() < 0.5 ? "Heads" : "Tails";
-        return `The coin landed on ${coin}, Boss.`;
-    }
-
-    // Tool 12: Tell a Joke
-    if (query.includes("tell a joke") || query.includes("joke")) {
-        const jokes = [
-            "Why don't scientists trust atoms? Because they make up everything!",
-            "Why did the computer go to the doctor? Because it had a virus!",
-            "Parallel lines have so much in common. It’s a shame they’ll never meet."
-        ];
-        return jokes[Math.floor(Math.random() * jokes.length)];
-    }
-
-    // Tool 13: Motivational Quote
-    if (query.includes("quote") || query.includes("motivate me")) {
-        const quotes = [
-            "The best way to predict the future is to create it, Boss.",
-            "Success is not final, failure is not fatal: It is the courage to continue that counts.",
-            "Believe you can and you're halfway there."
-        ];
-        return quotes[Math.floor(Math.random() * quotes.length)];
-    }
-
-    // Tool 14: Latest News Search
-    if (query.includes("news") || query.includes("latest news")) {
-        window.open("https://news.google.com", "_blank");
-        return "Opening Google News for latest updates, Boss.";
-    }
-
-    // Tool 15: Google Translate Tool
-    if (query.startsWith("translate ")) {
-        const textToTranslate = query.replace("translate ", "").trim();
-        const translateUrl = `https://translate.google.com/?sl=auto&tl=en&text=${encodeURIComponent(textToTranslate)}&op=translate`;
-        window.open(translateUrl, "_blank");
-        return `Opening Google Translate for "${textToTranslate}", Boss.`;
-    }
-
     return null;
 }
 
@@ -571,4 +460,4 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
         if (input) input.value = transcript;
         handleUserCommand();
     };
-}
+            }
