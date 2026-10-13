@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>J.A.R.V.I.S. Blueprint Floating Workspace</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000511;
+      color: #00ffff;
+      margin: 0;
+      font-family: monospace;
+    }
+
+    #viewport {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+
+    #hud-status {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      border: 1px solid #00ffff;
+      background: rgba(0, 15, 30, 0.85);
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+      color: #00ffff;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-align: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #ui-container {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    .btn {
+      background: rgba(0, 30, 60, 0.9);
+      border: 2px solid #00ffff;
+      color: #00ffff;
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+    }
+
+    .btn:hover {
+      background: #00ffff;
+      color: #000;
+      box-shadow: 0 0 25px #00ffff;
+    }
+
+    #file-input {
+      display: none;
+    }
+  </style>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="hud-status">WORKSPACE MODE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)</div>
+  <div id="viewport"></div>
+
+  <div id="ui-container">
+    <button class="btn" onclick="document.getElementById('file-input').click()">UPLOAD BLUEPRINT IMAGE</button>
+    <input type="file" id="file-input" accept="image/*">
+  </div>
+
+  <script>
+    const container = document.getElementById('viewport');
+    const hudStatus = document.getElementById('hud-status');
+
+    // --- Scene Setup ---
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x010814);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(0, 25, 60);
+    camera.lookAt(0, 0, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    // --- Lights & Desktop Group ---
+    const ambientLight = new THREE.AmbientLight(0x00ffff, 0.8);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(20, 40, 20);
+    scene.add(dirLight);
+
+    const desktopGroup = new THREE.Group();
+    desktopGroup.position.set(0, -8, 0);
+    scene.add(desktopGroup);
+
+    // --- Expanded Desktop Grid (150x150) ---
+    const gridHelper = new THREE.GridHelper(150, 150, 0x00ffff, 0x003355);
+    desktopGroup.add(gridHelper);
+
+    // State Variables
+    let loadedObjects = [];
+    let selectedObject = null;
+    let touches = [];
+    let isMouseDown = false;
+    let prevMousePos = { x: 0, y: 0 };
+    let initialPinchDistance = null;
+    let initialImageScale = 1;
+
+    // --- Blueprint Image Processing ---
+    document.getElementById('file-input').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        ctx.drawImage(img, 0, 0);
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+          data[i] = 0;             
+          data[i + 1] = avg * 0.9; 
+          data[i + 2] = avg * 1.2; 
+        }
+        ctx.putImageData(imgData, 0, 0);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const aspect = img.width / img.height;
+        const geometry = new THREE.PlaneGeometry(14 * aspect, 14);
+        const material = new THREE.MeshBasicMaterial({
+          map: texture,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.95
+        });
+
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(0, 10, 0); 
+
+        const edges = new THREE.EdgesGeometry(geometry);
+        const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+        const wireframe = new THREE.LineSegments(edges, lineMat);
+        wireframe.name = "outline";
+        wireframe.visible = false;
+        mesh.add(wireframe);
+
+        desktopGroup.add(mesh);
+        loadedObjects.push(mesh);
+        hudStatus.innerText = "BLUEPRINT LOADED. DOUBLE CLICK IMAGE TO SELECT.";
+      };
+      this.value = '';
+    });
+
+    // --- Raycasting / Double-Click Selection ---
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    window.addEventListener('dblclick', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(loadedObjects);
+
+      if (intersects.length > 0) {
+        if (selectedObject) deselect();
+        selectedObject = intersects[0].object;
+        selectedObject.getObjectByName("outline").visible = true;
+        hudStatus.innerText = "IMAGE MODE (1-Finger Place | 2-Finger Pinch Zoom | Double Click Space to Deselect)";
+      } else {
+        deselect();
+      }
+    });
+
+    function deselect() {
+      if (selectedObject) {
+        selectedObject.getObjectByName("outline").visible = false;
+        selectedObject = null;
+        hudStatus.innerText = "WORKSPACE MODE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)";
+      }
+    }
+
+    function getPinchDistance(t1, t2) {
+      const dx = t1.clientX - t2.clientX;
+      const dy = t1.clientY - t2.clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    // --- Touch Gesture Implementation ---
+    container.addEventListener('touchstart', (e) => {
+      touches = e.touches;
+      if (e.touches.length === 2) {
+        initialPinchDistance = getPinchDistance(e.touches[0], e.touches[1]);
+        if (selectedObject) {
+          initialImageScale = selectedObject.scale.x;
+        }
+      }
+    });
+
+    container.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const curTouches = e.touches;
+
+      if (curTouches.length === 1) {
+        const t = curTouches[0];
+        const prevT = touches[0] || t;
+        const dx = t.clientX - prevT.clientX;
+        const dy = t.clientY - prevT.clientY;
+
+        if (selectedObject) {
+          selectedObject.position.x += dx * 0.05;
+          selectedObject.position.y -= dy * 0.05;
+          if (selectedObject.position.y < 1) selectedObject.position.y = 1;
+        } else {
+          desktopGroup.rotation.y += dx * 0.008;
+          desktopGroup.rotation.x += dy * 0.008;
+          desktopGroup.rotation.x = Math.max(-Math.PI / 12, Math.min(Math.PI / 2, desktopGroup.rotation.x));
+        }
+      } else if (curTouches.length === 2) {
+        const currentPinchDistance = getPinchDistance(curTouches[0], curTouches[1]);
+
+        if (initialPinchDistance) {
+          const ratio = currentPinchDistance / initialPinchDistance;
+
+          if (selectedObject) {
+            const newScale = Math.max(0.2, Math.min(5, initialImageScale * ratio));
+            selectedObject.scale.set(newScale, newScale, newScale);
+          } else {
+            const delta = initialPinchDistance - currentPinchDistance;
+            camera.position.z = Math.max(10, Math.min(120, camera.position.z + delta * 0.1));
+            initialPinchDistance = currentPinchDistance;
+          }
+        }
+
+        if (!selectedObject) {
+          const t1 = curTouches[0];
+          const prevT1 = touches[0] || t1;
+          const dx = t1.clientX - prevT1.clientX;
+          const dy = t1.clientY - prevT1.clientY;
+          desktopGroup.position.x += dx * 0.05;
+          desktopGroup.position.y -= dy * 0.05;
+        }
+      }
+      touches = curTouches;
+    });
+
+    container.addEventListener('touchend', (e) => { 
+      touches = e.touches; 
+      if (e.touches.length < 2) {
+        initialPinchDistance = null;
+      }
+    });
+
+    // --- Mouse Fallbacks ---
+    container.addEventListener('mousedown', (e) => {
+      isMouseDown = true;
+      prevMousePos = { x: e.clientX, y: e.clientY };
+    });
+
+    container.addEventListener('mousemove', (e) => {
+      if (!isMouseDown) return;
+      const dx = e.clientX - prevMousePos.x;
+      const dy = e.clientY - prevMousePos.y;
+
+      if (selectedObject) {
+        selectedObject.position.x += dx * 0.05;
+        selectedObject.position.y -= dy * 0.05;
+        if (selectedObject.position.y < 1) selectedObject.position.y = 1;
+      } else {
+        desktopGroup.rotation.y += dx * 0.008;
+        desktopGroup.rotation.x += dy * 0.008;
+        desktopGroup.rotation.x = Math.max(-Math.PI / 12, Math.min(Math.PI / 2, desktopGroup.rotation.x));
+      }
+      prevMousePos = { x: e.clientX, y: e.clientY };
+    });
+
+    container.addEventListener('mouseup', () => isMouseDown = false);
+
+    container.addEventListener('wheel', (e) => {
+      if (selectedObject) {
+        const scaleFactor = e.deltaY < 0 ? 1.1 : 0.9;
+        const newScale = Math.max(0.2, Math.min(5, selectedObject.scale.x * scaleFactor));
+        selectedObject.scale.set(newScale, newScale, newScale);
+      } else {
+        camera.position.z = Math.max(10, Math.min(120, camera.position.z + e.deltaY * 0.04));
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
