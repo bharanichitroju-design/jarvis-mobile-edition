@@ -166,14 +166,12 @@ async function callGemini(text) {
     
     const userParts = [];
     
-    // 1. Add Text Prompt
     if (text) {
         userParts.push({ text: text });
     } else if (pendingImageData) {
         userParts.push({ text: "What is in this image, Boss? Describe it in detail." });
     }
 
-    // 2. Add Image Data Correctly
     if (pendingImageData) {
         userParts.push({
             inline_data: {
@@ -198,7 +196,7 @@ async function callGemini(text) {
 
             if (res.ok) {
                 const data = await res.json();
-                pendingImageData = null; // Reset image data after successful response
+                pendingImageData = null;
                 if (data.candidates && data.candidates[0].content.parts[0].text) {
                     return data.candidates[0].content.parts[0].text;
                 }
@@ -217,7 +215,7 @@ async function handleUserCommand() {
     const text = input ? input.value.trim() : '';
     if (!text && !pendingImageData) return;
 
-    const currentImageData = pendingImageData; // Store local reference
+    const currentImageData = pendingImageData;
 
     if (text && currentImageData) {
         add(`You: [Image Uploaded] ${text}`, 'user');
@@ -232,7 +230,6 @@ async function handleUserCommand() {
 
     if (input) input.value = '';
 
-    // Hardcoded logic only if no image is attached
     if (!currentImageData) {
         const hcReply = handleHardcoded(text);
         if (hcReply) {
@@ -257,7 +254,6 @@ async function handleUserCommand() {
     }
 }
 
-// Event Listeners for UI
 if (executeBtn) {
     executeBtn.addEventListener('click', handleUserCommand);
 }
@@ -268,7 +264,6 @@ if (input) {
     });
 }
 
-// Function to format Date & Time accurately with seconds
 function getFormattedTimestamp() {
     const now = new Date();
     const dateStr = now.toLocaleDateString();
@@ -276,12 +271,10 @@ function getFormattedTimestamp() {
     return `${dateStr} ${timeStr}`;
 }
 
-// Clear Memory Button - Saves current chat session to permanent History
 if (clearBtn) {
     clearBtn.addEventListener('click', () => {
         if (MEMORY.length > 0) {
             let historyStore = JSON.parse(localStorage.getItem('jarvis_history_store') || '[]');
-            
             const firstUserMsg = MEMORY.find(m => m.role === 'user');
             const mainTopic = firstUserMsg ? firstUserMsg.text : "Conversation Session";
 
@@ -302,7 +295,6 @@ if (clearBtn) {
     });
 }
 
-// Render History Items (Structured 2-Line Format)
 function renderHistory() {
     if (!historyList) return;
     historyList.innerHTML = '';
@@ -383,7 +375,6 @@ if (closeHistory) {
     });
 }
 
-// ===== CAMERA / GALLERY SELECTION MODAL LOGIC =====
 if (camBtn && mediaModal) {
     camBtn.addEventListener('click', () => {
         mediaModal.style.display = 'block';
@@ -421,7 +412,6 @@ window.addEventListener('click', (e) => {
     }
 });
 
-// ===== IMAGE UPLOAD FILE HANDLING =====
 if (imgInput) {
     imgInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -441,23 +431,60 @@ if (imgInput) {
     });
 }
 
-// Mic Button (Voice Input)
+// ===== CONTINUOUS MIC RECOGNITION (UPDATED) =====
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
+    recognition.continuous = true;     // Keeps listening continuously
+    recognition.interimResults = false;
+
+    let isListeningActive = false;
 
     micBtn.addEventListener('click', () => {
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
         }
-        recognition.start();
-        add('Jarvis: Listening...', 'ai');
+        if (!isListeningActive) {
+            try {
+                recognition.start();
+                isListeningActive = true;
+                add('Jarvis: Listening continuously, Boss...', 'ai');
+            } catch (err) {
+                console.log(err);
+            }
+        } else {
+            recognition.stop();
+            isListeningActive = false;
+            add('Jarvis: Stopped Listening, Boss.', 'ai');
+        }
     });
 
     recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
+        const transcript = event.results[event.results.length - 1][0].transcript.trim();
+        
+        // Check if user said "Smart Stop Listening"
+        if (transcript.toLowerCase().includes("smart stop listening")) {
+            recognition.stop();
+            isListeningActive = false;
+            add(`You: ${transcript}`, 'user');
+            add('Jarvis: Stopped Listening, Boss.', 'ai');
+            speak('Stopped Listening, Boss.');
+            return;
+        }
+
         if (input) input.value = transcript;
         handleUserCommand();
     };
+
+    recognition.onend = () => {
+        // Automatically restart if it was active and not explicitly stopped by command/button
+        if (isListeningActive) {
+            try {
+                recognition.start();
+            } catch (e) {
+                console.log(e);
             }
+        }
+    };
+}
