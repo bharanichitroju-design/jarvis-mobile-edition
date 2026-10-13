@@ -121,8 +121,8 @@ function handleHardcoded(text) {
     if(!text) return null;
     const query = text.toLowerCase().trim();
     
-    // 3D File Open Command
-    if (query.includes("smart open three dimensional") || query.includes("open three dimensional")) {
+    // 3D File Open Command (Optimized to catch cleanly)
+    if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional")) {
         window.open("three-dimensional.html", "_blank");
         return "Opening Three Dimensional View, Boss.";
     }
@@ -438,7 +438,7 @@ if (imgInput) {
     });
 }
 
-// ===== SEAMLESS CONTINUOUS MIC RECOGNITION (FIXED) =====
+// ===== SEAMLESS CONTINUOUS MIC RECOGNITION (FIXED REPETITION ISSUE) =====
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     let recognition = null;
@@ -447,22 +447,15 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
     function initRecognition() {
         recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
-        recognition.continuous = true;     
-        recognition.interimResults = true; 
+        recognition.continuous = false;     
+        recognition.interimResults = false; // Disabled interim to avoid repeating fragments
 
         recognition.onresult = (event) => {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
             }
 
-            let transcript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    transcript += event.results[i][0].transcript;
-                }
-            }
-
-            transcript = transcript.trim();
+            const transcript = event.results[0][0].transcript.trim();
             if (!transcript) return;
 
             if (transcript.toLowerCase().includes("smart stop listening")) {
@@ -483,13 +476,14 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
         };
 
         recognition.onend = () => {
+            // Auto restart for continuous listening workflow safely
             if (isListeningActive) {
                 try {
                     recognition.start();
                 } catch (e) {
                     setTimeout(() => {
                         try { recognition.start(); } catch(err) {}
-                    }, 100);
+                    }, 200);
                 }
             }
         };
