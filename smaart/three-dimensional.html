@@ -44,7 +44,7 @@
 
     #ui-container {
       position: absolute;
-      bottom: 30px;
+      bottom: 90px;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
@@ -54,17 +54,29 @@
       z-index: 10;
     }
 
-    .btn {
+    .control-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .btn, .text-input {
       background: rgba(0, 30, 60, 0.9);
       border: 2px solid #00ffff;
       color: #00ffff;
-      padding: 12px 24px;
+      padding: 12px 20px;
       font-size: 14px;
       font-weight: bold;
-      cursor: pointer;
       box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
-      transition: all 0.2s ease;
+      outline: none;
       text-transform: uppercase;
+    }
+
+    .btn {
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex: 1;
     }
 
     .btn:hover {
@@ -73,8 +85,45 @@
       box-shadow: 0 0 25px #00ffff;
     }
 
+    .text-input {
+      flex: 2;
+      font-family: monospace;
+    }
+
+    .text-input::placeholder {
+      color: rgba(0, 255, 255, 0.5);
+    }
+
     #file-input {
       display: none;
+    }
+
+    /* Trash Bin UI Style at Bottom */
+    #trash-bin {
+      position: absolute;
+      bottom: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 60px;
+      background: rgba(255, 0, 60, 0.2);
+      border: 2px dashed #ff0055;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: #ff0055;
+      box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+      z-index: 10;
+      transition: all 0.3s ease;
+      pointer-events: auto;
+    }
+
+    #trash-bin.highlight {
+      background: rgba(255, 0, 60, 0.6);
+      transform: translateX(-50%) scale(1.2);
+      box-shadow: 0 0 25px #ff0055;
     }
   </style>
 
@@ -85,14 +134,56 @@
   <div id="hud-status">WORKSPACE MODE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)</div>
   <div id="viewport"></div>
 
+  <!-- Trash Bin Element -->
+  <div id="trash-bin" title="Drag object here to delete">🗑️</div>
+
   <div id="ui-container">
-    <button class="btn" onclick="document.getElementById('file-input').click()">UPLOAD BLUEPRINT IMAGE</button>
+    <div class="control-row">
+      <input type="text" id="text-input" class="text-input" placeholder="Type text here...">
+      <button class="btn" id="spawn-text-btn">Spawn Text</button>
+    </div>
+    <button class="btn" onclick="document.getElementById('file-input').click()" style="width: 100%;">UPLOAD BLUEPRINT IMAGE</button>
     <input type="file" id="file-input" accept="image/*">
   </div>
 
   <script>
     const container = document.getElementById('viewport');
     const hudStatus = document.getElementById('hud-status');
+    const textInput = document.getElementById('text-input');
+    const spawnTextBtn = document.getElementById('spawn-text-btn');
+    const trashBin = document.getElementById('trash-bin');
+
+    // --- Web Audio API for Trash Bin Sound Effect ---
+    let audioCtx = null;
+    function playTrashSound() {
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+
+        // Metallic metallic drop effect frequencies
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.3);
+
+        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.3);
+      } catch (e) {
+        console.log("Audio not supported or blocked", e);
+      }
+    }
 
     // --- Scene Setup ---
     const scene = new THREE.Scene();
@@ -131,6 +222,80 @@
     let prevMousePos = { x: 0, y: 0 };
     let initialPinchDistance = null;
     let initialImageScale = 1;
+
+    // Check if object is dragged near bottom trash bin area
+    function checkTrashCollision(clientX, clientY) {
+      const rect = trashBin.getBoundingClientRect();
+      return (
+        clientX >= rect.left - 20 &&
+        clientX <= rect.right + 20 &&
+        clientY >= rect.top - 20 &&
+        clientY <= rect.bottom + 20
+      );
+    }
+
+    function deleteSelectedObject() {
+      if (!selectedObject) return;
+      playTrashSound();
+
+      // Remove from scene and loaded list
+      desktopGroup.remove(selectedObject);
+      const index = loadedObjects.indexOf(selectedObject);
+      if (index > -1) {
+        loadedObjects.splice(index, 1);
+      }
+
+      selectedObject = null;
+      trashBin.classList.remove('highlight');
+      hudStatus.innerText = "OBJECT DELETED. WORKSPACE MODE";
+    }
+
+    // --- Dynamic Floating Text Spawner ---
+    spawnTextBtn.addEventListener('click', () => {
+      const val = textInput.value.trim();
+      if (!val) return;
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.font = 'Bold 48px monospace';
+      const metrics = ctx.measureText(val);
+      const textWidth = metrics.width;
+      
+      canvas.width = Math.max(256, textWidth + 40);
+      canvas.height = 120;
+
+      ctx.font = 'Bold 48px monospace';
+      ctx.fillStyle = '#00ffff';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillText(val, canvas.width / 2, canvas.height / 2);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      const aspect = canvas.width / canvas.height;
+      const geometry = new THREE.PlaneGeometry(8 * aspect, 8);
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.95
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(0, 10, 0);
+
+      const edges = new THREE.EdgesGeometry(geometry);
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+      const wireframe = new THREE.LineSegments(edges, lineMat);
+      wireframe.name = "outline";
+      wireframe.visible = false;
+      mesh.add(wireframe);
+
+      desktopGroup.add(mesh);
+      loadedObjects.push(mesh);
+      textInput.value = '';
+      hudStatus.innerText = "TEXT SPAWNED. DOUBLE CLICK TO SELECT & MOVE.";
+    });
 
     // --- Blueprint Image Processing ---
     document.getElementById('file-input').addEventListener('change', function(e) {
@@ -199,7 +364,7 @@
         if (selectedObject) deselect();
         selectedObject = intersects[0].object;
         selectedObject.getObjectByName("outline").visible = true;
-        hudStatus.innerText = "IMAGE MODE (1-Finger Place | 2-Finger Pinch Zoom | Double Click Space to Deselect)";
+        hudStatus.innerText = "OBJECT MODE (1-Finger Place | 2-Finger Pinch Zoom | Double Click Space to Deselect)";
       } else {
         deselect();
       }
@@ -209,6 +374,7 @@
       if (selectedObject) {
         selectedObject.getObjectByName("outline").visible = false;
         selectedObject = null;
+        trashBin.classList.remove('highlight');
         hudStatus.innerText = "WORKSPACE MODE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)";
       }
     }
@@ -220,8 +386,15 @@
     }
 
     // --- Touch Gesture Implementation ---
+    let lastTouchClientX = 0;
+    let lastTouchClientY = 0;
+
     container.addEventListener('touchstart', (e) => {
       touches = e.touches;
+      if (e.touches.length === 1) {
+        lastTouchClientX = e.touches[0].clientX;
+        lastTouchClientY = e.touches[0].clientY;
+      }
       if (e.touches.length === 2) {
         initialPinchDistance = getPinchDistance(e.touches[0], e.touches[1]);
         if (selectedObject) {
@@ -236,6 +409,8 @@
 
       if (curTouches.length === 1) {
         const t = curTouches[0];
+        lastTouchClientX = t.clientX;
+        lastTouchClientY = t.clientY;
         const prevT = touches[0] || t;
         const dx = t.clientX - prevT.clientX;
         const dy = t.clientY - prevT.clientY;
@@ -244,6 +419,12 @@
           selectedObject.position.x += dx * 0.05;
           selectedObject.position.y -= dy * 0.05;
           if (selectedObject.position.y < 1) selectedObject.position.y = 1;
+
+          if (checkTrashCollision(t.clientX, t.clientY)) {
+            trashBin.classList.add('highlight');
+          } else {
+            trashBin.classList.remove('highlight');
+          }
         } else {
           desktopGroup.rotation.y += dx * 0.008;
           desktopGroup.rotation.x += dy * 0.008;
@@ -278,6 +459,11 @@
     });
 
     container.addEventListener('touchend', (e) => { 
+      if (selectedObject && checkTrashCollision(lastTouchClientX, lastTouchClientY)) {
+        deleteSelectedObject();
+      } else {
+        trashBin.classList.remove('highlight');
+      }
       touches = e.touches; 
       if (e.touches.length < 2) {
         initialPinchDistance = null;
@@ -299,6 +485,12 @@
         selectedObject.position.x += dx * 0.05;
         selectedObject.position.y -= dy * 0.05;
         if (selectedObject.position.y < 1) selectedObject.position.y = 1;
+
+        if (checkTrashCollision(e.clientX, e.clientY)) {
+          trashBin.classList.add('highlight');
+        } else {
+          trashBin.classList.remove('highlight');
+        }
       } else {
         desktopGroup.rotation.y += dx * 0.008;
         desktopGroup.rotation.x += dy * 0.008;
@@ -307,7 +499,14 @@
       prevMousePos = { x: e.clientX, y: e.clientY };
     });
 
-    container.addEventListener('mouseup', () => isMouseDown = false);
+    container.addEventListener('mouseup', (e) => {
+      isMouseDown = false;
+      if (selectedObject && checkTrashCollision(e.clientX, e.clientY)) {
+        deleteSelectedObject();
+      } else {
+        trashBin.classList.remove('highlight');
+      }
+    });
 
     container.addEventListener('wheel', (e) => {
       if (selectedObject) {
