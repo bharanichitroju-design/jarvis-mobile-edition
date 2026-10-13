@@ -63,10 +63,10 @@ const closeMedia = document.getElementById('close-media');
 const optCamera = document.getElementById('opt-camera');
 const optGallery = document.getElementById('opt-gallery');
 
-// Voice Speech Output (Text-to-Speech)
+// Voice Speech Output (Text-to-Speech) with Interruption Handling
 function speak(text) {
     if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
+        window.speechSynthesis.cancel(); // Stop any ongoing speech immediately
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'en-US';
         utterance.rate = 1.0;
@@ -431,25 +431,23 @@ if (imgInput) {
     });
 }
 
-// ===== CONTINUOUS MIC RECOGNITION (UPDATED) =====
+// ===== ROBUST CONTINUOUS MIC RECOGNITION & INTERRUPTION (UPDATED) =====
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
     recognition.lang = 'en-US';
-    recognition.continuous = true;     // Keeps listening continuously
+    recognition.continuous = true;     
     recognition.interimResults = false;
 
     let isListeningActive = false;
 
     micBtn.addEventListener('click', () => {
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-        }
         if (!isListeningActive) {
             try {
                 recognition.start();
                 isListeningActive = true;
                 add('Jarvis: Listening continuously, Boss...', 'ai');
+                speak('Listening continuously, Boss.');
             } catch (err) {
                 console.log(err);
             }
@@ -457,10 +455,16 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
             recognition.stop();
             isListeningActive = false;
             add('Jarvis: Stopped Listening, Boss.', 'ai');
+            speak('Stopped Listening, Boss.');
         }
     });
 
     recognition.onresult = (event) => {
+        // As soon as user speaks while Jarvis is talking, cancel current speech
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+        }
+
         const transcript = event.results[event.results.length - 1][0].transcript.trim();
         
         // Check if user said "Smart Stop Listening"
@@ -478,7 +482,7 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
     };
 
     recognition.onend = () => {
-        // Automatically restart if it was active and not explicitly stopped by command/button
+        // Automatically restart if it was active and not explicitly stopped
         if (isListeningActive) {
             try {
                 recognition.start();
