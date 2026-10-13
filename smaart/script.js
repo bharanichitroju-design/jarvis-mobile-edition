@@ -431,64 +431,85 @@ if (imgInput) {
     });
 }
 
-// ===== ROBUST CONTINUOUS MIC RECOGNITION & INTERRUPTION (UPDATED) =====
+// ===== SEAMLESS CONTINUOUS MIC RECOGNITION (FIXED) =====
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.continuous = true;     
-    recognition.interimResults = false;
-
+    let recognition = null;
     let isListeningActive = false;
+
+    function initRecognition() {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.continuous = true;     
+        recognition.interimResults = true; // Captures interim results for faster response
+
+        recognition.onresult = (event) => {
+            // Stop Jarvis voice immediately if boss speaks
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+
+            let transcript = '';
+            for (let i = event.resultIndex; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    transcript += event.results[i][0].transcript;
+                }
+            }
+
+            transcript = transcript.trim();
+            if (!transcript) return;
+
+            // Check if user said "Smart Stop Listening"
+            if (transcript.toLowerCase().includes("smart stop listening")) {
+                isListeningActive = false;
+                try { recognition.stop(); } catch(e){}
+                add(`You: ${transcript}`, 'user');
+                add('Jarvis: Stopped Listening, Boss.', 'ai');
+                speak('Stopped Listening, Boss.');
+                return;
+            }
+
+            if (input) input.value = transcript;
+            handleUserCommand();
+        };
+
+        recognition.onerror = (event) => {
+            console.log("Speech recognition error: ", event.error);
+        };
+
+        recognition.onend = () => {
+            // Instantly restart without gaps if active
+            if (isListeningActive) {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    setTimeout(() => {
+                        try { recognition.start(); } catch(err) {}
+                    }, 100);
+                }
+            }
+        };
+    }
+
+    initRecognition();
 
     micBtn.addEventListener('click', () => {
         if (!isListeningActive) {
+            isListeningActive = true;
             try {
                 recognition.start();
-                isListeningActive = true;
                 add('Jarvis: Listening continuously, Boss...', 'ai');
                 speak('Listening continuously, Boss.');
             } catch (err) {
                 console.log(err);
             }
         } else {
-            recognition.stop();
             isListeningActive = false;
+            try {
+                recognition.stop();
+            } catch (err) {}
             add('Jarvis: Stopped Listening, Boss.', 'ai');
             speak('Stopped Listening, Boss.');
         }
     });
-
-    recognition.onresult = (event) => {
-        // As soon as user speaks while Jarvis is talking, cancel current speech
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-        }
-
-        const transcript = event.results[event.results.length - 1][0].transcript.trim();
-        
-        // Check if user said "Smart Stop Listening"
-        if (transcript.toLowerCase().includes("smart stop listening")) {
-            recognition.stop();
-            isListeningActive = false;
-            add(`You: ${transcript}`, 'user');
-            add('Jarvis: Stopped Listening, Boss.', 'ai');
-            speak('Stopped Listening, Boss.');
-            return;
-        }
-
-        if (input) input.value = transcript;
-        handleUserCommand();
-    };
-
-    recognition.onend = () => {
-        // Automatically restart if it was active and not explicitly stopped
-        if (isListeningActive) {
-            try {
-                recognition.start();
-            } catch (e) {
-                console.log(e);
-            }
-        }
-    };
 }
