@@ -120,6 +120,13 @@ MEMORY.forEach(m => add(`${m.role === 'user' ? 'You' : 'Jarvis'}: ${m.text}`, m.
 function handleHardcoded(text) {
     if(!text) return null;
     const query = text.toLowerCase().trim();
+    
+    // 3D File Open Command
+    if (query.includes("smart open three dimensional") || query.includes("open three dimensional")) {
+        window.open("three-dimensional.html", "_blank");
+        return "Opening Three Dimensional View, Boss.";
+    }
+
     if (query.includes("who created you") || query.includes("who is your creator")) {
         return "My name is Jarvis, created by Bharani.";
     }
@@ -441,10 +448,9 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
         recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
         recognition.continuous = true;     
-        recognition.interimResults = true; // Captures interim results for faster response
+        recognition.interimResults = true; 
 
         recognition.onresult = (event) => {
-            // Stop Jarvis voice immediately if boss speaks
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
             }
@@ -459,7 +465,6 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
             transcript = transcript.trim();
             if (!transcript) return;
 
-            // Check if user said "Smart Stop Listening"
             if (transcript.toLowerCase().includes("smart stop listening")) {
                 isListeningActive = false;
                 try { recognition.stop(); } catch(e){}
@@ -478,7 +483,6 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
         };
 
         recognition.onend = () => {
-            // Instantly restart without gaps if active
             if (isListeningActive) {
                 try {
                     recognition.start();
