@@ -41,6 +41,7 @@ try {
 }
 
 let pendingImageData = null;
+let isJarvisSpeaking = false; // Flag for lip movement sync
 
 // DOM Elements
 const chat = document.getElementById('chat');
@@ -70,7 +71,7 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   2. THREE.JS 3D ANIMATED FACE INITIALIZATION
+   2. THREE.JS 3D ANIMATED FACE & LIP-SYNC INITIALIZATION
    ========================================================= */
 let scene, camera, renderer, faceMesh;
 
@@ -83,38 +84,70 @@ function init3DFace() {
   camera.position.z = 5;
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(150, 150);
+  renderer.setSize(180, 180);
   container.appendChild(renderer.domElement);
 
   // Lighting
-  const ambientLight = new THREE.AmbientLight(0x00f3ff, 0.8);
+  const ambientLight = new THREE.AmbientLight(0x00f3ff, 0.9);
   scene.add(ambientLight);
 
-  const pointLight = new THREE.PointLight(0x0077ff, 2, 50);
+  const pointLight = new THREE.PointLight(0x0077ff, 2.5, 50);
   pointLight.position.set(2, 3, 4);
   scene.add(pointLight);
 
-  // Futuristic 3D Geometric Head Wireframe/Sphere representation
-  const geometry = new THREE.IcosahedronGeometry(1.2, 2);
-  const material = new THREE.MeshStandardMaterial({
-    color: 0x00f3ff,
-    wireframe: true,
-    roughness: 0.2,
-    metalness: 0.8
-  });
-
-  faceMesh = new THREE.Mesh(geometry, material);
-  scene.add(faceMesh);
+  // Load Face Image Texture (Ensure you upload your face image as 'jarvis_face.png' in the root folder)
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.load(
+    'jarvis_face.png',
+    (texture) => {
+      const geometry = new THREE.SphereGeometry(1.2, 32, 32);
+      const material = new THREE.MeshStandardMaterial({
+        map: texture,
+        roughness: 0.3,
+        metalness: 0.5
+      });
+      faceMesh = new THREE.Mesh(geometry, material);
+      scene.add(faceMesh);
+    },
+    undefined,
+    (err) => {
+      // Fallback if image not found: Wireframe futuristic head representation
+      console.warn("Face image 'jarvis_face.png' not loaded, using geometric wireframe fallback.");
+      const geometry = new THREE.IcosahedronGeometry(1.2, 2);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x00f3ff,
+        wireframe: true,
+        roughness: 0.2,
+        metalness: 0.8
+      });
+      faceMesh = new THREE.Mesh(geometry, material);
+      scene.add(faceMesh);
+    }
+  );
 
   animateFace();
 }
 
 function animateFace() {
   requestAnimationFrame(animateFace);
+  
   if (faceMesh) {
-    faceMesh.rotation.y += 0.008;
-    faceMesh.rotation.x += 0.004;
+    // Gentle idling rotation
+    faceMesh.rotation.y += 0.005;
+
+    // LIP-SYNC ANIMATION LOGIC: Active jaw/mouth stretching when Jarvis is speaking
+    if (isJarvisSpeaking) {
+      const time = Date.now() * 0.015;
+      // Scale vertical axis (Y) to simulate speaking / lip movement
+      faceMesh.scale.y = 1 + Math.sin(time) * 0.12;
+      faceMesh.scale.x = 1 + Math.cos(time * 0.8) * 0.04;
+    } else {
+      // Smoothly return to default scale when silent
+      faceMesh.scale.y += (1 - faceMesh.scale.y) * 0.1;
+      faceMesh.scale.x += (1 - faceMesh.scale.x) * 0.1;
+    }
   }
+
   if (renderer && scene && camera) {
     renderer.render(scene, camera);
   }
@@ -123,7 +156,7 @@ function animateFace() {
 window.addEventListener('DOMContentLoaded', init3DFace);
 
 /* =========================================================
-   3. TEXT-TO-SPEECH (TTS) & AUDIO OUTPUT
+   3. TEXT-TO-SPEECH (TTS) WITH LIP-SYNC TRIGGER
    ========================================================= */
 function speak(text) {
   if ('speechSynthesis' in window) {
@@ -132,6 +165,22 @@ function speak(text) {
     utterance.lang = 'en-US';
     utterance.rate = 1.0;
     utterance.pitch = 0.95;
+
+    utterance.onstart = () => {
+      isJarvisSpeaking = true;
+      if (statusText) statusText.innerText = "SPEAKING";
+    };
+
+    utterance.onend = () => {
+      isJarvisSpeaking = false;
+      if (statusText) statusText.innerText = "SYSTEM ONLINE";
+    };
+
+    utterance.onerror = () => {
+      isJarvisSpeaking = false;
+      if (statusText) statusText.innerText = "SYSTEM ONLINE";
+    };
+
     window.speechSynthesis.speak(utterance);
   }
 }
@@ -152,7 +201,6 @@ function addMessage(text, sender) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-// Load initial active memory
 MEMORY.forEach(m => addMessage(`${m.role === 'user' ? 'You' : 'Jarvis'}: ${m.text}`, m.role === 'user' ? 'user' : 'ai'));
 
 /* =========================================================
@@ -339,7 +387,7 @@ async function handleUserCommand() {
     }
   }
 
-  if (statusText) statusText.innerText = "PROCESSING COMMAND...";
+  if (statusText) statusText.innerText = "PROCESSING...";
 
   try {
     const reply = await callGemini(text);
@@ -351,7 +399,7 @@ async function handleUserCommand() {
     addMessage(`Jarvis: Error executing requested protocols.`, 'ai');
     speak(`Error executing requested protocols, Boss.`);
   } finally {
-    if (statusText) statusText.innerText = "SYSTEM ONLINE";
+    if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
   }
 }
 
@@ -492,13 +540,13 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
   };
 
   recognition.onerror = () => {
-    if (statusText) statusText.innerText = "SYSTEM ONLINE";
+    if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
     micBtn.style.background = "";
     micBtn.style.color = "";
   };
 
   recognition.onend = () => {
-    if (statusText) statusText.innerText = "SYSTEM ONLINE";
+    if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
     micBtn.style.background = "";
     micBtn.style.color = "";
   };
