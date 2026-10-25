@@ -18,7 +18,7 @@
     <p>ADVANCED PERSONAL AI ASSISTANT</p>
   </header>
 
-  <!-- 3D ANIMATED FACE & VOICE WAVEFORM SECTION -->
+  <!-- TOP HALF: 3D ANIMATED FACE & VOICE WAVEFORM SECTION -->
   <div class="core-container">
     <div id="face-container"></div>
     
@@ -40,23 +40,24 @@
     <p class="boss-quote">ALWAYS AT YOUR SERVICE, BOSS BHARANI</p>
   </div>
 
-  <!-- EXPANDED CHAT CONVERSATION CONTAINER -->
-  <div class="chat" id="chat"></div>
+  <!-- BOTTOM HALF: CHAT CONVERSATION & CONTROL INPUT AREA -->
+  <div class="bottom-section">
+    <div class="chat" id="chat"></div>
 
-  <!-- CONTROL INPUT AREA -->
-  <div class="input-area">
-    <div class="input-row">
-      <input id="msg" type="text" placeholder="Enter command or speak 'open my details'..." />
-      <button id="execute-btn" class="btn btn-primary">EXECUTE</button>
+    <div class="input-area">
+      <div class="input-row">
+        <input id="msg" type="text" placeholder="Enter command or speak 'open my details'..." />
+        <button id="execute-btn" class="btn btn-primary">EXECUTE</button>
+      </div>
+      <div class="input-row">
+        <button id="mic-btn" class="btn" title="Voice Input" style="flex: 1;">🎙️ MIC</button>
+        <button id="gallery-btn" class="btn" title="Upload Gallery Image" style="flex: 1;">🖼️ GALLERY</button>
+        <button id="files-btn" class="btn" title="Open Memory Box" style="flex: 1;">📁 FILES</button>
+        <button id="clear-btn" class="btn btn-danger" title="Clear Active Chat" style="flex: 1;">CLEAR</button>
+      </div>
+      <!-- Direct File Input for Gallery Only (No Camera Access) -->
+      <input id="img-input" type="file" accept="image/*" style="display:none">
     </div>
-    <div class="input-row">
-      <button id="mic-btn" class="btn" title="Voice Input" style="flex: 1;">🎙️ MIC</button>
-      <button id="gallery-btn" class="btn" title="Upload Gallery Image" style="flex: 1;">🖼️ GALLERY</button>
-      <button id="files-btn" class="btn" title="Open Memory Box" style="flex: 1;">📁 FILES</button>
-      <button id="clear-btn" class="btn btn-danger" title="Clear Active Chat" style="flex: 1;">CLEAR</button>
-    </div>
-    <!-- Direct File Input for Gallery Only (No Camera Access) -->
-    <input id="img-input" type="file" accept="image/*" style="display:none">
   </div>
 
   <!-- MODAL 1: HISTORY LOG POPUP -->
