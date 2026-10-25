@@ -10,8 +10,8 @@ function checkApiKey() {
   }
 }
 
-// Fixed & Working Gemini Models (Stable Versions)
-const MODELS = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-flash-latest"];
+// User specified models list with working fallbacks
+const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-1.5-flash", "gemini-2.0-flash"];
 
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir).
 Key Information about your Boss & Family:
@@ -41,14 +41,6 @@ try {
   localStorage.removeItem('jarvis_sessions');
 }
 
-// Current active session items
-let currentSession = {
-  id: Date.now(),
-  title: "New Conversation",
-  date: format12HourTime(new Date()),
-  messages: []
-};
-
 function format12HourTime(dateObj) {
   let hours = dateObj.getHours();
   const minutes = dateObj.getMinutes().toString().padStart(2, '0');
@@ -58,6 +50,14 @@ function format12HourTime(dateObj) {
   const day = dateObj.toLocaleDateString();
   return `${day}, ${hours}:${minutes} ${ampm}`;
 }
+
+// Current active session items
+let currentSession = {
+  id: Date.now(),
+  title: "New Conversation",
+  date: format12HourTime(new Date()),
+  messages: []
+};
 
 let pendingImageData = null;
 let isJarvisSpeaking = false; // Flag for lip movement sync
@@ -103,7 +103,7 @@ function init3DFace() {
   camera.position.z = 4.2;
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(135, 135);
+  renderer.setSize(290, 290);
   container.appendChild(renderer.domElement);
 
   const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
@@ -268,6 +268,12 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
+  // 3D File Open Command (From Old Code)
+  if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional")) {
+    window.open("three-dimensional.html", "_blank");
+    return "Opening Three Dimensional View, Boss.";
+  }
+
   if (query.includes("go back") || query.includes("go to home") || query.includes("home") || query.includes("back")) {
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
@@ -286,7 +292,6 @@ function handleHardcoded(text) {
     return "Opening your Files and Details Memory Box, Boss.";
   }
 
-  // Gallery button click handling (Safe activation without instant block)
   if (query.includes("open gallery") || query.includes("gallery")) {
     if (galleryBtn) {
       galleryBtn.style.backgroundColor = "rgba(0, 243, 255, 0.4)";
@@ -403,7 +408,7 @@ async function callGemini(text) {
       if (res.ok) {
         const data = await res.json();
         pendingImageData = null;
-        if (data.candidates && data.candidates[0].content.parts[0].text) {
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
           return data.candidates[0].content.parts[0].text;
         }
       }
@@ -616,7 +621,6 @@ if (settingsBtn) {
 if (closeHistory) closeHistory.addEventListener('click', () => historyModal.style.display = 'none');
 if (closeMemoryModal) closeMemoryModal.addEventListener('click', () => memoryModal.style.display = 'none');
 
-// Gallery Click & Visual Glow Feedback
 if (galleryBtn) {
   galleryBtn.addEventListener('click', () => {
     galleryBtn.style.backgroundColor = "rgba(0, 243, 255, 0.4)";
