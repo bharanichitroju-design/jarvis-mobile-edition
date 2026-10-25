@@ -1,463 +1,509 @@
-// ===== 1. API KEY =====
-let API_KEY = localStorage.getItem('jarvis_key');
-if(!API_KEY){ 
-    API_KEY = prompt('Enter your Gemini API Key:'); 
-    if(API_KEY) localStorage.setItem('jarvis_key', API_KEY); 
+/* =========================================================
+   1. INITIALIZATION & CONFIGURATION
+   ========================================================= */
+let API_KEY = localStorage.getItem('jarvis_key') || '';
+
+function checkApiKey() {
+  if (!API_KEY) {
+    API_KEY = prompt('Enter your Gemini API Key to enable AI responses, Boss:');
+    if (API_KEY) localStorage.setItem('jarvis_key', API_KEY);
+  }
 }
 
-// Updated Gemini Models
-const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
+const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 
-// SYSTEM INSTRUCTION FOR JARVIS IDENTITY & BOSS DETAILS
-const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani.
+const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir).
 Key Information about your Boss & Family:
-- Your Name: Jarvis (Created by Bharani)
-- Boss Name: Bharani
+- Your Name: Jarvis (Created by Bharani / Sir)
+- Boss Name: Bharani / Sir
 - Boss Family Surname (Inti Peru): Chittiroju
 - Boss Father's Name: C.H. Rambabu (Profession: Tailor)
 - Boss Mother's Name: Devi Sirisha (Profession: Tailor)
 - Boss Brother's (Annaya) Name: Mani Satyan (Profession: Chef)
 - Boss Grandmother's (Paternal) Name: Sujatha
+- Additional Family Details: Attamma garu M. Bhavani, her husband Suribabu, and their daughters Kavya and Navya.
 
 Behavior Guidelines:
-1. Always address Bharani as "Boss".
-2. If asked "What is your name?" or "Who are you?", respond with: "My name is Jarvis, created by Bharani."
-3. If asked about your boss, his father, mother, brother, grandmother, their professions, or surname/family, respond clearly using the family details provided above.
-4. Keep your responses crisp, direct, respectful, and helpful in English or Telugu as preferred by Boss.`;
+1. Always address Bharani as "Boss" or "Sir".
+2. If asked "What is your name?" or "Who are you?", respond with: "My name is Jarvis, created by Bharani (Sir)."
+3. If asked about your boss, his family members, their relations, professions, or surname/family, respond clearly using the family details provided above.
+4. Keep answers concise, direct, and helpful.`;
 
-// ===== 2. MEMORY & HISTORY =====
+// Active memory store
 let MEMORY = [];
 try {
-    const storedMemory = JSON.parse(localStorage.getItem('jarvis_memory') || '[]');
-    if (Array.isArray(storedMemory)) {
-        MEMORY = storedMemory.filter(m => m && (m.role === 'user' || m.role === 'model') && typeof m.text === 'string');
-    }
+  const storedMemory = JSON.parse(localStorage.getItem('jarvis_memory') || '[]');
+  if (Array.isArray(storedMemory)) {
+    MEMORY = storedMemory.filter(m => m && (m.role === 'user' || m.role === 'model') && typeof m.text === 'string');
+  }
 } catch (e) {
-    localStorage.removeItem('jarvis_memory');
-}
-
-function saveMemory(){ 
-    localStorage.setItem('jarvis_memory', JSON.stringify(MEMORY)); 
+  localStorage.removeItem('jarvis_memory');
 }
 
 let pendingImageData = null;
 
-// UI Elements
+// DOM Elements
 const chat = document.getElementById('chat');
 const input = document.getElementById('msg');
+const executeBtn = document.getElementById('execute-btn');
 const micBtn = document.getElementById('mic-btn');
+const galleryBtn = document.getElementById('gallery-btn');
+const filesBtn = document.getElementById('files-btn');
 const clearBtn = document.getElementById('clear-btn');
-const camBtn = document.getElementById('cam-btn');
 const imgInput = document.getElementById('img-input');
-const executeBtn = document.getElementById('execute-btn') || document.querySelector('.btn-execute') || document.querySelector('button');
+const apiKeyBtn = document.getElementById('api-key-btn');
+const statusText = document.getElementById('status-text');
 
-// History UI Elements
+// History Modal Elements
 const settingsBtn = document.getElementById('settings-btn');
 const historyModal = document.getElementById('history-modal');
 const closeHistory = document.getElementById('close-history');
 const historyList = document.getElementById('history-list');
+const clearAllHistoryBtn = document.getElementById('clear-all-history');
 
-// Media Popup UI Elements
-const mediaModal = document.getElementById('media-modal');
-const closeMedia = document.getElementById('close-media');
-const optCamera = document.getElementById('opt-camera');
-const optGallery = document.getElementById('opt-gallery');
+// Memory Modal Elements
+const memoryModal = document.getElementById('memory-modal');
+const closeMemoryModal = document.getElementById('close-memory-modal');
+const memorySearchInput = document.getElementById('memory-search-input');
+const customMemoryInput = document.getElementById('custom-memory-input');
+const saveCustomMemory = document.getElementById('save-custom-memory');
+const savedMemoryList = document.getElementById('saved-memory-list');
 
-// Voice Speech Output (Text-to-Speech)
+/* =========================================================
+   2. THREE.JS 3D ANIMATED FACE INITIALIZATION
+   ========================================================= */
+let scene, camera, renderer, faceMesh;
+
+function init3DFace() {
+  const container = document.getElementById('face-container');
+  if (!container) return;
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+  camera.position.z = 5;
+
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(150, 150);
+  container.appendChild(renderer.domElement);
+
+  // Lighting
+  const ambientLight = new THREE.AmbientLight(0x00f3ff, 0.8);
+  scene.add(ambientLight);
+
+  const pointLight = new THREE.PointLight(0x0077ff, 2, 50);
+  pointLight.position.set(2, 3, 4);
+  scene.add(pointLight);
+
+  // Futuristic 3D Geometric Head Wireframe/Sphere representation
+  const geometry = new THREE.IcosahedronGeometry(1.2, 2);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x00f3ff,
+    wireframe: true,
+    roughness: 0.2,
+    metalness: 0.8
+  });
+
+  faceMesh = new THREE.Mesh(geometry, material);
+  scene.add(faceMesh);
+
+  animateFace();
+}
+
+function animateFace() {
+  requestAnimationFrame(animateFace);
+  if (faceMesh) {
+    faceMesh.rotation.y += 0.008;
+    faceMesh.rotation.x += 0.004;
+  }
+  if (renderer && scene && camera) {
+    renderer.render(scene, camera);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', init3DFace);
+
+/* =========================================================
+   3. TEXT-TO-SPEECH (TTS) & AUDIO OUTPUT
+   ========================================================= */
 function speak(text) {
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'en-US';
-        utterance.rate = 1.0;
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    utterance.rate = 1.0;
+    utterance.pitch = 0.95;
+    window.speechSynthesis.speak(utterance);
+  }
+}
 
-        const setVoice = () => {
-            const voices = window.speechSynthesis.getVoices();
-            let maleVoice = voices.find(voice => 
-                voice.lang.includes('en') && 
-                voice.name.toLowerCase().includes('male')
-            );
+/* =========================================================
+   4. UI & CHAT RENDERERS
+   ========================================================= */
+function saveMemory() { 
+  localStorage.setItem('jarvis_memory', JSON.stringify(MEMORY)); 
+}
 
-            if (!maleVoice) {
-                maleVoice = voices.find(voice => 
-                    voice.lang.includes('en') && (
-                        voice.name.toLowerCase().includes('david') ||
-                        voice.name.toLowerCase().includes('george') ||
-                        voice.name.toLowerCase().includes('google us english')
-                    )
-                );
-            }
+function addMessage(text, sender) {
+  if (!chat) return;
+  const msgDiv = document.createElement('div');
+  msgDiv.className = `message ${sender}`;
+  msgDiv.innerText = text;
+  chat.appendChild(msgDiv);
+  chat.scrollTop = chat.scrollHeight;
+}
 
-            if (maleVoice) {
-                utterance.voice = maleVoice;
-            }
+// Load initial active memory
+MEMORY.forEach(m => addMessage(`${m.role === 'user' ? 'You' : 'Jarvis'}: ${m.text}`, m.role === 'user' ? 'user' : 'ai'));
 
-            window.speechSynthesis.speak(utterance);
-        };
+/* =========================================================
+   5. LOCAL FILES & OFFLINE MEMORY STORAGE HANDLERS
+   ========================================================= */
+function getCustomMemories() {
+  return JSON.parse(localStorage.getItem('jarvis_custom_memories') || '[]');
+}
 
-        if (window.speechSynthesis.getVoices().length === 0) {
-            window.speechSynthesis.onvoiceschanged = setVoice;
-        } else {
-            setVoice();
-        }
+function renderCustomMemories(filterText = '') {
+  if (!savedMemoryList) return;
+  savedMemoryList.innerHTML = '';
+  const mems = getCustomMemories();
+  const filtered = mems.filter(m => m.toLowerCase().includes(filterText.toLowerCase()));
+
+  if (filtered.length === 0) {
+    savedMemoryList.innerHTML = '<div style="color:#00f3ff; font-size:11px; opacity:0.6; text-align:center;">No memory records found, Boss.</div>';
+    return;
+  }
+
+  filtered.forEach((m, idx) => {
+    const item = document.createElement('div');
+    item.style.cssText = "font-size:11px; color:#00f3ff; margin-bottom:6px; border-bottom:1px dashed rgba(0,243,255,0.3); padding-bottom:4px; display:flex; justify-content:space-between; align-items:center;";
+    item.innerHTML = `<span>📄 ${m}</span> <span style="color:#ff3366; cursor:pointer; font-weight:bold; padding:2px 6px;" onclick="deleteCustomMemory(${idx})">✕</span>`;
+    savedMemoryList.appendChild(item);
+  });
+}
+
+if (memorySearchInput) {
+  memorySearchInput.addEventListener('input', (e) => {
+    renderCustomMemories(e.target.value);
+  });
+}
+
+window.deleteCustomMemory = function(index) {
+  let mems = getCustomMemories();
+  mems.splice(index, 1);
+  localStorage.setItem('jarvis_custom_memories', JSON.stringify(mems));
+  renderCustomMemories(memorySearchInput ? memorySearchInput.value : '');
+};
+
+if (saveCustomMemory) {
+  saveCustomMemory.addEventListener('click', () => {
+    const valFromSearch = memorySearchInput.value.trim();
+    const valFromTextarea = customMemoryInput.value.trim();
+    const finalVal = valFromTextarea || valFromSearch;
+
+    if (finalVal) {
+      let mems = getCustomMemories();
+      mems.push(finalVal);
+      localStorage.setItem('jarvis_custom_memories', JSON.stringify(mems));
+      customMemoryInput.value = '';
+      memorySearchInput.value = '';
+      renderCustomMemories();
+      speak("Details saved to your local memory matrix, Boss.");
     }
+  });
 }
 
-// Add message to chat UI
-function add(text, sender) {
-    if (!chat) return;
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `message ${sender}`;
-    msgDiv.innerText = text;
-    chat.appendChild(msgDiv);
-    chat.scrollTop = chat.scrollHeight;
-}
-
-// Display existing memory on load
-MEMORY.forEach(m => add(`${m.role === 'user' ? 'You' : 'Jarvis'}: ${m.text}`, m.role === 'user' ? 'user' : 'ai'));
-
-// Hardcoded Commands Function
+/* =========================================================
+   6. HARDCODED COMMANDS & ROUTING
+   ========================================================= */
 function handleHardcoded(text) {
-    if(!text) return null;
-    const query = text.toLowerCase().trim();
-    if (query.includes("who created you") || query.includes("who is your creator")) {
-        return "My name is Jarvis, created by Bharani.";
+  if (!text) return null;
+  const query = text.toLowerCase().trim();
+
+  if (query.includes("open my files") || query.includes("open my details") || query.includes("open memory box") || query.includes("my files")) {
+    renderCustomMemories();
+    if (memoryModal) {
+      memoryModal.style.display = 'block';
+      if (memorySearchInput) {
+        memorySearchInput.value = '';
+        setTimeout(() => memorySearchInput.focus(), 150);
+      }
     }
-    if (query.includes("boss father") || query.includes("father's name") || query.includes("father name")) {
-        return "My Boss's Father name is C.H. Rambabu, and his profession is Tailor.";
-    }
-    if (query.includes("boss mother") || query.includes("mother's name") || query.includes("mother name")) {
-        return "My Boss's Mother name is Devi Sirisha, and her profession is Tailor.";
-    }
-    if (query.includes("boss brother") || query.includes("brother's name") || query.includes("brother name")) {
-        return "My Boss's Brother name is Mani Satyan, and his profession is Chef.";
-    }
-    if (query.includes("boss grandmother") || query.includes("grandmother's name") || query.includes("grandmother name")) {
-        return "My Boss's Grandmother's name is Sujatha.";
-    }
-    if (query.includes("boss family") || query.includes("family name") || query.includes("inti peru") || query.includes("surname")) {
-        return "My Boss's family surname (Inti Peru) is Chittiroju.";
-    }
-    
-    if (query.includes("open youtube")) {
-        window.open("https://youtube.com", "_blank");
-        return "Opening YouTube, Boss.";
-    }
-    if (query.includes("play song") || query.includes("play music")) {
-        const songSearch = query.replace("play song", "").replace("play music", "").trim();
-        const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(songSearch)}`;
-        window.open(youtubeUrl, "_blank");
-        return `Searching YouTube for "${songSearch}", Boss.`;
-    }
-    if (query.includes("google search") || query.includes("search google")) {
-        const googleSearch = query.replace("google search", "").replace("search google", "").trim();
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(googleSearch)}`;
-        window.open(searchUrl, "_blank");
-        return `Searching Google for "${googleSearch}", Boss.`;
-    }
-    return null;
+    return "Opening your Files and Details Memory Box, Boss.";
+  }
+
+  if (query.includes("open youtube")) {
+    window.open("https://www.youtube.com", "_blank");
+    return "Opening YouTube, Boss.";
+  }
+  if (query.includes("open google")) {
+    window.open("https://www.google.com", "_blank");
+    return "Opening Google Search, Boss.";
+  }
+
+  if (query.includes("who created you") || query.includes("who is your creator") || query.includes("your name")) {
+    return "My name is Jarvis, an advanced AI personal assistant created by Bharani (Sir).";
+  }
+  if (query.includes("father name") || query.includes("boss father")) {
+    return "My Boss's Father name is C.H. Rambabu, and his profession is Tailor.";
+  }
+  if (query.includes("mother name") || query.includes("boss mother")) {
+    return "My Boss's Mother name is Devi Sirisha, and her profession is Tailor.";
+  }
+  if (query.includes("brother name") || query.includes("boss brother")) {
+    return "My Boss's Brother name is Mani Satyan, and his profession is Chef.";
+  }
+  if (query.includes("surname") || query.includes("inti peru") || query.includes("family name")) {
+    return "My Boss's family surname is Chittiroju.";
+  }
+
+  return null;
 }
 
-// ===== 3. GEMINI API CALL =====
+/* =========================================================
+   7. AI ENGINE CALL (GEMINI + OFFLINE FALLBACK)
+   ========================================================= */
 async function callGemini(text) {
-    if(!API_KEY) return "Error: API Key is missing, Boss.";
-    
-    const contents = MEMORY.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
-    
-    const userParts = [];
-    
-    // 1. Add Text Prompt
-    if (text) {
-        userParts.push({ text: text });
-    } else if (pendingImageData) {
-        userParts.push({ text: "What is in this image, Boss? Describe it in detail." });
-    }
+  if (!API_KEY) {
+    checkApiKey();
+    if (!API_KEY) return "API Key is required to connect with AI online, Boss.";
+  }
 
-    // 2. Add Image Data Correctly
-    if (pendingImageData) {
-        userParts.push({
-            inline_data: {
-                mime_type: pendingImageData.mimeType,
-                data: pendingImageData.data
-            }
-        });
-    }
+  const contents = MEMORY.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+  const userParts = [];
 
-    contents.push({ role: 'user', parts: userParts });
+  if (text) userParts.push({ text: text });
+  if (pendingImageData) {
+    userParts.push({ text: "Please analyze this image, Boss." });
+    userParts.push({ inline_data: { mime_type: pendingImageData.mimeType, data: pendingImageData.data } });
+  }
+  contents.push({ role: 'user', parts: userParts });
 
-    for (let model of MODELS) {
-        try {
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: contents,
-                    system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] }
-                })
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                pendingImageData = null; // Reset image data after successful response
-                if (data.candidates && data.candidates[0].content.parts[0].text) {
-                    return data.candidates[0].content.parts[0].text;
-                }
-            }
-        } catch (e) {
-            console.error("Model failed: " + model, e);
-        }
-    }
-    
-    pendingImageData = null;
-    return "Error: All AI models failed to process the request. Please check your network connection or Gemini API Key, Boss.";
-}
-
-// User Command Execution Function
-async function handleUserCommand() {
-    const text = input ? input.value.trim() : '';
-    if (!text && !pendingImageData) return;
-
-    const currentImageData = pendingImageData; // Store local reference
-
-    if (text && currentImageData) {
-        add(`You: [Image Uploaded] ${text}`, 'user');
-        MEMORY.push({ role: 'user', text: `[Image Uploaded] ${text}` });
-    } else if (text) {
-        add(`You: ${text}`, 'user');
-        MEMORY.push({ role: 'user', text: text });
-    } else if (currentImageData) {
-        add(`You: [Image Uploaded] Analysing image...`, 'user');
-        MEMORY.push({ role: 'user', text: '[Uploaded Image for Analysis]' });
-    }
-
-    if (input) input.value = '';
-
-    // Hardcoded logic only if no image is attached
-    if (!currentImageData) {
-        const hcReply = handleHardcoded(text);
-        if (hcReply) {
-            add(`Jarvis: ${hcReply}`, 'ai');
-            MEMORY.push({ role: 'model', text: hcReply });
-            saveMemory();
-            speak(hcReply);
-            return;
-        }
-    }
-
+  for (let model of MODELS) {
     try {
-        const reply = await callGemini(text);
-        add(`Jarvis: ${reply}`, 'ai');
-        MEMORY.push({ role: 'model', text: reply });
-        saveMemory();
-        speak(reply);
-    } catch (err) {
-        add(`Jarvis: Error: ${err.message}`, 'ai');
-        speak(`Error processing request, Boss.`);
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: contents,
+          system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] }
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
         pendingImageData = null;
-    }
-}
-
-// Event Listeners for UI
-if (executeBtn) {
-    executeBtn.addEventListener('click', handleUserCommand);
-}
-
-if (input) {
-    input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleUserCommand();
-    });
-}
-
-// Function to format Date & Time accurately with seconds
-function getFormattedTimestamp() {
-    const now = new Date();
-    const dateStr = now.toLocaleDateString();
-    const timeStr = now.toLocaleTimeString();
-    return `${dateStr} ${timeStr}`;
-}
-
-// Clear Memory Button - Saves current chat session to permanent History
-if (clearBtn) {
-    clearBtn.addEventListener('click', () => {
-        if (MEMORY.length > 0) {
-            let historyStore = JSON.parse(localStorage.getItem('jarvis_history_store') || '[]');
-            
-            const firstUserMsg = MEMORY.find(m => m.role === 'user');
-            const mainTopic = firstUserMsg ? firstUserMsg.text : "Conversation Session";
-
-            historyStore.push({
-                timestamp: getFormattedTimestamp(),
-                topic: mainTopic,
-                chats: [...MEMORY]
-            });
-            localStorage.setItem('jarvis_history_store', JSON.stringify(historyStore));
+        if (data.candidates && data.candidates[0].content.parts[0].text) {
+          return data.candidates[0].content.parts[0].text;
         }
+      }
+    } catch (e) {
+      console.warn("Model attempt failed: " + model, e);
+    }
+  }
 
-        MEMORY = [];
-        pendingImageData = null;
-        localStorage.removeItem('jarvis_memory');
-        if (chat) chat.innerHTML = '';
-        add('Jarvis: Memory Cleared, Boss.', 'ai');
-        speak('Memory Cleared, Boss.');
-    });
+  pendingImageData = null;
+
+  const customMems = getCustomMemories();
+  if (customMems.length > 0 && text) {
+    const matched = customMems.find(m => m.toLowerCase().includes(text.toLowerCase()));
+    if (matched) {
+      return `[Offline Memory Local Match]: ${matched}`;
+    }
+  }
+
+  return "Network connection unavailable or API limit reached. Local Memory Matrix active, Boss.";
 }
 
-// Render History Items (Structured 2-Line Format)
-function renderHistory() {
-    if (!historyList) return;
-    historyList.innerHTML = '';
-    let historyStore = JSON.parse(localStorage.getItem('jarvis_history_store') || '[]');
+/* =========================================================
+   8. COMMAND DISPATCHER
+   ========================================================= */
+async function handleUserCommand() {
+  const text = input ? input.value.trim() : '';
+  if (!text && !pendingImageData) return;
 
-    if (historyStore.length === 0) {
-        historyList.innerHTML = '<div style="color:#0ff; opacity:0.6; padding:10px;">No chat history found.</div>';
-        return;
+  const currentImageData = pendingImageData;
+  if (text) {
+    addMessage(`You: ${text}`, 'user');
+    MEMORY.push({ role: 'user', text: text });
+  }
+  if (input) input.value = '';
+
+  if (!currentImageData) {
+    const hcReply = handleHardcoded(text);
+    if (hcReply) {
+      addMessage(`Jarvis: ${hcReply}`, 'ai');
+      MEMORY.push({ role: 'model', text: hcReply });
+      saveMemory();
+      speak(hcReply);
+      return;
     }
+  }
 
-    historyStore.forEach((session, index) => {
-        const sessionDiv = document.createElement('div');
-        sessionDiv.className = 'history-item';
-        
-        sessionDiv.innerHTML = `
-            <div style="font-weight:bold; color:#0ff; font-size:10px;">⏱️ ${session.timestamp}</div>
-            <div style="margin-top:4px; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-               💬 <b>${session.topic}</b>
-            </div>
-            <div class="full-chat-details" style="display:none; margin-top:8px; padding-top:8px; border-top:1px dashed rgba(0,255,255,0.3);"></div>
-        `;
+  if (statusText) statusText.innerText = "PROCESSING COMMAND...";
 
-        const detailsDiv = sessionDiv.querySelector('.full-chat-details');
-        
-        session.chats.forEach(c => {
-            const msgP = document.createElement('div');
-            msgP.style.margin = "4px 0";
-            msgP.innerHTML = `<b>${c.role === 'user' ? 'You' : 'Jarvis'}:</b> ${c.text}`;
-            detailsDiv.appendChild(msgP);
-        });
+  try {
+    const reply = await callGemini(text);
+    addMessage(`Jarvis: ${reply}`, 'ai');
+    MEMORY.push({ role: 'model', text: reply });
+    saveMemory();
+    speak(reply);
+  } catch (err) {
+    addMessage(`Jarvis: Error executing requested protocols.`, 'ai');
+    speak(`Error executing requested protocols, Boss.`);
+  } finally {
+    if (statusText) statusText.innerText = "SYSTEM ONLINE";
+  }
+}
 
-        let isLongPress = false;
-        let pressTimer;
+/* =========================================================
+   9. HISTORY LOG MANAGEMENT
+   ========================================================= */
+function renderHistory() {
+  if (!historyList) return;
+  historyList.innerHTML = '';
+  if (MEMORY.length === 0) {
+    historyList.innerHTML = '<div style="color:#00f3ff; opacity:0.6; text-align:center;">No history records found.</div>';
+    return;
+  }
+  MEMORY.forEach((m, idx) => {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `<div><b>${m.role === 'user' ? 'You' : 'Jarvis'}:</b> ${m.text}</div>
+                      <span style="color:#ff3366; cursor:pointer;" onclick="deleteHistoryItem(${idx})">✕</span>`;
+    historyList.appendChild(item);
+  });
+}
 
-        const deleteSession = () => {
-            isLongPress = true;
-            if (confirm("Delete this history session, Boss?")) {
-                historyStore.splice(index, 1);
-                localStorage.setItem('jarvis_history_store', JSON.stringify(historyStore));
-                renderHistory();
-            }
-        };
+window.deleteHistoryItem = function(index) {
+  MEMORY.splice(index, 1);
+  saveMemory();
+  renderHistory();
+};
 
-        const startPress = () => {
-            isLongPress = false;
-            pressTimer = setTimeout(deleteSession, 800);
-        };
+if (clearAllHistoryBtn) {
+  clearAllHistoryBtn.addEventListener('click', () => {
+    MEMORY = [];
+    saveMemory();
+    renderHistory();
+    if (chat) chat.innerHTML = '';
+  });
+}
 
-        const cancelPress = () => {
-            clearTimeout(pressTimer);
-        };
+/* =========================================================
+   10. EVENT LISTENERS & MODAL BINDINGS
+   ========================================================= */
+if (executeBtn) executeBtn.addEventListener('click', handleUserCommand);
+if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleUserCommand(); });
 
-        sessionDiv.addEventListener('touchstart', startPress);
-        sessionDiv.addEventListener('touchend', cancelPress);
-        sessionDiv.addEventListener('mousedown', startPress);
-        sessionDiv.addEventListener('mouseup', cancelPress);
+if (filesBtn) {
+  filesBtn.addEventListener('click', () => {
+    renderCustomMemories();
+    if (memoryModal) {
+      memoryModal.style.display = 'block';
+      if (memorySearchInput) {
+        memorySearchInput.value = '';
+        setTimeout(() => memorySearchInput.focus(), 150);
+      }
+    }
+  });
+}
 
-        sessionDiv.addEventListener('click', () => {
-            if (!isLongPress) {
-                detailsDiv.style.display = detailsDiv.style.display === 'none' ? 'block' : 'none';
-            }
-        });
+if (clearBtn) {
+  clearBtn.addEventListener('click', () => {
+    if (chat) chat.innerHTML = '';
+    speak("Chat display cleared, Boss.");
+  });
+}
 
-        historyList.appendChild(sessionDiv);
-    });
+if (apiKeyBtn) {
+  apiKeyBtn.addEventListener('click', () => {
+    const newKey = prompt('Update Gemini API Key:', API_KEY);
+    if (newKey !== null) {
+      API_KEY = newKey.trim();
+      localStorage.setItem('jarvis_key', API_KEY);
+      alert('API Key updated successfully, Boss.');
+    }
+  });
 }
 
 if (settingsBtn) {
-    settingsBtn.addEventListener('click', () => {
-        renderHistory();
-        if (historyModal) historyModal.style.display = 'block';
-    });
+  settingsBtn.addEventListener('click', () => {
+    renderHistory();
+    if (historyModal) historyModal.style.display = 'block';
+  });
 }
 
-if (closeHistory) {
-    closeHistory.addEventListener('click', () => {
-        if (historyModal) historyModal.style.display = 'none';
-    });
+if (closeHistory) closeHistory.addEventListener('click', () => historyModal.style.display = 'none');
+if (closeMemoryModal) closeMemoryModal.addEventListener('click', () => memoryModal.style.display = 'none');
+
+// Gallery Only Upload Handler (No Camera Access)
+if (galleryBtn) {
+  galleryBtn.addEventListener('click', () => {
+    if (imgInput) {
+      imgInput.removeAttribute('capture');
+      imgInput.click();
+    }
+  });
 }
 
-// ===== CAMERA / GALLERY SELECTION MODAL LOGIC =====
-if (camBtn && mediaModal) {
-    camBtn.addEventListener('click', () => {
-        mediaModal.style.display = 'block';
-    });
-}
-
-if (closeMedia) {
-    closeMedia.addEventListener('click', () => {
-        mediaModal.style.display = 'none';
-    });
-}
-
-if (optCamera) {
-    optCamera.addEventListener('click', () => {
-        mediaModal.style.display = 'none';
-        imgInput.setAttribute('capture', 'environment');
-        imgInput.click();
-    });
-}
-
-if (optGallery) {
-    optGallery.addEventListener('click', () => {
-        mediaModal.style.display = 'none';
-        imgInput.removeAttribute('capture');
-        imgInput.click();
-    });
+if (imgInput) {
+  imgInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const base64Data = evt.target.result.split(',')[1];
+        pendingImageData = {
+          mimeType: file.type,
+          data: base64Data
+        };
+        addMessage(`You: [Attached Gallery Image: ${file.name}]`, 'user');
+        handleUserCommand();
+      };
+      reader.readAsDataURL(file);
+    }
+  });
 }
 
 window.addEventListener('click', (e) => {
-    if (e.target === historyModal) {
-        historyModal.style.display = 'none';
-    }
-    if (e.target === mediaModal) {
-        mediaModal.style.display = 'none';
-    }
+  if (e.target === historyModal) historyModal.style.display = 'none';
+  if (e.target === memoryModal) memoryModal.style.display = 'none';
 });
 
-// ===== IMAGE UPLOAD FILE HANDLING =====
-if (imgInput) {
-    imgInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                const base64Data = evt.result.split(',')[1];
-                pendingImageData = {
-                    mimeType: file.type,
-                    data: base64Data
-                };
-                handleUserCommand();
-            };
-            reader.readAsDataURL(file);
-        }
-        imgInput.value = '';
-    });
-}
-
-// Mic Button (Voice Input)
+/* =========================================================
+   11. SPEECH RECOGNITION (VOICE INPUT)
+   ========================================================= */
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.continuous = false;
 
-    micBtn.addEventListener('click', () => {
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-        }
-        recognition.start();
-        add('Jarvis: Listening...', 'ai');
-    });
+  recognition.onstart = () => {
+    if (statusText) statusText.innerText = "LISTENING...";
+    micBtn.style.background = "#00f3ff";
+    micBtn.style.color = "#000";
+  };
 
-    recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        if (input) input.value = transcript;
-        handleUserCommand();
-    };
-            }
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript.trim();
+    if (input) input.value = transcript;
+    handleUserCommand();
+  };
+
+  recognition.onerror = () => {
+    if (statusText) statusText.innerText = "SYSTEM ONLINE";
+    micBtn.style.background = "";
+    micBtn.style.color = "";
+  };
+
+  recognition.onend = () => {
+    if (statusText) statusText.innerText = "SYSTEM ONLINE";
+    micBtn.style.background = "";
+    micBtn.style.color = "";
+  };
+
+  micBtn.addEventListener('click', () => {
+    try { recognition.start(); } catch(e){}
+  });
+}
