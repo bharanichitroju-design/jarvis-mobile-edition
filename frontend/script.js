@@ -29,7 +29,7 @@ Behavior Guidelines:
 3. If asked about your boss, his family members, their relations, professions, or surname/family, respond clearly using the family details provided above.
 4. Keep answers concise, direct, and helpful.`;
 
-// Active memory store
+// Active memory store with Date & Time support
 let MEMORY = [];
 try {
   const storedMemory = JSON.parse(localStorage.getItem('jarvis_memory') || '[]');
@@ -172,7 +172,7 @@ function speak(text) {
 }
 
 /* =========================================================
-   4. UI & CHAT RENDERERS
+   4. UI & CHAT RENDERERS WITH TIMESTAMP & FOLDER SUPPORT
    ========================================================= */
 function saveMemory() { 
   localStorage.setItem('jarvis_memory', JSON.stringify(MEMORY)); 
@@ -247,13 +247,14 @@ if (saveCustomMemory) {
 }
 
 /* =========================================================
-   6. HARDCODED COMMANDS & ROUTING
+   6. HARDCODED COMMANDS & VOICE BUTTON ROUTING
    ========================================================= */
 function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
-  if (query.includes("open my files") || query.includes("open my details") || query.includes("open memory box") || query.includes("my files")) {
+  // Voice Command for Opening Files / Folder / Memory Box
+  if (query.includes("open my files") || query.includes("open folder jarvis") || query.includes("open folder") || query.includes("open my details") || query.includes("open memory box") || query.includes("my files") || query.includes("files")) {
     renderCustomMemories();
     if (memoryModal) {
       memoryModal.style.display = 'block';
@@ -263,6 +264,39 @@ function handleHardcoded(text) {
       }
     }
     return "Opening your Files and Details Memory Box, Boss.";
+  }
+
+  // Voice Command for Gallery
+  if (query.includes("open gallery") || query.includes("gallery")) {
+    if (imgInput) {
+      imgInput.removeAttribute('capture');
+      imgInput.click();
+    }
+    return "Opening Gallery to attach image, Boss.";
+  }
+
+  // Voice Command for History
+  if (query.includes("open history") || query.includes("history")) {
+    renderHistory();
+    if (historyModal) historyModal.style.display = 'block';
+    return "Opening History Log folder, Boss.";
+  }
+
+  // Voice Command for Clear Chat
+  if (query.includes("clear chat") || query.includes("clear memory") || query.includes("clear")) {
+    if (chat) chat.innerHTML = '';
+    return "Chat display cleared, Boss.";
+  }
+
+  // Voice Command for API Key
+  if (query.includes("open key") || query.includes("key") || query.includes("api key")) {
+    const newKey = prompt('Update Gemini API Key:', API_KEY);
+    if (newKey !== null) {
+      API_KEY = newKey.trim();
+      localStorage.setItem('jarvis_key', API_KEY);
+      alert('API Key updated successfully, Boss.');
+    }
+    return "API Key configuration opened, Boss.";
   }
 
   if (query.includes("open youtube")) {
@@ -366,15 +400,17 @@ async function handleUserCommand() {
   if (!text && !pendingImageData) return;
 
   const currentImageData = pendingImageData;
+  const timestamp = new Date().toLocaleString();
+
   if (text && currentImageData) {
     addMessage(`You: [Image Uploaded] ${text}`, 'user');
-    MEMORY.push({ role: 'user', text: `[Image Uploaded] ${text}` });
+    MEMORY.push({ role: 'user', text: `[Image Uploaded] ${text}`, time: timestamp });
   } else if (text) {
     addMessage(`You: ${text}`, 'user');
-    MEMORY.push({ role: 'user', text: text });
+    MEMORY.push({ role: 'user', text: text, time: timestamp });
   } else if (currentImageData) {
     addMessage(`You: [Image Uploaded] Analysing image...`, 'user');
-    MEMORY.push({ role: 'user', text: '[Uploaded Image for Analysis]' });
+    MEMORY.push({ role: 'user', text: '[Uploaded Image for Analysis]', time: timestamp });
   }
 
   if (input) input.value = '';
@@ -383,7 +419,7 @@ async function handleUserCommand() {
     const hcReply = handleHardcoded(text);
     if (hcReply) {
       addMessage(`Jarvis: ${hcReply}`, 'ai');
-      MEMORY.push({ role: 'model', text: hcReply });
+      MEMORY.push({ role: 'model', text: hcReply, time: new Date().toLocaleString() });
       saveMemory();
       speak(hcReply);
       return;
@@ -395,7 +431,7 @@ async function handleUserCommand() {
   try {
     const reply = await callGemini(text);
     addMessage(`Jarvis: ${reply}`, 'ai');
-    MEMORY.push({ role: 'model', text: reply });
+    MEMORY.push({ role: 'model', text: reply, time: new Date().toLocaleString() });
     saveMemory();
     speak(reply);
   } catch (err) {
@@ -408,19 +444,20 @@ async function handleUserCommand() {
 }
 
 /* =========================================================
-   9. HISTORY LOG MANAGEMENT
+   9. FOLDER-WISE HISTORY LOG MANAGEMENT WITH DATE & TIME
    ========================================================= */
 function renderHistory() {
   if (!historyList) return;
   historyList.innerHTML = '';
   if (MEMORY.length === 0) {
-    historyList.innerHTML = '<div style="color:#00f3ff; opacity:0.6; text-align:center;">No history records found.</div>';
+    historyList.innerHTML = '<div style="color:#00f3ff; opacity:0.6; text-align:center;">No history records found in folder.</div>';
     return;
   }
   MEMORY.forEach((m, idx) => {
     const item = document.createElement('div');
     item.className = 'history-item';
-    item.innerHTML = `<div><b>${m.role === 'user' ? 'You' : 'Jarvis'}:</b> ${m.text}</div>
+    const timeStr = m.time ? ` <span style="font-size:8.5px; opacity:0.7; color:#00a2ff;">[${m.time}]</span>` : '';
+    item.innerHTML = `<div><b>${m.role === 'user' ? 'You' : 'Jarvis'}:</b> ${m.text}${timeStr}</div>
                       <span style="color:#ff3366; cursor:pointer;" onclick="deleteHistoryItem(${idx})">✕</span>`;
     historyList.appendChild(item);
   });
@@ -523,7 +560,7 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. SEAMLESS CONTINUOUS SPEECH RECOGNITION (VOICE INPUT)
+   11. SEAMLESS CONTINUOUS SPEECH RECOGNITION (MIC & VOICE CONFLICT RESOLUTION)
    ========================================================= */
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
