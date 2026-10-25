@@ -95,10 +95,10 @@ function init3DFace() {
   pointLight.position.set(2, 3, 4);
   scene.add(pointLight);
 
-  // Load the exact user Blue Face Image Texture ('jarvis_face.png')
+  // Load the exact user Blue Face Image Texture ('Screenshot_20261025-163011_YouTube.png')
   const textureLoader = new THREE.TextureLoader();
   textureLoader.load(
-    'jarvis_face.png',
+    'Screenshot_20261025-163011_YouTube.png',
     (texture) => {
       // PlaneGeometry cleanly displays the exact face image without circular borders/spherical distortion
       const geometry = new THREE.PlaneGeometry(2.6, 2.6);
@@ -112,7 +112,7 @@ function init3DFace() {
     },
     undefined,
     (err) => {
-      console.error("Error loading 'jarvis_face.png'. Please ensure the image is in the root directory.", err);
+      console.error("Error loading image texture. Please ensure the image is in the correct directory.", err);
     }
   );
 
