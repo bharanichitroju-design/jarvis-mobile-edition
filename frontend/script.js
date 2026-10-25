@@ -10,7 +10,7 @@ function checkApiKey() {
   }
 }
 
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
 
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir).
 Key Information about your Boss & Family:
@@ -100,7 +100,6 @@ function init3DFace() {
   textureLoader.load(
     'Screenshot_20261025-163011_YouTube.png',
     (texture) => {
-      // PlaneGeometry cleanly displays the exact face image without circular borders/spherical distortion
       const geometry = new THREE.PlaneGeometry(2.6, 2.6);
       const material = new THREE.MeshBasicMaterial({
         map: texture,
@@ -123,16 +122,13 @@ function animateFace() {
   requestAnimationFrame(animateFace);
   
   if (faceMesh) {
-    // Gentle breathing/floating animation
     faceMesh.position.y = Math.sin(Date.now() * 0.003) * 0.04;
 
-    // LIP-SYNC ANIMATION LOGIC: Mouth vertical opening simulation when speaking
     if (isJarvisSpeaking) {
       const time = Date.now() * 0.025;
-      faceMesh.scale.y = 1 + Math.sin(time) * 0.12; // Vertical lip/jaw movement
+      faceMesh.scale.y = 1 + Math.sin(time) * 0.12;
       faceMesh.scale.x = 1 + Math.cos(time * 0.7) * 0.02;
     } else {
-      // Smoothly return to default scale when silent
       faceMesh.scale.y += (1 - faceMesh.scale.y) * 0.1;
       faceMesh.scale.x += (1 - faceMesh.scale.x) * 0.1;
     }
@@ -309,11 +305,21 @@ async function callGemini(text) {
   const contents = MEMORY.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
   const userParts = [];
 
-  if (text) userParts.push({ text: text });
-  if (pendingImageData) {
+  if (text) {
+    userParts.push({ text: text });
+  } else if (pendingImageData) {
     userParts.push({ text: "Please analyze this image, Boss." });
-    userParts.push({ inline_data: { mime_type: pendingImageData.mimeType, data: pendingImageData.data } });
   }
+
+  if (pendingImageData) {
+    userParts.push({
+      inline_data: {
+        mime_type: pendingImageData.mimeType,
+        data: pendingImageData.data
+      }
+    });
+  }
+
   contents.push({ role: 'user', parts: userParts });
 
   for (let model of MODELS) {
@@ -360,10 +366,17 @@ async function handleUserCommand() {
   if (!text && !pendingImageData) return;
 
   const currentImageData = pendingImageData;
-  if (text) {
+  if (text && currentImageData) {
+    addMessage(`You: [Image Uploaded] ${text}`, 'user');
+    MEMORY.push({ role: 'user', text: `[Image Uploaded] ${text}` });
+  } else if (text) {
     addMessage(`You: ${text}`, 'user');
     MEMORY.push({ role: 'user', text: text });
+  } else if (currentImageData) {
+    addMessage(`You: [Image Uploaded] Analysing image...`, 'user');
+    MEMORY.push({ role: 'user', text: '[Uploaded Image for Analysis]' });
   }
+
   if (input) input.value = '';
 
   if (!currentImageData) {
@@ -388,6 +401,7 @@ async function handleUserCommand() {
   } catch (err) {
     addMessage(`Jarvis: Error executing requested protocols.`, 'ai');
     speak(`Error executing requested protocols, Boss.`);
+    pendingImageData = null;
   } finally {
     if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
   }
@@ -509,39 +523,86 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. SPEECH RECOGNITION (VOICE INPUT)
+   11. SEAMLESS CONTINUOUS SPEECH RECOGNITION (VOICE INPUT)
    ========================================================= */
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition = new SpeechRecognition();
-  recognition.lang = 'en-US';
-  recognition.continuous = false;
+  let recognition = null;
+  let isListeningActive = false;
 
-  recognition.onstart = () => {
-    if (statusText) statusText.innerText = "LISTENING...";
-    micBtn.style.background = "#00f3ff";
-    micBtn.style.color = "#000";
-  };
+  function initRecognition() {
+    recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript.trim();
-    if (input) input.value = transcript;
-    handleUserCommand();
-  };
+    recognition.onstart = () => {
+      if (statusText) statusText.innerText = "LISTENING...";
+      micBtn.style.background = "#00f3ff";
+      micBtn.style.color = "#000";
+    };
 
-  recognition.onerror = () => {
-    if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
-    micBtn.style.background = "";
-    micBtn.style.color = "";
-  };
+    recognition.onresult = (event) => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
 
-  recognition.onend = () => {
-    if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
-    micBtn.style.background = "";
-    micBtn.style.color = "";
-  };
+      const transcript = event.results[0][0].transcript.trim();
+      if (!transcript) return;
+
+      if (transcript.toLowerCase().includes("smart stop listening") || transcript.toLowerCase().includes("stop listening")) {
+        isListeningActive = false;
+        try { recognition.stop(); } catch(e){}
+        addMessage(`You: ${transcript}`, 'user');
+        addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
+        speak('Stopped Listening, Boss.');
+        return;
+      }
+
+      if (input) input.value = transcript;
+      handleUserCommand();
+    };
+
+    recognition.onerror = () => {
+      if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
+    };
+
+    recognition.onend = () => {
+      if (isListeningActive) {
+        try {
+          recognition.start();
+        } catch (e) {
+          setTimeout(() => {
+            try { recognition.start(); } catch(err) {}
+          }, 200);
+        }
+      } else {
+        if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
+        micBtn.style.background = "";
+        micBtn.style.color = "";
+      }
+    };
+  }
+
+  initRecognition();
 
   micBtn.addEventListener('click', () => {
-    try { recognition.start(); } catch(e){}
+    if (!isListeningActive) {
+      isListeningActive = true;
+      try {
+        recognition.start();
+        addMessage(`Jarvis: Listening continuously, Boss...`, 'ai');
+        speak('Listening continuously, Boss.');
+      } catch (err) {
+        console.log(err);
+      }
+    } else {
+      isListeningActive = false;
+      try {
+        recognition.stop();
+      } catch (err) {}
+      addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
+      speak('Stopped Listening, Boss.');
+    }
   });
 }
