@@ -1,88 +1,85 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>J.A.R.V.I.S</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S - Advanced Personal AI Assistant</title>
 <link rel="stylesheet" href="style.css">
+<!-- Three.js for 3D Animated Head/Face -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-<header>
-  <button id="settings-btn" class="settings-icon" aria-label="Settings">⚙️</button>
-  <h1>J.A.R.V.I.S</h1>
-  <p>PERSONAL AI ASSISTANT</p>
-</header>
-<div class="core">
-  <div class="ring r1"></div>
-  <div class="ring r2"></div>
-  <div class="core-title">B•H•A•R•A•N•I<br>J•A•R•V•I•S</div>
-</div>
-<p class="core-text">SYSTEM READY</p>
-<div class="status">
-  <h2>SYSTEM DIAGNOSTICS</h2>
-  <div class="row"><span>AI ENGINE</span><b class="on">● OPERATIONAL</b></div>
-  <div class="row"><span>CONNECTION</span><b class="on">● ONLINE</b></div>
-  <div class="row"><span>VOICE INTERFACE</span><b class="on">● READY</b></div>
-  <div class="row"><span>LONG-TERM MEMORY</span><b class="on">● ACTIVE</b></div>
-</div>
-<div class="chat" id="chat"></div>
-<div class="input-area">
-  <input id="msg" placeholder="Enter a command for J.A.R.V.I.S...">
-  <button id="execute-btn">EXECUTE</button>
-  <button id="mic-btn" aria-label="Activate voice input">🎙️</button>
-  <button id="cam-btn" aria-label="Analyze image">📷</button>
-  <button id="clear-btn">CLEAR MEMORY</button>
-  <input id="img-input" type="file" accept="image/*" style="display:none">
-</div>
 
-<!-- History Modal Popup -->
-<div id="history-modal" class="modal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h2>History</h2>
-      <span id="close-history" class="close-btn">&times;</span>
-    </div>
-    <div id="history-list" class="history-container"></div>
+  <!-- HEADER -->
+  <header>
+    <button id="settings-btn" class="settings-icon" title="View History Log">📜</button>
+    <button id="api-key-btn" class="api-key-icon" title="Set Gemini API Key">🔑</button>
+    <h1>J.A.R.V.I.S</h1>
+    <p>ADVANCED PERSONAL AI ASSISTANT</p>
+  </header>
+
+  <!-- FUTURISTIC 3D ANIMATED FACE CONTAINER -->
+  <div class="core-container">
+    <div id="face-container"></div>
+    <p class="core-text" id="status-text">SYSTEM ONLINE</p>
   </div>
-</div>
 
-<!-- Memory / Files Modal Popup with Blue Flame Effect & Auto Input Box -->
-<div id="memory-modal" class="modal">
-  <div class="modal-content neon-flame-box">
-    <div class="modal-header">
-      <h2>MEMORY & FILES BOX</h2>
-      <span id="close-memory-modal" class="close-btn">&times;</span>
-    </div>
-    <div class="memory-body">
-      <!-- Search / Typing Box right on open -->
-      <input type="text" id="memory-search-input" placeholder="Search or type new memory details here, Boss..." />
-      <textarea id="custom-memory-input" placeholder="Add detailed notes or family facts here..."></textarea>
-      <button id="save-custom-memory" class="neon-btn">SAVE TO MEMORY</button>
-      <div id="saved-memory-list" class="history-container" style="margin-top: 10px; max-height: 140px; overflow-y: auto;"></div>
-    </div>
+  <!-- DIAGNOSTICS DASHBOARD -->
+  <div class="status">
+    <h2>SYSTEM DIAGNOSTICS</h2>
+    <div class="row"><span>AI ENGINE</span><b class="on">● GEMINI INTEGRATED</b></div>
+    <div class="row"><span>CONNECTION</span><b class="on" id="conn-status">● ONLINE</b></div>
+    <div class="row"><span>VOICE INTERFACE</span><b class="on">● READY</b></div>
+    <div class="row"><span>MEMORY MATRIX</span><b class="on">● LONG-TERM ACTIVE</b></div>
   </div>
-</div>
 
-<!-- Camera / Gallery Selection Modal Popup -->
-<div id="media-modal" class="modal">
-  <div class="modal-content neon-glow-box">
-    <div class="modal-header">
-      <h2>SELECT MEDIA SOURCE</h2>
-      <span id="close-media" class="close-btn">&times;</span>
+  <!-- CHAT CONVERSATION CONTAINER -->
+  <div class="chat" id="chat"></div>
+
+  <!-- CONTROL INPUT AREA -->
+  <div class="input-area">
+    <div class="input-row">
+      <input id="msg" type="text" placeholder="Enter command or speak 'open my details'..." />
+      <button id="execute-btn" class="btn btn-primary">EXECUTE</button>
     </div>
-    <div class="media-options-container">
-      <div id="opt-camera" class="media-card glowing-border">
-        <div class="media-icon">📷</div>
-        <div class="media-title">PHOTO</div>
+    <div class="input-row" style="margin-top: 6px;">
+      <button id="mic-btn" class="btn" title="Voice Input" style="flex: 1;">🎙️ MIC</button>
+      <button id="gallery-btn" class="btn" title="Upload Gallery Image" style="flex: 1;">🖼️ GALLERY</button>
+      <button id="files-btn" class="btn" title="Open Memory Box" style="flex: 1;">📁 FILES</button>
+      <button id="clear-btn" class="btn btn-danger" title="Clear Active Chat" style="flex: 1;">CLEAR</button>
+    </div>
+    <!-- Direct File Input for Gallery Only (Camera Access Removed) -->
+    <input id="img-input" type="file" accept="image/*" style="display:none">
+  </div>
+
+  <!-- MODAL 1: HISTORY LOG POPUP -->
+  <div id="history-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>HISTORY LOG</h2>
+        <span id="close-history" class="close-btn">&times;</span>
       </div>
-      <div id="opt-gallery" class="media-card glowing-border">
-        <div class="media-icon">🖼️</div>
-        <div class="media-title">GALLERY</div>
+      <div id="history-list" class="history-container"></div>
+      <button id="clear-all-history" class="btn btn-danger" style="width: 100%; margin-top: 10px;">CLEAR ALL HISTORY</button>
+    </div>
+  </div>
+
+  <!-- MODAL 2: MEMORY & FILES BOX (NEON BLUE FLAME) -->
+  <div id="memory-modal" class="modal">
+    <div class="modal-content neon-flame-box">
+      <div class="modal-header">
+        <h2>MY FILES & DETAILS</h2>
+        <span id="close-memory-modal" class="close-btn">&times;</span>
+      </div>
+      <div class="memory-body">
+        <input type="text" id="memory-search-input" placeholder="Search or type new memory details here, Boss..." />
+        <textarea id="custom-memory-input" placeholder="Add detailed notes, family details, or facts here..."></textarea>
+        <button id="save-custom-memory" class="neon-btn">SAVE TO MEMORY</button>
+        <div id="saved-memory-list" class="history-container" style="margin-top: 12px;"></div>
       </div>
     </div>
   </div>
-</div>
 
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
