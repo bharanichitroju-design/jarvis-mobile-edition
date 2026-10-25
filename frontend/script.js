@@ -84,7 +84,7 @@ function init3DFace() {
   camera.position.z = 4.5;
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(180, 180);
+  renderer.setSize(220, 220);
   container.appendChild(renderer.domElement);
 
   // Lighting
@@ -95,13 +95,13 @@ function init3DFace() {
   pointLight.position.set(2, 3, 4);
   scene.add(pointLight);
 
-  // Load the exact user Blue Face Image Texture ('jarvis_face.png') as a Plane mesh (No wireframe ball)
+  // Load the exact user Blue Face Image Texture ('jarvis_face.png')
   const textureLoader = new THREE.TextureLoader();
   textureLoader.load(
     'jarvis_face.png',
     (texture) => {
-      // Using PlaneGeometry to display the exact face image flat and clean without circular/sphere wrapping distortion
-      const geometry = new THREE.PlaneGeometry(2.4, 2.4);
+      // PlaneGeometry cleanly displays the exact face image without circle borders
+      const geometry = new THREE.PlaneGeometry(2.6, 2.6);
       const material = new THREE.MeshBasicMaterial({
         map: texture,
         transparent: true,
@@ -112,7 +112,7 @@ function init3DFace() {
     },
     undefined,
     (err) => {
-      console.error("Error loading 'jarvis_face.png'. Please ensure the image is in the same directory.", err);
+      console.error("Error loading 'jarvis_face.png'. Please ensure the image is in the root directory.", err);
     }
   );
 
@@ -123,14 +123,14 @@ function animateFace() {
   requestAnimationFrame(animateFace);
   
   if (faceMesh) {
-    // Subtle breathing/floating motion
-    faceMesh.position.y = Math.sin(Date.now() * 0.003) * 0.05;
+    // Gentle floating/breathing animation
+    faceMesh.position.y = Math.sin(Date.now() * 0.003) * 0.04;
 
-    // LIP-SYNC ANIMATION LOGIC: Active vertical/horizontal stretching simulation when Jarvis speaks
+    // LIP-SYNC ANIMATION LOGIC: Mouth vertical opening simulation when speaking
     if (isJarvisSpeaking) {
       const time = Date.now() * 0.025;
-      faceMesh.scale.y = 1 + Math.sin(time) * 0.12; // Realistic lip/jaw opening simulation
-      faceMesh.scale.x = 1 + Math.cos(time * 0.7) * 0.03;
+      faceMesh.scale.y = 1 + Math.sin(time) * 0.12; // Vertical lip/jaw movement
+      faceMesh.scale.x = 1 + Math.cos(time * 0.7) * 0.02;
     } else {
       // Smoothly return to default scale when silent
       faceMesh.scale.y += (1 - faceMesh.scale.y) * 0.1;
@@ -400,4 +400,148 @@ function renderHistory() {
   if (!historyList) return;
   historyList.innerHTML = '';
   if (MEMORY.length === 0) {
-    historyList.innerHTML = '<div style="color:#0
+    historyList.innerHTML = '<div style="color:#00f3ff; opacity:0.6; text-align:center;">No history records found.</div>';
+    return;
+  }
+  MEMORY.forEach((m, idx) => {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `<div><b>${m.role === 'user' ? 'You' : 'Jarvis'}:</b> ${m.text}</div>
+                      <span style="color:#ff3366; cursor:pointer;" onclick="deleteHistoryItem(${idx})">✕</span>`;
+    historyList.appendChild(item);
+  });
+}
+
+window.deleteHistoryItem = function(index) {
+  MEMORY.splice(index, 1);
+  saveMemory();
+  renderHistory();
+};
+
+if (clearAllHistoryBtn) {
+  clearAllHistoryBtn.addEventListener('click', () => {
+    MEMORY = [];
+    saveMemory();
+    renderHistory();
+    if (chat) chat.innerHTML = '';
+  });
+}
+
+/* =========================================================
+   10. EVENT LISTENERS & MODAL BINDINGS
+   ========================================================= */
+if (executeBtn) executeBtn.addEventListener('click', handleUserCommand);
+if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleUserCommand(); });
+
+if (filesBtn) {
+  filesBtn.addEventListener('click', () => {
+    renderCustomMemories();
+    if (memoryModal) {
+      memoryModal.style.display = 'block';
+      if (memorySearchInput) {
+        memorySearchInput.value = '';
+        setTimeout(() => memorySearchInput.focus(), 150);
+      }
+    }
+  });
+}
+
+if (clearBtn) {
+  clearBtn.addEventListener('click', () => {
+    if (chat) chat.innerHTML = '';
+    speak("Chat display cleared, Boss.");
+  });
+}
+
+if (apiKeyBtn) {
+  apiKeyBtn.addEventListener('click', () => {
+    const newKey = prompt('Update Gemini API Key:', API_KEY);
+    if (newKey !== null) {
+      API_KEY = newKey.trim();
+      localStorage.setItem('jarvis_key', API_KEY);
+      alert('API Key updated successfully, Boss.');
+    }
+  });
+}
+
+if (settingsBtn) {
+  settingsBtn.addEventListener('click', () => {
+    renderHistory();
+    if (historyModal) historyModal.style.display = 'block';
+  });
+}
+
+if (closeHistory) closeHistory.addEventListener('click', () => historyModal.style.display = 'none');
+if (closeMemoryModal) closeMemoryModal.addEventListener('click', () => memoryModal.style.display = 'none');
+
+// Gallery Only Upload Handler (No Camera Access)
+if (galleryBtn) {
+  galleryBtn.addEventListener('click', () => {
+    if (imgInput) {
+      imgInput.removeAttribute('capture');
+      imgInput.click();
+    }
+  });
+}
+
+if (imgInput) {
+  imgInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const base64Data = evt.target.result.split(',')[1];
+        pendingImageData = {
+          mimeType: file.type,
+          data: base64Data
+        };
+        addMessage(`You: [Attached Gallery Image: ${file.name}]`, 'user');
+        handleUserCommand();
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+}
+
+window.addEventListener('click', (e) => {
+  if (e.target === historyModal) historyModal.style.display = 'none';
+  if (e.target === memoryModal) memoryModal.style.display = 'none';
+});
+
+/* =========================================================
+   11. SPEECH RECOGNITION (VOICE INPUT)
+   ========================================================= */
+if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let recognition = new SpeechRecognition();
+  recognition.lang = 'en-US';
+  recognition.continuous = false;
+
+  recognition.onstart = () => {
+    if (statusText) statusText.innerText = "LISTENING...";
+    micBtn.style.background = "#00f3ff";
+    micBtn.style.color = "#000";
+  };
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript.trim();
+    if (input) input.value = transcript;
+    handleUserCommand();
+  };
+
+  recognition.onerror = () => {
+    if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
+    micBtn.style.background = "";
+    micBtn.style.color = "";
+  };
+
+  recognition.onend = () => {
+    if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
+    micBtn.style.background = "";
+    micBtn.style.color = "";
+  };
+
+  micBtn.addEventListener('click', () => {
+    try { recognition.start(); } catch(e){}
+  });
+}
