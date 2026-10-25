@@ -10,7 +10,7 @@ function checkApiKey() {
   }
 }
 
-const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"];
+const MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
 
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir).
 Key Information about your Boss & Family:
@@ -29,15 +29,33 @@ Behavior Guidelines:
 3. If asked about your boss, his family members, their relations, professions, or surname/family, respond clearly using the family details provided above.
 4. Keep answers concise, direct, and helpful.`;
 
-// Active memory store with Date & Time support
-let MEMORY = [];
+// Active sessions / folders history store with 12-hour AM/PM time format
+let SESSIONS = [];
 try {
-  const storedMemory = JSON.parse(localStorage.getItem('jarvis_memory') || '[]');
-  if (Array.isArray(storedMemory)) {
-    MEMORY = storedMemory.filter(m => m && (m.role === 'user' || m.role === 'model') && typeof m.text === 'string');
+  const storedSessions = JSON.parse(localStorage.getItem('jarvis_sessions') || '[]');
+  if (Array.isArray(storedSessions)) {
+    SESSIONS = storedSessions;
   }
 } catch (e) {
-  localStorage.removeItem('jarvis_memory');
+  localStorage.removeItem('jarvis_sessions');
+}
+
+// Current active session items
+let currentSession = {
+  id: Date.now(),
+  title: "New Conversation",
+  date: format12HourTime(new Date()),
+  messages: []
+};
+
+function format12HourTime(dateObj) {
+  let hours = dateObj.getHours();
+  const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  const day = dateObj.toLocaleDateString();
+  return `${day}, ${hours}:${minutes} ${ampm}`;
 }
 
 let pendingImageData = null;
@@ -87,7 +105,6 @@ function init3DFace() {
   renderer.setSize(135, 135);
   container.appendChild(renderer.domElement);
 
-  // Ambient & Directional Lighting
   const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
   scene.add(ambientLight);
 
@@ -95,7 +112,6 @@ function init3DFace() {
   pointLight.position.set(2, 3, 4);
   scene.add(pointLight);
 
-  // Load the exact user Blue Face Image Texture ('Screenshot_20261025-163011_YouTube.png')
   const textureLoader = new THREE.TextureLoader();
   textureLoader.load(
     'Screenshot_20261025-163011_YouTube.png',
@@ -111,7 +127,7 @@ function init3DFace() {
     },
     undefined,
     (err) => {
-      console.error("Error loading image texture. Please ensure the image is in the correct directory.", err);
+      console.error("Error loading texture:", err);
     }
   );
 
@@ -172,10 +188,10 @@ function speak(text) {
 }
 
 /* =========================================================
-   4. UI & CHAT RENDERERS WITH TIMESTAMP & FOLDER SUPPORT
+   4. UI & CHAT RENDERERS WITH FOLDER & KEY POINT SUPPORT
    ========================================================= */
-function saveMemory() { 
-  localStorage.setItem('jarvis_memory', JSON.stringify(MEMORY)); 
+function saveSessions() {
+  localStorage.setItem('jarvis_sessions', JSON.stringify(SESSIONS));
 }
 
 function addMessage(text, sender) {
@@ -186,8 +202,6 @@ function addMessage(text, sender) {
   chat.appendChild(msgDiv);
   chat.scrollTop = chat.scrollHeight;
 }
-
-MEMORY.forEach(m => addMessage(`${m.role === 'user' ? 'You' : 'Jarvis'}: ${m.text}`, m.role === 'user' ? 'user' : 'ai'));
 
 /* =========================================================
    5. LOCAL FILES & OFFLINE MEMORY STORAGE HANDLERS
@@ -247,13 +261,20 @@ if (saveCustomMemory) {
 }
 
 /* =========================================================
-   6. HARDCODED COMMANDS & VOICE BUTTON ROUTING
+   6. HARDCODED COMMANDS & VOICE BUTTON ROUTING (WITH GO BACK / HOME)
    ========================================================= */
 function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
-  // Voice Command for Opening Files / Folder / Memory Box
+  // Go Back / Go to Home Command
+  if (query.includes("go back") || query.includes("go to home") || query.includes("home") || query.includes("back")) {
+    if (historyModal) historyModal.style.display = 'none';
+    if (memoryModal) memoryModal.style.display = 'none';
+    return "Returned to home screen, Boss.";
+  }
+
+  // Open Files / Folder Command
   if (query.includes("open my files") || query.includes("open folder jarvis") || query.includes("open folder") || query.includes("open my details") || query.includes("open memory box") || query.includes("my files") || query.includes("files")) {
     renderCustomMemories();
     if (memoryModal) {
@@ -266,7 +287,7 @@ function handleHardcoded(text) {
     return "Opening your Files and Details Memory Box, Boss.";
   }
 
-  // Voice Command for Gallery
+  // Open Gallery Command
   if (query.includes("open gallery") || query.includes("gallery")) {
     if (imgInput) {
       imgInput.removeAttribute('capture');
@@ -275,20 +296,30 @@ function handleHardcoded(text) {
     return "Opening Gallery to attach image, Boss.";
   }
 
-  // Voice Command for History
+  // Open History Command
   if (query.includes("open history") || query.includes("history")) {
-    renderHistory();
+    renderHistoryFolders();
     if (historyModal) historyModal.style.display = 'block';
-    return "Opening History Log folder, Boss.";
+    return "Opening History Folders, Boss.";
   }
 
-  // Voice Command for Clear Chat
+  // Clear Chat Command (Moves current session to history and starts a fresh box)
   if (query.includes("clear chat") || query.includes("clear memory") || query.includes("clear")) {
+    if (currentSession.messages.length > 0) {
+      SESSIONS.unshift(currentSession);
+      saveSessions();
+    }
+    currentSession = {
+      id: Date.now(),
+      title: "New Conversation",
+      date: format12HourTime(new Date()),
+      messages: []
+    };
     if (chat) chat.innerHTML = '';
-    return "Chat display cleared, Boss.";
+    return "Chat display cleared and moved to history folder, Boss.";
   }
 
-  // Voice Command for API Key
+  // API Key Command
   if (query.includes("open key") || query.includes("key") || query.includes("api key")) {
     const newKey = prompt('Update Gemini API Key:', API_KEY);
     if (newKey !== null) {
@@ -328,7 +359,7 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. AI ENGINE CALL (GEMINI + OFFLINE FALLBACK)
+   7. FAST AI ENGINE CALL (GEMINI + STATUS UI)
    ========================================================= */
 async function callGemini(text) {
   if (!API_KEY) {
@@ -336,7 +367,7 @@ async function callGemini(text) {
     if (!API_KEY) return "API Key is required to connect with AI online, Boss.";
   }
 
-  const contents = MEMORY.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
+  const contents = currentSession.messages.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
   const userParts = [];
 
   if (text) {
@@ -356,7 +387,10 @@ async function callGemini(text) {
 
   contents.push({ role: 'user', parts: userParts });
 
-  for (let model of MODELS) {
+  if (statusText) statusText.innerText = "SEARCHING WEB & AI...";
+
+  // Use primary model for ultra-fast response
+  for (let model of ["gemini-2.5-flash", "gemini-2.0-flash"]) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
         method: 'POST',
@@ -400,17 +434,19 @@ async function handleUserCommand() {
   if (!text && !pendingImageData) return;
 
   const currentImageData = pendingImageData;
-  const timestamp = new Date().toLocaleString();
+  const timeStr = format12HourTime(new Date());
 
-  if (text && currentImageData) {
-    addMessage(`You: [Image Uploaded] ${text}`, 'user');
-    MEMORY.push({ role: 'user', text: `[Image Uploaded] ${text}`, time: timestamp });
-  } else if (text) {
-    addMessage(`You: ${text}`, 'user');
-    MEMORY.push({ role: 'user', text: text, time: timestamp });
-  } else if (currentImageData) {
-    addMessage(`You: [Image Uploaded] Analysing image...`, 'user');
-    MEMORY.push({ role: 'user', text: '[Uploaded Image for Analysis]', time: timestamp });
+  let userMsgText = text;
+  if (currentImageData) {
+    userMsgText = text ? `[Image Uploaded] ${text}` : '[Uploaded Image for Analysis]';
+  }
+
+  addMessage(`You: ${userMsgText}`, 'user');
+  currentSession.messages.push({ role: 'user', text: userMsgText, time: timeStr });
+
+  // Set first user query as folder key point title if it's the first message
+  if (currentSession.title === "New Conversation" && text) {
+    currentSession.title = text.length > 35 ? text.substring(0, 35) + "..." : text;
   }
 
   if (input) input.value = '';
@@ -419,9 +455,10 @@ async function handleUserCommand() {
     const hcReply = handleHardcoded(text);
     if (hcReply) {
       addMessage(`Jarvis: ${hcReply}`, 'ai');
-      MEMORY.push({ role: 'model', text: hcReply, time: new Date().toLocaleString() });
-      saveMemory();
+      currentSession.messages.push({ role: 'model', text: hcReply, time: format12HourTime(new Date()) });
+      saveSessions();
       speak(hcReply);
+      if (statusText) statusText.innerText = "SYSTEM ONLINE";
       return;
     }
   }
@@ -431,8 +468,8 @@ async function handleUserCommand() {
   try {
     const reply = await callGemini(text);
     addMessage(`Jarvis: ${reply}`, 'ai');
-    MEMORY.push({ role: 'model', text: reply, time: new Date().toLocaleString() });
-    saveMemory();
+    currentSession.messages.push({ role: 'model', text: reply, time: format12HourTime(new Date()) });
+    saveSessions();
     speak(reply);
   } catch (err) {
     addMessage(`Jarvis: Error executing requested protocols.`, 'ai');
@@ -444,36 +481,83 @@ async function handleUserCommand() {
 }
 
 /* =========================================================
-   9. FOLDER-WISE HISTORY LOG MANAGEMENT WITH DATE & TIME
+   9. FOLDER-WISE HISTORY & SESSIONS MANAGEMENT WITH DATE & KEY POINTS
    ========================================================= */
-function renderHistory() {
+function renderHistoryFolders() {
   if (!historyList) return;
   historyList.innerHTML = '';
-  if (MEMORY.length === 0) {
-    historyList.innerHTML = '<div style="color:#00f3ff; opacity:0.6; text-align:center;">No history records found in folder.</div>';
+
+  // Include current active session if it has messages
+  let allFolders = [...SESSIONS];
+  if (currentSession.messages.length > 0 && !allFolders.some(s => s.id === currentSession.id)) {
+    allFolders.unshift(currentSession);
+  }
+
+  if (allFolders.length === 0) {
+    historyList.innerHTML = '<div style="color:#00f3ff; opacity:0.6; text-align:center;">No history folders found.</div>';
     return;
   }
-  MEMORY.forEach((m, idx) => {
-    const item = document.createElement('div');
-    item.className = 'history-item';
-    const timeStr = m.time ? ` <span style="font-size:8.5px; opacity:0.7; color:#00a2ff;">[${m.time}]</span>` : '';
-    item.innerHTML = `<div><b>${m.role === 'user' ? 'You' : 'Jarvis'}:</b> ${m.text}${timeStr}</div>
-                      <span style="color:#ff3366; cursor:pointer;" onclick="deleteHistoryItem(${idx})">✕</span>`;
-    historyList.appendChild(item);
+
+  allFolders.forEach((session, sIdx) => {
+    const folderCard = document.createElement('div');
+    folderCard.className = 'history-item';
+    folderCard.style.cssText = "flex-direction: column; align-items: flex-start; margin-bottom: 8px; background: rgba(0,243,255,0.08); padding: 8px; border-radius: 6px;";
+
+    const folderHeader = document.createElement('div');
+    folderHeader.style.cssText = "width: 100%; display: flex; justify-content: space-between; align-items: center; cursor: pointer; border-bottom: 1px solid rgba(0,243,255,0.2); padding-bottom: 4px; margin-bottom: 4px;";
+    folderHeader.innerHTML = `<div>
+                                <span style="font-size: 9px; color: #00a2ff; font-weight: bold;">📁 ${session.date}</span><br>
+                                <span style="font-size: 11px; color: #00f3ff; font-weight: bold;">🔑 Key Point: ${session.title}</span>
+                              </div>
+                              <span style="color:#ff3366; cursor:pointer; font-size:14px; padding: 2px 6px;" title="Delete Folder" onclick="deleteSession(${session.id})">✕</span>`;
+
+    const folderContent = document.createElement('div');
+    folderContent.style.cssText = "width: 100%; display: none; margin-top: 4px; max-height: 120px; overflow-y: auto; padding-left: 5px;";
+    
+    session.messages.forEach(m => {
+      const msgLine = document.createElement('div');
+      msgLine.style.cssText = "font-size: 10px; margin-bottom: 3px; color: #ffffff;";
+      msgLine.innerHTML = `<b>${m.role === 'user' ? 'You' : 'Jarvis'}:</b> ${m.text} <span style="font-size:8px; opacity:0.6;">[${m.time}]</span>`;
+      folderContent.appendChild(msgLine);
+    });
+
+    folderHeader.addEventListener('click', (e) => {
+      if (e.target.tagName === 'SPAN' && e.target.innerText === '✕') return;
+      folderContent.style.display = folderContent.style.display === 'none' ? 'block' : 'none';
+    });
+
+    folderCard.appendChild(folderHeader);
+    folderCard.appendChild(folderContent);
+    historyList.appendChild(folderCard);
   });
 }
 
-window.deleteHistoryItem = function(index) {
-  MEMORY.splice(index, 1);
-  saveMemory();
-  renderHistory();
+window.deleteSession = function(sessionId) {
+  SESSIONS = SESSIONS.filter(s => s.id !== sessionId);
+  if (currentSession.id === sessionId) {
+    currentSession = {
+      id: Date.now(),
+      title: "New Conversation",
+      date: format12HourTime(new Date()),
+      messages: []
+    };
+    if (chat) chat.innerHTML = '';
+  }
+  saveSessions();
+  renderHistoryFolders();
 };
 
 if (clearAllHistoryBtn) {
   clearAllHistoryBtn.addEventListener('click', () => {
-    MEMORY = [];
-    saveMemory();
-    renderHistory();
+    SESSIONS = [];
+    currentSession = {
+      id: Date.now(),
+      title: "New Conversation",
+      date: format12HourTime(new Date()),
+      messages: []
+    };
+    saveSessions();
+    renderHistoryFolders();
     if (chat) chat.innerHTML = '';
   });
 }
@@ -499,6 +583,16 @@ if (filesBtn) {
 
 if (clearBtn) {
   clearBtn.addEventListener('click', () => {
+    if (currentSession.messages.length > 0) {
+      SESSIONS.unshift(currentSession);
+      saveSessions();
+    }
+    currentSession = {
+      id: Date.now(),
+      title: "New Conversation",
+      date: format12HourTime(new Date()),
+      messages: []
+    };
     if (chat) chat.innerHTML = '';
     speak("Chat display cleared, Boss.");
   });
@@ -517,7 +611,7 @@ if (apiKeyBtn) {
 
 if (settingsBtn) {
   settingsBtn.addEventListener('click', () => {
-    renderHistory();
+    renderHistoryFolders();
     if (historyModal) historyModal.style.display = 'block';
   });
 }
