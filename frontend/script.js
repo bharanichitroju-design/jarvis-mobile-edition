@@ -10,7 +10,8 @@ function checkApiKey() {
   }
 }
 
-const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest"];
+// Fixed & Working Gemini Models (Stable Versions)
+const MODELS = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-flash-latest"];
 
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir).
 Key Information about your Boss & Family:
@@ -53,7 +54,7 @@ function format12HourTime(dateObj) {
   const minutes = dateObj.getMinutes().toString().padStart(2, '0');
   const ampm = hours >= 12 ? 'PM' : 'AM';
   hours = hours % 12;
-  hours = hours ? hours : 12; // the hour '0' should be '12'
+  hours = hours ? hours : 12;
   const day = dateObj.toLocaleDateString();
   return `${day}, ${hours}:${minutes} ${ampm}`;
 }
@@ -188,7 +189,7 @@ function speak(text) {
 }
 
 /* =========================================================
-   4. UI & CHAT RENDERERS WITH FOLDER & KEY POINT SUPPORT
+   4. UI & CHAT RENDERERS
    ========================================================= */
 function saveSessions() {
   localStorage.setItem('jarvis_sessions', JSON.stringify(SESSIONS));
@@ -204,7 +205,7 @@ function addMessage(text, sender) {
 }
 
 /* =========================================================
-   5. LOCAL FILES & OFFLINE MEMORY STORAGE HANDLERS
+   5. LOCAL FILES & MEMORY STORAGE HANDLERS
    ========================================================= */
 function getCustomMemories() {
   return JSON.parse(localStorage.getItem('jarvis_custom_memories') || '[]');
@@ -261,20 +262,18 @@ if (saveCustomMemory) {
 }
 
 /* =========================================================
-   6. HARDCODED COMMANDS & VOICE BUTTON ROUTING (WITH GO BACK / HOME)
+   6. HARDCODED COMMANDS & VOICE BUTTON ROUTING
    ========================================================= */
 function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
-  // Go Back / Go to Home Command
   if (query.includes("go back") || query.includes("go to home") || query.includes("home") || query.includes("back")) {
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
     return "Returned to home screen, Boss.";
   }
 
-  // Open Files / Folder Command
   if (query.includes("open my files") || query.includes("open folder jarvis") || query.includes("open folder") || query.includes("open my details") || query.includes("open memory box") || query.includes("my files") || query.includes("files")) {
     renderCustomMemories();
     if (memoryModal) {
@@ -287,8 +286,12 @@ function handleHardcoded(text) {
     return "Opening your Files and Details Memory Box, Boss.";
   }
 
-  // Open Gallery Command
+  // Gallery button click handling (Safe activation without instant block)
   if (query.includes("open gallery") || query.includes("gallery")) {
+    if (galleryBtn) {
+      galleryBtn.style.backgroundColor = "rgba(0, 243, 255, 0.4)";
+      setTimeout(() => { galleryBtn.style.backgroundColor = ""; }, 400);
+    }
     if (imgInput) {
       imgInput.removeAttribute('capture');
       imgInput.click();
@@ -296,14 +299,12 @@ function handleHardcoded(text) {
     return "Opening Gallery to attach image, Boss.";
   }
 
-  // Open History Command
   if (query.includes("open history") || query.includes("history")) {
     renderHistoryFolders();
     if (historyModal) historyModal.style.display = 'block';
     return "Opening History Folders, Boss.";
   }
 
-  // Clear Chat Command (Moves current session to history and starts a fresh box)
   if (query.includes("clear chat") || query.includes("clear memory") || query.includes("clear")) {
     if (currentSession.messages.length > 0) {
       SESSIONS.unshift(currentSession);
@@ -319,7 +320,6 @@ function handleHardcoded(text) {
     return "Chat display cleared and moved to history folder, Boss.";
   }
 
-  // API Key Command
   if (query.includes("open key") || query.includes("key") || query.includes("api key")) {
     const newKey = prompt('Update Gemini API Key:', API_KEY);
     if (newKey !== null) {
@@ -359,7 +359,7 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. FAST AI ENGINE CALL (GEMINI + STATUS UI)
+   7. FAST AI ENGINE CALL
    ========================================================= */
 async function callGemini(text) {
   if (!API_KEY) {
@@ -389,8 +389,7 @@ async function callGemini(text) {
 
   if (statusText) statusText.innerText = "SEARCHING WEB & AI...";
 
-  // Use primary model for ultra-fast response
-  for (let model of ["gemini-2.5-flash", "gemini-2.0-flash"]) {
+  for (let model of MODELS) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
         method: 'POST',
@@ -444,7 +443,6 @@ async function handleUserCommand() {
   addMessage(`You: ${userMsgText}`, 'user');
   currentSession.messages.push({ role: 'user', text: userMsgText, time: timeStr });
 
-  // Set first user query as folder key point title if it's the first message
   if (currentSession.title === "New Conversation" && text) {
     currentSession.title = text.length > 35 ? text.substring(0, 35) + "..." : text;
   }
@@ -481,13 +479,12 @@ async function handleUserCommand() {
 }
 
 /* =========================================================
-   9. FOLDER-WISE HISTORY & SESSIONS MANAGEMENT WITH DATE & KEY POINTS
+   9. HISTORY & SESSIONS MANAGEMENT
    ========================================================= */
 function renderHistoryFolders() {
   if (!historyList) return;
   historyList.innerHTML = '';
 
-  // Include current active session if it has messages
   let allFolders = [...SESSIONS];
   if (currentSession.messages.length > 0 && !allFolders.some(s => s.id === currentSession.id)) {
     allFolders.unshift(currentSession);
@@ -498,7 +495,7 @@ function renderHistoryFolders() {
     return;
   }
 
-  allFolders.forEach((session, sIdx) => {
+  allFolders.forEach((session) => {
     const folderCard = document.createElement('div');
     folderCard.className = 'history-item';
     folderCard.style.cssText = "flex-direction: column; align-items: flex-start; margin-bottom: 8px; background: rgba(0,243,255,0.08); padding: 8px; border-radius: 6px;";
@@ -619,9 +616,11 @@ if (settingsBtn) {
 if (closeHistory) closeHistory.addEventListener('click', () => historyModal.style.display = 'none');
 if (closeMemoryModal) closeMemoryModal.addEventListener('click', () => memoryModal.style.display = 'none');
 
-// Gallery Only Upload Handler (No Camera Access)
+// Gallery Click & Visual Glow Feedback
 if (galleryBtn) {
   galleryBtn.addEventListener('click', () => {
+    galleryBtn.style.backgroundColor = "rgba(0, 243, 255, 0.4)";
+    setTimeout(() => { galleryBtn.style.backgroundColor = ""; }, 400);
     if (imgInput) {
       imgInput.removeAttribute('capture');
       imgInput.click();
@@ -654,7 +653,7 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. SEAMLESS CONTINUOUS SPEECH RECOGNITION (MIC & VOICE CONFLICT RESOLUTION)
+   11. SPEECH RECOGNITION
    ========================================================= */
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
