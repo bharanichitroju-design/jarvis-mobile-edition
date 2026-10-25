@@ -18,22 +18,29 @@
     <p>ADVANCED PERSONAL AI ASSISTANT</p>
   </header>
 
-  <!-- FUTURISTIC 3D ANIMATED FACE CONTAINER -->
+  <!-- 3D ANIMATED FACE & VOICE WAVEFORM SECTION -->
   <div class="core-container">
     <div id="face-container"></div>
-    <p class="core-text" id="status-text">SYSTEM ONLINE</p>
+    
+    <!-- Audio Waveform Visualizer Bar under Face -->
+    <div class="audio-wave-container">
+      <span class="status-dot">●</span>
+      <span class="status-state" id="status-text">SPEAKING</span>
+      <div class="wave-bars">
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+        <div class="bar"></div>
+      </div>
+    </div>
+
+    <!-- Custom Quote under Animated Face -->
+    <p class="boss-quote">ALWAYS AT YOUR SERVICE, BOSS BHARANI</p>
   </div>
 
-  <!-- DIAGNOSTICS DASHBOARD -->
-  <div class="status">
-    <h2>SYSTEM DIAGNOSTICS</h2>
-    <div class="row"><span>AI ENGINE</span><b class="on">● GEMINI INTEGRATED</b></div>
-    <div class="row"><span>CONNECTION</span><b class="on" id="conn-status">● ONLINE</b></div>
-    <div class="row"><span>VOICE INTERFACE</span><b class="on">● READY</b></div>
-    <div class="row"><span>MEMORY MATRIX</span><b class="on">● LONG-TERM ACTIVE</b></div>
-  </div>
-
-  <!-- CHAT CONVERSATION CONTAINER -->
+  <!-- EXPANDED CHAT CONVERSATION CONTAINER -->
   <div class="chat" id="chat"></div>
 
   <!-- CONTROL INPUT AREA -->
@@ -48,7 +55,7 @@
       <button id="files-btn" class="btn" title="Open Memory Box" style="flex: 1;">📁 FILES</button>
       <button id="clear-btn" class="btn btn-danger" title="Clear Active Chat" style="flex: 1;">CLEAR</button>
     </div>
-    <!-- Direct File Input for Gallery Only (Camera Access Removed) -->
+    <!-- Direct File Input for Gallery Only (No Camera Access) -->
     <input id="img-input" type="file" accept="image/*" style="display:none">
   </div>
 
