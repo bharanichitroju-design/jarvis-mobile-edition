@@ -71,7 +71,7 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   2. THREE.JS 3D ANIMATED FACE & LIP-SYNC INITIALIZATION
+   2. THREE.JS 3D ANIMATED FACE IMAGE & LIP-SYNC INITIALIZATION
    ========================================================= */
 let scene, camera, renderer, faceMesh;
 
@@ -88,14 +88,14 @@ function init3DFace() {
   container.appendChild(renderer.domElement);
 
   // Lighting
-  const ambientLight = new THREE.AmbientLight(0x00f3ff, 0.9);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
   scene.add(ambientLight);
 
-  const pointLight = new THREE.PointLight(0x0077ff, 2.5, 50);
+  const pointLight = new THREE.PointLight(0x00f3ff, 2.0, 50);
   pointLight.position.set(2, 3, 4);
   scene.add(pointLight);
 
-  // Load Face Image Texture (Ensure you upload your face image as 'jarvis_face.png' in the root folder)
+  // Load the exact user Face Image Texture ('jarvis_face.png') and apply to 3D Sphere geometry
   const textureLoader = new THREE.TextureLoader();
   textureLoader.load(
     'jarvis_face.png',
@@ -104,24 +104,14 @@ function init3DFace() {
       const material = new THREE.MeshStandardMaterial({
         map: texture,
         roughness: 0.3,
-        metalness: 0.5
+        metalness: 0.1
       });
       faceMesh = new THREE.Mesh(geometry, material);
       scene.add(faceMesh);
     },
     undefined,
     (err) => {
-      // Fallback if image not found: Wireframe futuristic head representation
-      console.warn("Face image 'jarvis_face.png' not loaded, using geometric wireframe fallback.");
-      const geometry = new THREE.IcosahedronGeometry(1.2, 2);
-      const material = new THREE.MeshStandardMaterial({
-        color: 0x00f3ff,
-        wireframe: true,
-        roughness: 0.2,
-        metalness: 0.8
-      });
-      faceMesh = new THREE.Mesh(geometry, material);
-      scene.add(faceMesh);
+      console.error("Error loading 'jarvis_face.png'. Please ensure the image is in the same directory.", err);
     }
   );
 
@@ -133,13 +123,12 @@ function animateFace() {
   
   if (faceMesh) {
     // Gentle idling rotation
-    faceMesh.rotation.y += 0.005;
+    faceMesh.rotation.y += 0.003;
 
-    // LIP-SYNC ANIMATION LOGIC: Active jaw/mouth stretching when Jarvis is speaking
+    // LIP-SYNC ANIMATION LOGIC: Active jaw/mouth vertical stretching when Jarvis is speaking
     if (isJarvisSpeaking) {
-      const time = Date.now() * 0.015;
-      // Scale vertical axis (Y) to simulate speaking / lip movement
-      faceMesh.scale.y = 1 + Math.sin(time) * 0.12;
+      const time = Date.now() * 0.02;
+      faceMesh.scale.y = 1 + Math.sin(time) * 0.15; // Vertical stretch for lip movement
       faceMesh.scale.x = 1 + Math.cos(time * 0.8) * 0.04;
     } else {
       // Smoothly return to default scale when silent
