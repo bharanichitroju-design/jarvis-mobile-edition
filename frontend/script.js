@@ -81,13 +81,13 @@ function init3DFace() {
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-  camera.position.z = 4.5;
+  camera.position.z = 4.2;
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(220, 220);
+  renderer.setSize(135, 135);
   container.appendChild(renderer.domElement);
 
-  // Lighting
+  // Ambient & Directional Lighting
   const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
   scene.add(ambientLight);
 
@@ -100,7 +100,7 @@ function init3DFace() {
   textureLoader.load(
     'jarvis_face.png',
     (texture) => {
-      // PlaneGeometry cleanly displays the exact face image without circle borders
+      // PlaneGeometry cleanly displays the exact face image without circular borders/spherical distortion
       const geometry = new THREE.PlaneGeometry(2.6, 2.6);
       const material = new THREE.MeshBasicMaterial({
         map: texture,
@@ -123,7 +123,7 @@ function animateFace() {
   requestAnimationFrame(animateFace);
   
   if (faceMesh) {
-    // Gentle floating/breathing animation
+    // Gentle breathing/floating animation
     faceMesh.position.y = Math.sin(Date.now() * 0.003) * 0.04;
 
     // LIP-SYNC ANIMATION LOGIC: Mouth vertical opening simulation when speaking
