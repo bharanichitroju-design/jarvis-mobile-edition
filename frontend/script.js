@@ -13,22 +13,12 @@ function checkApiKey() {
 // User specified models list with working fallbacks
 const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-1.5-flash", "gemini-2.0-flash"];
 
+// System instruction without hardcoded family details (fetched dynamically from local files/memory)
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir).
-Key Information about your Boss & Family:
-- Your Name: Jarvis (Created by Bharani / Sir)
-- Boss Name: Bharani / Sir
-- Boss Family Surname (Inti Peru): Chittiroju
-- Boss Father's Name: C.H. Rambabu (Profession: Tailor)
-- Boss Mother's Name: Devi Sirisha (Profession: Tailor)
-- Boss Brother's (Annaya) Name: Mani Satyan (Profession: Chef)
-- Boss Grandmother's (Paternal) Name: Sujatha
-- Additional Family Details: Attamma garu M. Bhavani, her husband Suribabu, and their daughters Kavya and Navya.
-
 Behavior Guidelines:
 1. Always address Bharani as "Boss" or "Sir".
 2. If asked "What is your name?" or "Who are you?", respond with: "My name is Jarvis, created by Bharani (Sir)."
-3. If asked about your boss, his family members, their relations, professions, or surname/family, respond clearly using the family details provided above.
-4. Keep answers concise, direct, and helpful.`;
+3. Keep answers concise, direct, and helpful. Utilize the user's saved memory files and offline notes when requested.`;
 
 // Active sessions / folders history store with 12-hour AM/PM time format
 let SESSIONS = [];
@@ -268,7 +258,6 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
-  // 3D File Open Command (From Old Code)
   if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional")) {
     window.open("three-dimensional.html", "_blank");
     return "Opening Three Dimensional View, Boss.";
@@ -344,32 +333,35 @@ function handleHardcoded(text) {
     return "Opening Google Search, Boss.";
   }
 
-  if (query.includes("who created you") || query.includes("who is your creator") || query.includes("your name")) {
-    return "My name is Jarvis, an advanced AI personal assistant created by Bharani (Sir).";
-  }
-  if (query.includes("father name") || query.includes("boss father")) {
-    return "My Boss's Father name is C.H. Rambabu, and his profession is Tailor.";
-  }
-  if (query.includes("mother name") || query.includes("boss mother")) {
-    return "My Boss's Mother name is Devi Sirisha, and her profession is Tailor.";
-  }
-  if (query.includes("brother name") || query.includes("boss brother")) {
-    return "My Boss's Brother name is Mani Satyan, and his profession is Chef.";
-  }
-  if (query.includes("surname") || query.includes("inti peru") || query.includes("family name")) {
-    return "My Boss's family surname is Chittiroju.";
-  }
-
   return null;
 }
 
 /* =========================================================
-   7. FAST AI ENGINE CALL
+   7. FAST AI ENGINE CALL WITH DYNAMIC FILE/OFFLINE MEMORY
    ========================================================= */
 async function callGemini(text) {
   if (!API_KEY) {
     checkApiKey();
     if (!API_KEY) return "API Key is required to connect with AI online, Boss.";
+  }
+
+  const customMems = getCustomMemories();
+  let contextualInstruction = SYSTEM_INSTRUCTION;
+
+  const isOfflineQuery = text && text.toLowerCase().includes("offline");
+
+  if (isOfflineQuery) {
+    // Second Box: Offline documents/heavy text search when "offline" keyword is used
+    const cleanQuery = text.replace(/offline/gi, "").trim();
+    const matchedDoc = customMems.find(m => m.toLowerCase().includes(cleanQuery.toLowerCase()));
+    if (matchedDoc) {
+      return `[Offline Document Match]: ${matchedDoc}`;
+    }
+  } else {
+    // First Box: Always active personal and family details saved in memory files
+    if (customMems.length > 0) {
+      contextualInstruction += `\n\nUser's Saved Personal & Family Details (Memory Files):\n- ${customMems.join("\n- ")}`;
+    }
   }
 
   const contents = currentSession.messages.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
@@ -401,7 +393,7 @@ async function callGemini(text) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: contents,
-          system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] }
+          system_instruction: { parts: [{ text: contextualInstruction }] }
         })
       });
 
@@ -419,11 +411,10 @@ async function callGemini(text) {
 
   pendingImageData = null;
 
-  const customMems = getCustomMemories();
   if (customMems.length > 0 && text) {
     const matched = customMems.find(m => m.toLowerCase().includes(text.toLowerCase()));
     if (matched) {
-      return `[Offline Memory Local Match]: ${matched}`;
+      return `[Local Memory Matrix Match]: ${matched}`;
     }
   }
 
