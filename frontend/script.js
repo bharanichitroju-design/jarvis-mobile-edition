@@ -344,9 +344,11 @@ function handleHardcoded(text) {
    7. FAST AI ENGINE CALL WITH DYNAMIC FILE/OFFLINE MEMORY
    ========================================================= */
 async function callGemini(text) {
-  if (!API_KEY) {
+  let activeKey = API_KEY || localStorage.getItem('jarvis_key');
+  if (!activeKey) {
     checkApiKey();
-    if (!API_KEY) return "API Key is required to connect with AI online, Boss.";
+    activeKey = API_KEY || localStorage.getItem('jarvis_key');
+    if (!activeKey) return "API Key is required to connect with AI online, Boss.";
   }
 
   const customMems = getCustomMemories();
@@ -355,14 +357,12 @@ async function callGemini(text) {
   const isOfflineQuery = text && text.toLowerCase().includes("offline");
 
   if (isOfflineQuery) {
-    // Second Box: Offline documents/heavy text search when "offline" keyword is used
     const cleanQuery = text.replace(/offline/gi, "").trim();
     const matchedDoc = customMems.find(m => m.toLowerCase().includes(cleanQuery.toLowerCase()));
     if (matchedDoc) {
       return `[Offline Document Match]: ${matchedDoc}`;
     }
   } else {
-    // First Box: Always active personal and family details saved in memory files
     if (customMems.length > 0) {
       contextualInstruction += `\n\nUser's Saved Personal & Family Details (Memory Files):\n- ${customMems.join("\n- ")}`;
     }
@@ -392,7 +392,7 @@ async function callGemini(text) {
 
   for (let model of MODELS) {
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
