@@ -149,12 +149,16 @@ function animateFace() {
 window.addEventListener('DOMContentLoaded', init3DFace);
 
 /* =========================================================
-   3. TEXT-TO-SPEECH (TTS) WITH LIP-SYNC TRIGGER
+   3. TEXT-TO-SPEECH (TTS) WITH CLEANED TEXT & LIP-SYNC
    ========================================================= */
 function speak(text) {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Completely strip out hashtags, markdown asterisks, backticks, and underscores for speech
+    const cleanText = text.replace(/[\*\#\`\_]/g, '');
+    
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'en-US';
     utterance.rate = 1.0;
     utterance.pitch = 0.95;
