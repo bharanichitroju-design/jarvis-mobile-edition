@@ -10,14 +10,17 @@ function checkApiKey() {
   }
 }
 
+// User specified models list with working fallbacks
 const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-1.5-flash", "gemini-2.0-flash"];
 
+// System instruction without hardcoded family details (fetched dynamically from local files/memory)
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir).
 Behavior Guidelines:
 1. Always address Bharani as "Boss" or "Sir".
 2. If asked "What is your name?" or "Who are you?", respond with: "My name is Jarvis, created by Bharani (Sir)."
 3. Keep answers concise, direct, and helpful. Utilize the user's saved memory files and offline notes when requested.`;
 
+// Active sessions / folders history store with 12-hour AM/PM time format
 let SESSIONS = [];
 try {
   const storedSessions = JSON.parse(localStorage.getItem('jarvis_sessions') || '[]');
@@ -38,6 +41,7 @@ function format12HourTime(dateObj) {
   return `${day}, ${hours}:${minutes} ${ampm}`;
 }
 
+// Current active session items
 let currentSession = {
   id: Date.now(),
   title: "New Conversation",
@@ -46,24 +50,28 @@ let currentSession = {
 };
 
 let pendingImageData = null;
-let isJarvisSpeaking = false;
+let isJarvisSpeaking = false; // Flag for lip movement sync
 
+// DOM Elements
 const chat = document.getElementById('chat');
 const input = document.getElementById('msg');
 const executeBtn = document.getElementById('execute-btn');
 const micBtn = document.getElementById('mic-btn');
 const galleryBtn = document.getElementById('gallery-btn');
+const filesBtn = document.getElementById('files-btn');
 const clearBtn = document.getElementById('clear-btn');
 const imgInput = document.getElementById('img-input');
 const apiKeyBtn = document.getElementById('api-key-btn');
 const statusText = document.getElementById('status-text');
 
+// History Modal Elements
 const settingsBtn = document.getElementById('settings-btn');
 const historyModal = document.getElementById('history-modal');
 const closeHistory = document.getElementById('close-history');
 const historyList = document.getElementById('history-list');
 const clearAllHistoryBtn = document.getElementById('clear-all-history');
 
+// Memory Modal Elements
 const memoryModal = document.getElementById('memory-modal');
 const closeMemoryModal = document.getElementById('close-memory-modal');
 const memorySearchInput = document.getElementById('memory-search-input');
@@ -147,7 +155,7 @@ function speak(text) {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
     
-    // Strip markdown symbols and hashtags for clear pronunciation
+    // Completely strip out hashtags, markdown asterisks, backticks, and underscores for speech
     const cleanText = text.replace(/[\*\#\`\_]/g, '');
     
     const utterance = new SpeechSynthesisUtterance(cleanText);
@@ -278,6 +286,10 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("open gallery") || query.includes("gallery")) {
+    if (galleryBtn) {
+      galleryBtn.style.backgroundColor = "rgba(0, 243, 255, 0.4)";
+      setTimeout(() => { galleryBtn.style.backgroundColor = ""; }, 400);
+    }
     if (imgInput) {
       imgInput.removeAttribute('capture');
       imgInput.click();
@@ -343,12 +355,14 @@ async function callGemini(text) {
   const isOfflineQuery = text && text.toLowerCase().includes("offline");
 
   if (isOfflineQuery) {
+    // Second Box: Offline documents/heavy text search when "offline" keyword is used
     const cleanQuery = text.replace(/offline/gi, "").trim();
     const matchedDoc = customMems.find(m => m.toLowerCase().includes(cleanQuery.toLowerCase()));
     if (matchedDoc) {
       return `[Offline Document Match]: ${matchedDoc}`;
     }
   } else {
+    // First Box: Always active personal and family details saved in memory files
     if (customMems.length > 0) {
       contextualInstruction += `\n\nUser's Saved Personal & Family Details (Memory Files):\n- ${customMems.join("\n- ")}`;
     }
@@ -511,7 +525,7 @@ function renderHistoryFolders() {
 
     folderCard.appendChild(folderHeader);
     folderCard.appendChild(folderContent);
-    historyList.appendChild(historyList.appendChild(folderCard);
+    historyList.appendChild(folderCard);
   });
 }
 
@@ -550,6 +564,19 @@ if (clearAllHistoryBtn) {
    ========================================================= */
 if (executeBtn) executeBtn.addEventListener('click', handleUserCommand);
 if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleUserCommand(); });
+
+if (filesBtn) {
+  filesBtn.addEventListener('click', () => {
+    renderCustomMemories();
+    if (memoryModal) {
+      memoryModal.style.display = 'block';
+      if (memorySearchInput) {
+        memorySearchInput.value = '';
+        setTimeout(() => memorySearchInput.focus(), 150);
+      }
+    }
+  });
+}
 
 if (clearBtn) {
   clearBtn.addEventListener('click', () => {
