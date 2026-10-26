@@ -10,8 +10,14 @@ function checkApiKey() {
   }
 }
 
-// User specified models list with working fallbacks
-const MODELS = ["gemini-3.6-flash", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-1.5-flash", "gemini-2.0-flash"];
+// User specified models list with working fallbacks (optimized order for Search & Generation)
+const MODELS = [
+  "gemini-2.0-flash", 
+  "gemini-1.5-flash", 
+  "gemini-3.6-flash", 
+  "gemini-3.5-flash-lite", 
+  "gemini-flash-latest"
+];
 
 // System instruction without hardcoded family details (fetched dynamically from local files/memory)
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir).
