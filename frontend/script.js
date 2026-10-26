@@ -341,7 +341,7 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. FAST AI ENGINE CALL WITH DYNAMIC FILE/OFFLINE MEMORY
+   7. FAST AI ENGINE CALL WITH LIVE GOOGLE SEARCH & MEMORY
    ========================================================= */
 async function callGemini(text) {
   let activeKey = API_KEY || localStorage.getItem('jarvis_key');
@@ -397,7 +397,8 @@ async function callGemini(text) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: contents,
-          system_instruction: { parts: [{ text: contextualInstruction }] }
+          system_instruction: { parts: [{ text: contextualInstruction }] },
+          tools: [{ googleSearch: {} }] // Enabled Live Google Search Grounding
         })
       });
 
