@@ -10,10 +10,11 @@ function checkApiKey() {
   }
 }
 
-// User specified models list with working fallbacks (optimized order for Search & Generation)
+// User specified models list with working fallbacks (preserving original models + adding robust search models)
 const MODELS = [
-  "gemini-2.0-flash", 
-  "gemini-1.5-flash", 
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
   "gemini-3.6-flash", 
   "gemini-3.5-flash-lite", 
   "gemini-flash-latest"
@@ -347,7 +348,7 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. FAST AI ENGINE CALL WITH LIVE GOOGLE SEARCH & MEMORY
+   7. ROBUST AI ENGINE CALL WITH SAFE SEARCH & FALLBACKS
    ========================================================= */
 async function callGemini(text) {
   let activeKey = API_KEY || localStorage.getItem('jarvis_key');
@@ -396,6 +397,7 @@ async function callGemini(text) {
 
   if (statusText) statusText.innerText = "SEARCHING WEB & AI...";
 
+  // Attempt 1: With Google Search Grounding Tool
   for (let model of MODELS) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
@@ -404,7 +406,7 @@ async function callGemini(text) {
         body: JSON.stringify({
           contents: contents,
           system_instruction: { parts: [{ text: contextualInstruction }] },
-          tools: [{ googleSearch: {} }] // Enabled Live Google Search Grounding
+          tools: [{ googleSearch: {} }]
         })
       });
 
@@ -416,7 +418,31 @@ async function callGemini(text) {
         }
       }
     } catch (e) {
-      console.warn("Model attempt failed: " + model, e);
+      console.warn("Search-enabled model attempt failed: " + model, e);
+    }
+  }
+
+  // Attempt 2: Fallback without tools (Pure Generative Call) if search tools fail across models
+  for (let model of MODELS) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: contents,
+          system_instruction: { parts: [{ text: contextualInstruction }] }
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        pendingImageData = null;
+        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
+          return data.candidates[0].content.parts[0].text;
+        }
+      }
+    } catch (e) {
+      console.warn("Fallback model attempt failed: " + model, e);
     }
   }
 
