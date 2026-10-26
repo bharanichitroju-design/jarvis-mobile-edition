@@ -347,6 +347,7 @@ function handleHardcoded(text) {
   return null;
 }
 
+/* 
 /* =========================================================
    7. ROBUST AI ENGINE CALL WITH SAFE SEARCH & FALLBACKS
    ========================================================= */
@@ -397,7 +398,7 @@ async function callGemini(text) {
 
   if (statusText) statusText.innerText = "SEARCHING WEB & AI...";
 
-  // Attempt 1: With Google Search Grounding Tool
+  // Attempt 1: Calling with dynamic Google Search Tool structure for browser fetch
   for (let model of MODELS) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
@@ -422,7 +423,7 @@ async function callGemini(text) {
     }
   }
 
-  // Attempt 2: Fallback without tools (Pure Generative Call) if search tools fail across models
+  // Attempt 2: Standard Generative Call without tools as a robust fallback
   for (let model of MODELS) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
