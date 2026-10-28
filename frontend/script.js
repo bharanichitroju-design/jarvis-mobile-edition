@@ -83,88 +83,90 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   1.5. DYNAMIC 3D WORKSPACE MODAL CREATION (IN-APP)
+   1.5. IN-APP 3D WORKSPACE MODAL (EXACT HISTORY BOX STYLE)
    ========================================================= */
-let icosahedronMesh, scene3D, renderer3D, camera3D;
+let icosahedronMesh3D, scene3DBox, renderer3DBox, camera3DBox;
 
-function create3DWorkspaceModal() {
-  if (document.getElementById('td-workspace-modal')) return;
-
-  const modalOverlay = document.createElement('div');
-  modalOverlay.id = 'td-workspace-modal';
-  modalOverlay.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,5,17,0.92); z-index:9999; justify-content:center; align-items:center;";
-
-  modalOverlay.innerHTML = `
-    <div style="position:relative; width:90%; max-width:700px; height:80vh; background:rgba(0,15,30,0.95); border:2px solid #00ffff; box-shadow:0 0 25px rgba(0,255,255,0.6); display:flex; flex-direction:column; border-radius:8px; overflow:hidden; font-family:monospace;">
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:rgba(0,30,60,0.9); border-bottom:1px solid #00ffff;">
-        <span style="color:#00ffff; font-weight:bold; font-size:14px; letter-spacing:1px;">J.A.R.V.I.S. 3D WORKSPACE BOX</span>
-        <button id="close-td-modal" style="background:none; border:none; color:#ff3366; font-size:18px; font-weight:bold; cursor:pointer;">✕</button>
+function ensure3DModalExists() {
+  let modal = document.getElementById('td-workspace-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'td-workspace-modal';
+    // హిస్టరీ బాక్స్ లాగే కనిపించడానికి సేమ్ స్టైలింగ్ కంటైనర్
+    modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; justify-content:center; align-items:center;";
+    
+    modal.innerHTML = `
+      <div style="width:85%; max-width:750px; height:82vh; background:#000f1e; border:2px solid #00ffff; box-shadow:0 0 30px rgba(0,255,255,0.7); display:flex; flex-direction:column; border-radius:10px; overflow:hidden; font-family:monospace;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:rgba(0,30,60,0.95); border-bottom:1px solid #00ffff;">
+          <span style="color:#00ffff; font-weight:bold; font-size:15px; letter-spacing:1px;">J.A.R.V.I.S. 3D WORKSPACE VIEW</span>
+          <button id="close-td-box" style="background:none; border:none; color:#ff3366; font-size:20px; font-weight:bold; cursor:pointer;">✕</button>
+        </div>
+        <div id="td-box-viewport" style="flex:1; width:100%; background:#010814; position:relative;"></div>
+        <div style="padding:15px; background:rgba(0,20,40,0.95); border-top:1px solid rgba(0,243,255,0.4); display:flex; gap:10px; align-items:center;">
+          <input type="text" id="td-box-input" placeholder="Type 3D command or object text..." style="flex:1; background:rgba(0,30,60,0.9); border:1px solid #00ffff; color:#00ffff; padding:12px; outline:none; font-family:monospace;">
+          <button id="td-box-spawn" style="background:rgba(0,30,60,0.9); border:1px solid #00ffff; color:#00ffff; padding:12px 20px; font-weight:bold; cursor:pointer;">SPAWN</button>
+        </div>
       </div>
-      <div id="td-viewport" style="flex:1; width:100%; position:relative; background:#010814;"></div>
-      <div style="padding:15px; display:flex; gap:10px; background:rgba(0,20,40,0.9); border-top:1px solid rgba(0,243,255,0.3); align-items:center; justify-content:center;">
-        <input type="text" id="td-text-input" placeholder="Type 3D object text..." style="flex:1; background:rgba(0,30,60,0.9); border:1px solid #00ffff; color:#00ffff; padding:10px; outline:none; font-family:monospace;">
-        <button id="td-spawn-btn" style="background:rgba(0,30,60,0.9); border:1px solid #00ffff; color:#00ffff; padding:10px 15px; font-weight:bold; cursor:pointer;">SPAWN</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modalOverlay);
+    `;
+    document.body.appendChild(modal);
 
-  document.getElementById('close-td-modal').addEventListener('click', close3DModal);
-  modalOverlay.addEventListener('click', (e) => {
-    if (e.target === modalOverlay) close3DModal();
-  });
-}
-
-function open3DModal() {
-  create3DWorkspaceModal();
-  const modal = document.getElementById('td-workspace-modal');
-  if (modal) {
-    modal.style.display = 'flex';
-    initInApp3DScene();
+    document.getElementById('close-td-box').addEventListener('click', close3DWorkspaceModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) close3DWorkspaceModal();
+    });
   }
 }
 
-function close3DModal() {
+function open3DWorkspaceModal() {
+  ensure3DModalExists();
+  const modal = document.getElementById('td-workspace-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+    init3DBoxScene();
+  }
+}
+
+function close3DWorkspaceModal() {
   const modal = document.getElementById('td-workspace-modal');
   if (modal) modal.style.display = 'none';
 }
 
-function initInApp3DScene() {
-  const viewport = document.getElementById('td-viewport');
+function init3DBoxScene() {
+  const viewport = document.getElementById('td-box-viewport');
   if (!viewport || viewport.hasChildNodes()) return;
 
-  scene3D = new THREE.Scene();
-  camera3D = new THREE.PerspectiveCamera(60, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
-  camera3D.position.set(0, 15, 35);
+  scene3DBox = new THREE.Scene();
+  camera3DBox = new THREE.PerspectiveCamera(60, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
+  camera3DBox.position.set(0, 15, 35);
 
-  renderer3D = new THREE.WebGLRenderer({ antialias: true });
-  renderer3D.setSize(viewport.clientWidth, viewport.clientHeight);
-  viewport.appendChild(renderer3D.domElement);
+  renderer3DBox = new THREE.WebGLRenderer({ antialias: true });
+  renderer3DBox.setSize(viewport.clientWidth, viewport.clientHeight);
+  viewport.appendChild(renderer3DBox.domElement);
 
-  scene3D.add(new THREE.AmbientLight(0x00ffff, 0.9));
+  scene3DBox.add(new THREE.AmbientLight(0x00ffff, 0.9));
   const light = new THREE.DirectionalLight(0xffffff, 1);
   light.position.set(10, 20, 10);
-  scene3D.add(light);
+  scene3DBox.add(light);
 
-  scene3D.add(new THREE.GridHelper(80, 80, 0x00ffff, 0x003355));
+  scene3DBox.add(new THREE.GridHelper(80, 80, 0x00ffff, 0x003355));
 
   const geometry = new THREE.IcosahedronGeometry(6, 0);
   const material = new THREE.MeshStandardMaterial({ color: 0x00f3ff, wireframe: true });
-  icosahedronMesh = new THREE.Mesh(geometry, material);
-  icosahedronMesh.position.set(0, 8, 0);
-  scene3D.add(icosahedronMesh);
+  icosahedronMesh3D = new THREE.Mesh(geometry, material);
+  icosahedronMesh3D.position.set(0, 8, 0);
+  scene3DBox.add(icosahedronMesh3D);
 
-  function animate3D() {
-    requestAnimationFrame(animate3D);
-    if (icosahedronMesh) {
-      icosahedronMesh.rotation.x += 0.01;
-      icosahedronMesh.rotation.y += 0.015;
+  function animateBoxScene() {
+    requestAnimationFrame(animateBoxScene);
+    if (icosahedronMesh3D) {
+      icosahedronMesh3D.rotation.x += 0.01;
+      icosahedronMesh3D.rotation.y += 0.015;
     }
-    if (renderer3D && scene3D && camera3D) {
-      renderer3D.render(scene3D, camera3D);
+    if (renderer3DBox && scene3DBox && camera3DBox) {
+      renderer3DBox.render(scene3DBox, camera3DBox);
     }
   }
-  animate3D();
+  animateBoxScene();
 }
 
 /* =========================================================
@@ -361,14 +363,14 @@ function handleHardcoded(text) {
   const query = text.toLowerCase().trim();
 
   if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional")) {
-    open3DModal();
+    open3DWorkspaceModal();
     return "Opening Three Dimensional Workspace Box, Boss.";
   }
 
   if (query.includes("go back") || query.includes("go to home") || query.includes("home") || query.includes("back")) {
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
-    close3DModal();
+    close3DWorkspaceModal();
     return "Returned to home screen, Boss.";
   }
 
