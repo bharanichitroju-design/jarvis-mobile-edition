@@ -10,7 +10,6 @@ function checkApiKey() {
   }
 }
 
-// User specified models list with working fallbacks (preserving original models + adding robust search models)
 const MODELS = [
   "gemini-2.5-flash",
   "gemini-2.0-flash",
@@ -20,14 +19,12 @@ const MODELS = [
   "gemini-flash-latest"
 ];
 
-// System instruction without hardcoded family details (fetched dynamically from local files/memory)
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir).
 Behavior Guidelines:
 1. Always address Bharani as "Boss" or "Sir".
 2. If asked "What is your name?" or "Who are you?", respond with: "My name is Jarvis, created by Bharani (Sir)."
 3. Keep answers concise, direct, and helpful. Utilize the user's saved memory files and offline notes when requested.`;
 
-// Active sessions / folders history store with 12-hour AM/PM time format
 let SESSIONS = [];
 try {
   const storedSessions = JSON.parse(localStorage.getItem('jarvis_sessions') || '[]');
@@ -48,7 +45,6 @@ function format12HourTime(dateObj) {
   return `${day}, ${hours}:${minutes} ${ampm}`;
 }
 
-// Current active session items
 let currentSession = {
   id: Date.now(),
   title: "New Conversation",
@@ -57,7 +53,7 @@ let currentSession = {
 };
 
 let pendingImageData = null;
-let isJarvisSpeaking = false; // Flag for lip movement sync
+let isJarvisSpeaking = false;
 
 // DOM Elements
 const chat = document.getElementById('chat');
@@ -156,14 +152,12 @@ function animateFace() {
 window.addEventListener('DOMContentLoaded', () => {
   init3DFace();
   
-  // వెబ్‌సైట్ ఓపెన్ అయిన వెంటనే ఆటోమేటిక్‌గా గ్రీటింగ్ చెప్పి మైక్ ఆన్ చేయడం
   setTimeout(() => {
     const welcomeText = "Hi Sir, Your Jarvis was activated, ఏం చేద్దామో చెప్పండి సార్";
     addMessage(`Jarvis: ${welcomeText}`, 'ai');
     currentSession.messages.push({ role: 'model', text: welcomeText, time: format12HourTime(new Date()) });
     speak(welcomeText);
     
-    // ఆటోమేటిక్ మైక్ రికగ్నిషన్ స్టార్ట్ చేయడం
     if (typeof startJarvisListening === 'function') {
       startJarvisListening();
     }
@@ -176,10 +170,7 @@ window.addEventListener('DOMContentLoaded', () => {
 function speak(text) {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
-    
-    // Completely strip out hashtags, markdown asterisks, backticks, and underscores for speech
     const cleanText = text.replace(/[\*\#\`\_]/g, '');
-    
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'en-US';
     utterance.rate = 1.0;
@@ -412,7 +403,6 @@ async function callGemini(text) {
 
   if (statusText) statusText.innerText = "SEARCHING WEB & AI...";
 
-  // Attempt 1: Calling with dynamic Google Search Tool structure for browser fetch
   for (let model of MODELS) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
@@ -437,7 +427,6 @@ async function callGemini(text) {
     }
   }
 
-  // Attempt 2: Standard Generative Call without tools as a robust fallback
   for (let model of MODELS) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
@@ -765,7 +754,6 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
 
   initRecognition();
 
-  // ఆటోమేటిక్‌గా మైక్ ఆన్ చేసే ఫంక్షన్
   startJarvisListening = function() {
     if (!isListeningActive) {
       isListeningActive = true;
