@@ -153,7 +153,22 @@ function animateFace() {
   }
 }
 
-window.addEventListener('DOMContentLoaded', init3DFace);
+window.addEventListener('DOMContentLoaded', () => {
+  init3DFace();
+  
+  // వెబ్‌సైట్ ఓపెన్ అయిన వెంటనే ఆటోమేటిక్‌గా గ్రీటింగ్ చెప్పి మైక్ ఆన్ చేయడం
+  setTimeout(() => {
+    const welcomeText = "Hi Sir, Your Jarvis was activated, ఏం చేద్దామో చెప్పండి సార్";
+    addMessage(`Jarvis: ${welcomeText}`, 'ai');
+    currentSession.messages.push({ role: 'model', text: welcomeText, time: format12HourTime(new Date()) });
+    speak(welcomeText);
+    
+    // ఆటోమేటిక్ మైక్ రికగ్నిషన్ స్టార్ట్ చేయడం
+    if (typeof startJarvisListening === 'function') {
+      startJarvisListening();
+    }
+  }, 1000);
+});
 
 /* =========================================================
    3. TEXT-TO-SPEECH (TTS) WITH CLEANED TEXT & LIP-SYNC
@@ -347,7 +362,6 @@ function handleHardcoded(text) {
   return null;
 }
 
-/* 
 /* =========================================================
    7. ROBUST AI ENGINE CALL WITH SAFE SEARCH & FALLBACKS
    ========================================================= */
@@ -686,8 +700,10 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. SPEECH RECOGNITION
+   11. SPEECH RECOGNITION (AUTO START)
    ========================================================= */
+let startJarvisListening = function() {};
+
 if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
@@ -748,6 +764,18 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
   }
 
   initRecognition();
+
+  // ఆటోమేటిక్‌గా మైక్ ఆన్ చేసే ఫంక్షన్
+  startJarvisListening = function() {
+    if (!isListeningActive) {
+      isListeningActive = true;
+      try {
+        recognition.start();
+      } catch (err) {
+        console.log(err);
+      }
+    }
+  };
 
   micBtn.addEventListener('click', () => {
     if (!isListeningActive) {
