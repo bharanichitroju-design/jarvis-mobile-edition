@@ -83,28 +83,67 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   1.5. IN-APP 3D WORKSPACE MODAL (EXACT HISTORY BOX STYLE)
+   1.5. IN-APP 3D WORKSPACE MODAL & FULL 3D COMMAND ENGINE
    ========================================================= */
-let icosahedronMesh3D, scene3DBox, renderer3DBox, camera3DBox;
+let scene3DBox, camera3DBox, renderer3DBox;
+let loadedObjects3D = [];
+let selectedObject3D = null;
+let touches3D = [];
+let isMouseDown3D = false;
+let prevMousePos3D = { x: 0, y: 0 };
+let initialPinchDistance3D = null;
+let audioCtx3D = null;
+
+function playTrashSound3D() {
+  try {
+    if (!audioCtx3D) {
+      audioCtx3D = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx3D.state === 'suspended') {
+      audioCtx3D.resume();
+    }
+    const osc = audioCtx3D.createOscillator();
+    const gain = audioCtx3D.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(300, audioCtx3D.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(40, audioCtx3D.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.5, audioCtx3D.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx3D.currentTime + 0.3);
+    osc.connect(gain);
+    gain.connect(audioCtx3D.destination);
+    osc.start();
+    osc.stop(audioCtx3D.currentTime + 0.3);
+  } catch (e) {
+    console.log("Audio not supported", e);
+  }
+}
 
 function ensure3DModalExists() {
   let modal = document.getElementById('td-workspace-modal');
   if (!modal) {
     modal = document.createElement('div');
     modal.id = 'td-workspace-modal';
-    // హిస్టరీ బాక్స్ లాగే కనిపించడానికి సేమ్ స్టైలింగ్ కంటైనర్
     modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; justify-content:center; align-items:center;";
     
     modal.innerHTML = `
-      <div style="width:85%; max-width:750px; height:82vh; background:#000f1e; border:2px solid #00ffff; box-shadow:0 0 30px rgba(0,255,255,0.7); display:flex; flex-direction:column; border-radius:10px; overflow:hidden; font-family:monospace;">
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:rgba(0,30,60,0.95); border-bottom:1px solid #00ffff;">
-          <span style="color:#00ffff; font-weight:bold; font-size:15px; letter-spacing:1px;">J.A.R.V.I.S. 3D WORKSPACE VIEW</span>
+      <div style="width:90%; max-width:800px; height:85vh; background:#000f1e; border:2px solid #00ffff; box-shadow:0 0 30px rgba(0,255,255,0.7); display:flex; flex-direction:column; border-radius:10px; overflow:hidden; font-family:monospace; position:relative;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:rgba(0,30,60,0.95); border-bottom:1px solid #00ffff; z-index:10;">
+          <span id="td-hud-status" style="color:#00ffff; font-weight:bold; font-size:12px; letter-spacing:1px;">WORKSPACE MODE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)</span>
           <button id="close-td-box" style="background:none; border:none; color:#ff3366; font-size:20px; font-weight:bold; cursor:pointer;">✕</button>
         </div>
-        <div id="td-box-viewport" style="flex:1; width:100%; background:#010814; position:relative;"></div>
-        <div style="padding:15px; background:rgba(0,20,40,0.95); border-top:1px solid rgba(0,243,255,0.4); display:flex; gap:10px; align-items:center;">
-          <input type="text" id="td-box-input" placeholder="Type 3D command or object text..." style="flex:1; background:rgba(0,30,60,0.9); border:1px solid #00ffff; color:#00ffff; padding:12px; outline:none; font-family:monospace;">
-          <button id="td-box-spawn" style="background:rgba(0,30,60,0.9); border:1px solid #00ffff; color:#00ffff; padding:12px 20px; font-weight:bold; cursor:pointer;">SPAWN</button>
+        
+        <div id="td-box-viewport" style="flex:1; width:100%; background:#010814; position:relative; overflow:hidden;"></div>
+
+        <!-- Trash Bin Inside Modal -->
+        <div id="td-trash-bin" title="Drag object here to delete" style="position:absolute; bottom:80px; left:50%; transform:translateX(-50%); width:50px; height:50px; background:rgba(255,0,60,0.2); border:2px dashed #ff0055; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; color:#ff0055; box-shadow:0 0 15px rgba(255,0,85,0.4); z-index:20; transition:all 0.3s ease; pointer-events:none;">🗑️</div>
+
+        <div style="padding:15px; background:rgba(0,20,40,0.95); border-top:1px solid rgba(0,243,255,0.4); display:flex; flex-direction:column; gap:10px; z-index:10;">
+          <div style="display:flex; gap:10px; width:100%;">
+            <input type="text" id="td-box-input" placeholder="Type text here..." style="flex:2; background:rgba(0,30,60,0.9); border:1px solid #00ffff; color:#00ffff; padding:10px; outline:none; font-family:monospace;">
+            <button id="td-box-spawn" style="flex:1; background:rgba(0,30,60,0.9); border:1px solid #00ffff; color:#00ffff; padding:10px; font-weight:bold; cursor:pointer;">SPAWN TEXT</button>
+          </div>
+          <button id="td-upload-btn" style="width:100%; background:rgba(0,30,60,0.9); border:1px solid #00ffff; color:#00ffff; padding:10px; font-weight:bold; cursor:pointer;">UPLOAD BLUEPRINT IMAGE</button>
+          <input type="file" id="td-file-input" accept="image/*" style="display:none;">
         </div>
       </div>
     `;
@@ -114,6 +153,13 @@ function ensure3DModalExists() {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) close3DWorkspaceModal();
     });
+
+    // Bind inside modal controls
+    document.getElementById('td-box-spawn').addEventListener('click', spawn3DTextFromInput);
+    document.getElementById('td-upload-btn').addEventListener('click', () => {
+      document.getElementById('td-file-input').click();
+    });
+    document.getElementById('td-file-input').addEventListener('change', handle3DBlueprintUpload);
   }
 }
 
@@ -131,42 +177,350 @@ function close3DWorkspaceModal() {
   if (modal) modal.style.display = 'none';
 }
 
+let desktopGroup3D;
 function init3DBoxScene() {
   const viewport = document.getElementById('td-box-viewport');
   if (!viewport || viewport.hasChildNodes()) return;
 
   scene3DBox = new THREE.Scene();
+  scene3DBox.background = new THREE.Color(0x010814);
+
   camera3DBox = new THREE.PerspectiveCamera(60, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
-  camera3DBox.position.set(0, 15, 35);
+  camera3DBox.position.set(0, 25, 60);
+  camera3DBox.lookAt(0, 0, 0);
 
   renderer3DBox = new THREE.WebGLRenderer({ antialias: true });
   renderer3DBox.setSize(viewport.clientWidth, viewport.clientHeight);
+  renderer3DBox.setPixelRatio(window.devicePixelRatio);
   viewport.appendChild(renderer3DBox.domElement);
 
-  scene3DBox.add(new THREE.AmbientLight(0x00ffff, 0.9));
-  const light = new THREE.DirectionalLight(0xffffff, 1);
-  light.position.set(10, 20, 10);
-  scene3DBox.add(light);
+  scene3DBox.add(new THREE.AmbientLight(0x00ffff, 0.8));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+  dirLight.position.set(20, 40, 20);
+  scene3DBox.add(dirLight);
 
-  scene3DBox.add(new THREE.GridHelper(80, 80, 0x00ffff, 0x003355));
+  desktopGroup3D = new THREE.Group();
+  desktopGroup3D.position.set(0, -8, 0);
+  scene3DBox.add(desktopGroup3D);
 
-  const geometry = new THREE.IcosahedronGeometry(6, 0);
-  const material = new THREE.MeshStandardMaterial({ color: 0x00f3ff, wireframe: true });
-  icosahedronMesh3D = new THREE.Mesh(geometry, material);
-  icosahedronMesh3D.position.set(0, 8, 0);
-  scene3DBox.add(icosahedronMesh3D);
+  const gridHelper = new THREE.GridHelper(150, 150, 0x00ffff, 0x003355);
+  desktopGroup3D.add(gridHelper);
+
+  loadedObjects3D = [];
+  selectedObject3D = null;
+
+  setup3DInteractions(viewport);
 
   function animateBoxScene() {
     requestAnimationFrame(animateBoxScene);
-    if (icosahedronMesh3D) {
-      icosahedronMesh3D.rotation.x += 0.01;
-      icosahedronMesh3D.rotation.y += 0.015;
-    }
     if (renderer3DBox && scene3DBox && camera3DBox) {
       renderer3DBox.render(scene3DBox, camera3DBox);
     }
   }
   animateBoxScene();
+}
+
+function checkTrashCollision3D(clientX, clientY) {
+  const trashBin = document.getElementById('td-trash-bin');
+  if (!trashBin) return false;
+  const rect = trashBin.getBoundingClientRect();
+  return (
+    clientX >= rect.left - 20 &&
+    clientX <= rect.right + 20 &&
+    clientY >= rect.top - 20 &&
+    clientY <= rect.bottom + 20
+  );
+}
+
+function deleteSelectedObject3D() {
+  if (!selectedObject3D) return;
+  playTrashSound3D();
+
+  desktopGroup3D.remove(selectedObject3D);
+  const index = loadedObjects3D.indexOf(selectedObject3D);
+  if (index > -1) loadedObjects3D.splice(index, 1);
+
+  selectedObject3D = null;
+  const trashBin = document.getElementById('td-trash-bin');
+  if (trashBin) trashBin.classList.remove('highlight');
+  const hud = document.getElementById('td-hud-status');
+  if (hud) hud.innerText = "OBJECT DELETED. WORKSPACE MODE";
+}
+
+function spawn3DTextFromInput() {
+  const textInput = document.getElementById('td-box-input');
+  const hud = document.getElementById('td-hud-status');
+  if (!textInput) return;
+  const val = textInput.value.trim();
+  if (!val) return;
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.font = 'Bold 48px monospace';
+  const metrics = ctx.measureText(val);
+  const textWidth = metrics.width;
+  
+  canvas.width = Math.max(256, textWidth + 40);
+  canvas.height = 120;
+
+  ctx.font = 'Bold 48px monospace';
+  ctx.fillStyle = '#00ffff';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillText(val, canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const aspect = canvas.width / canvas.height;
+  const geometry = new THREE.PlaneGeometry(8 * aspect, 8);
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.95
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(0, 10, 0);
+
+  const edges = new THREE.EdgesGeometry(geometry);
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+  const wireframe = new THREE.LineSegments(edges, lineMat);
+  wireframe.name = "outline";
+  wireframe.visible = false;
+  mesh.add(wireframe);
+
+  desktopGroup3D.add(mesh);
+  loadedObjects3D.push(mesh);
+  textInput.value = '';
+  if (hud) hud.innerText = "TEXT SPAWNED. DOUBLE CLICK TO SELECT & MOVE.";
+}
+
+function handle3DBlueprintUpload(e) {
+  const file = e.target.files[0];
+  const hud = document.getElementById('td-hud-status');
+  if (!file) return;
+
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = img.width;
+    canvas.height = img.height;
+
+    ctx.drawImage(img, 0, 0);
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      data[i] = 0;             
+      data[i + 1] = avg * 0.9; 
+      data[i + 2] = avg * 1.2; 
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const aspect = img.width / img.height;
+    const geometry = new THREE.PlaneGeometry(14 * aspect, 14);
+    const material = new THREE.MeshBasicMaterial({
+      map: texture,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.95
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(0, 10, 0); 
+
+    const edges = new THREE.EdgesGeometry(geometry);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+    const wireframe = new THREE.LineSegments(edges, lineMat);
+    wireframe.name = "outline";
+    wireframe.visible = false;
+    mesh.add(wireframe);
+
+    desktopGroup3D.add(mesh);
+    loadedObjects3D.push(mesh);
+    if (hud) hud.innerText = "BLUEPRINT LOADED. DOUBLE CLICK IMAGE TO SELECT.";
+  };
+  this.value = '';
+}
+
+function setup3DInteractions(viewport) {
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+
+  viewport.addEventListener('dblclick', (e) => {
+    const rect = viewport.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    mouse.x = (x / viewport.clientWidth) * 2 - 1;
+    mouse.y = -(y / viewport.clientHeight) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera3DBox);
+    const intersects = raycaster.intersectObjects(loadedObjects3D);
+
+    const hud = document.getElementById('td-hud-status');
+    if (intersects.length > 0) {
+      if (selectedObject3D) deselect3D();
+      selectedObject3D = intersects[0].object;
+      selectedObject3D.getObjectByName("outline").visible = true;
+      if (hud) hud.innerText = "OBJECT MODE (1-Finger Place | 2-Finger Pinch Zoom)";
+    } else {
+      deselect3D();
+    }
+  });
+
+  function deselect3D() {
+    if (selectedObject3D) {
+      selectedObject3D.getObjectByName("outline").visible = false;
+      selectedObject3D = null;
+      const trashBin = document.getElementById('td-trash-bin');
+      if (trashBin) trashBin.classList.remove('highlight');
+      const hud = document.getElementById('td-hud-status');
+      if (hud) hud.innerText = "WORKSPACE MODE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)";
+    }
+  }
+
+  function getPinchDist(t1, t2) {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  let lastTClientX = 0;
+  let lastTClientY = 0;
+  let initialPinchDist = null;
+  let initialScale = 1;
+
+  viewport.addEventListener('touchstart', (e) => {
+    touches3D = e.touches;
+    if (e.touches.length === 1) {
+      lastTClientX = e.touches[0].clientX;
+      lastTClientY = e.touches[0].clientY;
+    }
+    if (e.touches.length === 2) {
+      initialPinchDist = getPinchDist(e.touches[0], e.touches[1]);
+      if (selectedObject3D) initialScale = selectedObject3D.scale.x;
+    }
+  });
+
+  viewport.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const curTouches = e.touches;
+    const trashBin = document.getElementById('td-trash-bin');
+
+    if (curTouches.length === 1) {
+      const t = curTouches[0];
+      lastTClientX = t.clientX;
+      lastTClientY = t.clientY;
+      const prevT = touches3D[0] || t;
+      const dx = t.clientX - prevT.clientX;
+      const dy = t.clientY - prevT.clientY;
+
+      if (selectedObject3D) {
+        selectedObject3D.position.x += dx * 0.05;
+        selectedObject3D.position.y -= dy * 0.05;
+        if (selectedObject3D.position.y < 1) selectedObject3D.position.y = 1;
+
+        if (checkTrashCollision3D(t.clientX, t.clientY)) {
+          if (trashBin) trashBin.classList.add('highlight');
+        } else {
+          if (trashBin) trashBin.classList.remove('highlight');
+        }
+      } else {
+        desktopGroup3D.rotation.y += dx * 0.008;
+        desktopGroup3D.rotation.x += dy * 0.008;
+        desktopGroup3D.rotation.x = Math.max(-Math.PI / 12, Math.min(Math.PI / 2, desktopGroup3D.rotation.x));
+      }
+    } else if (curTouches.length === 2) {
+      const currentPinchDist = getPinchDist(curTouches[0], curTouches[1]);
+      if (initialPinchDist) {
+        const ratio = currentPinchDist / initialPinchDist;
+        if (selectedObject3D) {
+          const newScale = Math.max(0.2, Math.min(5, initialScale * ratio));
+          selectedObject3D.scale.set(newScale, newScale, newScale);
+        } else {
+          const delta = initialPinchDist - currentPinchDist;
+          camera3DBox.position.z = Math.max(10, Math.min(120, camera3DBox.position.z + delta * 0.1));
+          initialPinchDist = currentPinchDist;
+        }
+      }
+      if (!selectedObject3D) {
+        const t1 = curTouches[0];
+        const prevT1 = touches3D[0] || t1;
+        const dx = t1.clientX - prevT1.clientX;
+        const dy = t1.clientY - prevT1.clientY;
+        desktopGroup3D.position.x += dx * 0.05;
+        desktopGroup3D.position.y -= dy * 0.05;
+      }
+    }
+    touches3D = curTouches;
+  }, { passive: false });
+
+  viewport.addEventListener('touchend', (e) => {
+    const trashBin = document.getElementById('td-trash-bin');
+    if (selectedObject3D && checkTrashCollision3D(lastTClientX, lastTClientY)) {
+      deleteSelectedObject3D();
+    } else {
+      if (trashBin) trashBin.classList.remove('highlight');
+    }
+    touches3D = e.touches;
+    if (e.touches.length < 2) initialPinchDist = null;
+  });
+
+  // Mouse Fallbacks inside Modal
+  viewport.addEventListener('mousedown', (e) => {
+    isMouseDown3D = true;
+    prevMousePos3D = { x: e.clientX, y: e.clientY };
+  });
+
+  viewport.addEventListener('mousemove', (e) => {
+    if (!isMouseDown3D) return;
+    const dx = e.clientX - prevMousePos3D.x;
+    const dy = e.clientY - prevMousePos3D.y;
+    const trashBin = document.getElementById('td-trash-bin');
+
+    if (selectedObject3D) {
+      selectedObject3D.position.x += dx * 0.05;
+      selectedObject3D.position.y -= dy * 0.05;
+      if (selectedObject3D.position.y < 1) selectedObject3D.position.y = 1;
+
+      if (checkTrashCollision3D(e.clientX, e.clientY)) {
+        if (trashBin) trashBin.classList.add('highlight');
+      } else {
+        if (trashBin) trashBin.classList.remove('highlight');
+      }
+    } else {
+      desktopGroup3D.rotation.y += dx * 0.008;
+      desktopGroup3D.rotation.x += dy * 0.008;
+      desktopGroup3D.rotation.x = Math.max(-Math.PI / 12, Math.min(Math.PI / 2, desktopGroup3D.rotation.x));
+    }
+    prevMousePos3D = { x: e.clientX, y: e.clientY };
+  });
+
+  viewport.addEventListener('mouseup', (e) => {
+    isMouseDown3D = false;
+    const trashBin = document.getElementById('td-trash-bin');
+    if (selectedObject3D && checkTrashCollision3D(e.clientX, e.clientY)) {
+      deleteSelectedObject3D();
+    } else {
+      if (trashBin) trashBin.classList.remove('highlight');
+    }
+  });
+
+  viewport.addEventListener('wheel', (e) => {
+    if (selectedObject3D) {
+      const scaleFactor = e.deltaY < 0 ? 1.1 : 0.9;
+      const newScale = Math.max(0.2, Math.min(5, selectedObject3D.scale.x * scaleFactor));
+      selectedObject3D.scale.set(newScale, newScale, newScale);
+    } else {
+      camera3DBox.position.z = Math.max(10, Math.min(120, camera3DBox.position.z + e.deltaY * 0.04));
+    }
+  });
 }
 
 /* =========================================================
