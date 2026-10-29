@@ -55,7 +55,7 @@ let currentSession = {
 let pendingImageData = null;
 let isJarvisSpeaking = false;
 
-// 3D Workspace Array Stores: { label: 'f1', mesh: Mesh, type: 'image'|'text', mode: 'holographic'|'natural', originalTexture: Texture, holoTexture: Texture, data: Base64, content: String }
+// 3D Workspace Array Stores: { label: 'f1', mesh: Mesh, type: 'image'|'text', mode: '3d'|'natural', originalTexture: Texture, threeDTexture: Texture, data: Base64, content: String }
 let workspaceFiles3D = []; 
 
 // DOM Elements
@@ -64,7 +64,7 @@ const input = document.getElementById('msg');
 const executeBtn = document.getElementById('execute-btn');
 const micBtn = document.getElementById('mic-btn');
 const galleryBtn = document.getElementById('gallery-btn');
-const filesBtn = document.getElementById('files-btn');
+const memoryBtn = document.getElementById('files-btn') || document.getElementById('memory-btn');
 const clearBtn = document.getElementById('clear-btn');
 const imgInput = document.getElementById('img-input');
 const apiKeyBtn = document.getElementById('api-key-btn');
@@ -131,7 +131,7 @@ function ensure3DModalExists() {
     modal.innerHTML = `
       <div style="width:90%; max-width:800px; height:85vh; background:#000f1e; border:2px solid #00ffff; box-shadow:0 0 30px rgba(0,255,255,0.7); display:flex; flex-direction:column; border-radius:10px; overflow:hidden; font-family:monospace; position:relative;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:rgba(0,30,60,0.95); border-bottom:1px solid #00ffff; z-index:10;">
-          <span id="td-hud-status" style="color:#00ffff; font-weight:bold; font-size:12px; letter-spacing:1px;">HOLOGRAPHIC TABLE INITIALIZED (1-Finger Rotate | 2-Finger Move & Pinch Zoom)</span>
+          <span id="td-hud-status" style="color:#00ffff; font-weight:bold; font-size:12px; letter-spacing:1px;">3D WORKSPACE INITIALIZED (1-Finger Rotate | 2-Finger Move & Pinch Zoom)</span>
           <button id="close-td-box" style="background:none; border:none; color:#ff3366; font-size:20px; font-weight:bold; cursor:pointer;">✕</button>
         </div>
         
@@ -231,45 +231,45 @@ function init3DBoxScene() {
 }
 
 /* =========================================================
-   MAP POINTING PIN GENERATOR FOR 3D HUD LABELS
+   RESIZED SMALLER MAP POINTING PIN GENERATOR FOR 3D HUD LABELS
    ========================================================= */
 function createMapPinCanvas(fileLabel) {
   const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 160;
+  canvas.width = 96;
+  canvas.height = 120;
   const ctx = canvas.getContext('2d');
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw Map Pin Outer Tear-Drop Body
+  // Draw Smaller Map Pin Tear-Drop Body
   ctx.beginPath();
-  ctx.moveTo(64, 155);
-  ctx.bezierCurveTo(20, 100, 10, 70, 10, 50);
-  ctx.arc(64, 50, 54, Math.PI, 0, false);
-  ctx.bezierCurveTo(118, 70, 108, 100, 64, 155);
+  ctx.moveTo(48, 115);
+  ctx.bezierCurveTo(15, 75, 8, 50, 8, 38);
+  ctx.arc(48, 38, 40, Math.PI, 0, false);
+  ctx.bezierCurveTo(88, 50, 81, 75, 48, 115);
   ctx.closePath();
 
   ctx.fillStyle = '#00f3ff';
   ctx.fill();
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 3;
   ctx.strokeStyle = '#ffffff';
   ctx.stroke();
 
   // Draw Pin Inner Circle
   ctx.beginPath();
-  ctx.arc(64, 50, 32, 0, Math.PI * 2);
+  ctx.arc(48, 38, 24, 0, Math.PI * 2);
   ctx.fillStyle = '#000f1e';
   ctx.fill();
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 2;
   ctx.strokeStyle = '#00f3ff';
   ctx.stroke();
 
   // Draw Text Label (f1, f2, f3...)
   ctx.fillStyle = '#00f3ff';
-  ctx.font = 'bold 30px monospace';
+  ctx.font = 'bold 22px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(fileLabel.toUpperCase(), 64, 50);
+  ctx.fillText(fileLabel.toUpperCase(), 48, 38);
 
   return canvas;
 }
@@ -277,7 +277,7 @@ function createMapPinCanvas(fileLabel) {
 function attachMapPinToMesh(mesh, fileLabel) {
   const pinCanvas = createMapPinCanvas(fileLabel);
   const pinTexture = new THREE.CanvasTexture(pinCanvas);
-  const pinGeo = new THREE.PlaneGeometry(3.5, 4.4);
+  const pinGeo = new THREE.PlaneGeometry(2.2, 2.8);
   const pinMat = new THREE.MeshBasicMaterial({
     map: pinTexture,
     transparent: true,
@@ -285,29 +285,24 @@ function attachMapPinToMesh(mesh, fileLabel) {
   });
   const pinMesh = new THREE.Mesh(pinGeo, pinMat);
   
-  // Position Map Pin Pin-Tip directly attached to top center edge of photo plane
-  pinMesh.position.set(0, 8.2, 0.1);
+  pinMesh.position.set(0, 7.4, 0.1);
   mesh.add(pinMesh);
 }
 
-function createHologramTexture(imgObj) {
+// ULTRA-CLEAR 3D TEXTURE WITH PERFECT BLUE TINT & PRESERVED CLARITY
+function create3DTexture(imgObj) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
 
+  // Draw original image with full high-resolution clarity
   ctx.drawImage(imgObj, 0, 0, 512, 512);
 
-  // Tint image with Cyan/Blue Hologram overlay
+  // Apply a crystal-clear subtle blue tint overlay without blurring text/lines
   ctx.globalCompositeOperation = 'source-atop';
-  ctx.fillStyle = 'rgba(0, 243, 255, 0.75)';
+  ctx.fillStyle = 'rgba(0, 180, 255, 0.28)';
   ctx.fillRect(0, 0, 512, 512);
-
-  // Add Holographic scanlines
-  ctx.fillStyle = 'rgba(0, 15, 30, 0.35)';
-  for (let i = 0; i < 512; i += 8) {
-    ctx.fillRect(0, i, 512, 4);
-  }
 
   return new THREE.CanvasTexture(canvas);
 }
@@ -363,7 +358,7 @@ function spawn3DTextFromInput() {
     label: fileLabel, 
     mesh: mesh, 
     type: 'text', 
-    mode: 'holographic', 
+    mode: '3d', 
     content: val 
   });
 
@@ -387,11 +382,11 @@ function handle3DBlueprintUpload(e) {
     img.src = base64FullData;
     img.onload = () => {
       const origTexture = new THREE.TextureLoader().load(base64FullData);
-      const holoTexture = createHologramTexture(img);
+      const threeDTexture = create3DTexture(img);
 
       const geometry = new THREE.PlaneGeometry(12, 12);
       const material = new THREE.MeshBasicMaterial({
-        map: holoTexture, // Default state: Holographic (Blue)
+        map: threeDTexture, // Default state: 3D Blue Tint Mode
         side: THREE.DoubleSide,
         transparent: true,
         opacity: 0.95
@@ -407,7 +402,6 @@ function handle3DBlueprintUpload(e) {
       wireframe.visible = false;
       mesh.add(wireframe);
 
-      // Attach Map Pin on Top Edge
       attachMapPinToMesh(mesh, fileLabel);
 
       desktopGroup3D.add(mesh);
@@ -417,9 +411,9 @@ function handle3DBlueprintUpload(e) {
         label: fileLabel, 
         mesh: mesh, 
         type: 'image', 
-        mode: 'holographic',
+        mode: '3d',
         originalTexture: origTexture,
-        holoTexture: holoTexture,
+        threeDTexture: threeDTexture,
         mimeType: file.type, 
         data: base64DataOnly, 
         fileName: file.name 
@@ -459,7 +453,7 @@ function deleteSelectedObject3D() {
   const trashBin = document.getElementById('td-trash-bin');
   if (trashBin) trashBin.classList.remove('highlight');
   const hud = document.getElementById('td-hud-status');
-  if (hud) hud.innerText = "OBJECT DELETED. HOLOGRAPHIC WORKSPACE";
+  if (hud) hud.innerText = "OBJECT DELETED. 3D WORKSPACE";
 }
 
 function setup3DInteractions(viewport) {
@@ -495,7 +489,7 @@ function setup3DInteractions(viewport) {
       const trashBin = document.getElementById('td-trash-bin');
       if (trashBin) trashBin.classList.remove('highlight');
       const hud = document.getElementById('td-hud-status');
-      if (hud) hud.innerText = "HOLOGRAPHIC WORKSPACE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)";
+      if (hud) hud.innerText = "3D WORKSPACE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)";
     }
   }
 
@@ -766,7 +760,7 @@ function addMessage(text, sender) {
 }
 
 /* =========================================================
-   5. LOCAL FILES & MEMORY STORAGE HANDLERS
+   5. LOCAL MEMORY STORAGE HANDLERS
    ========================================================= */
 function getCustomMemories() {
   return JSON.parse(localStorage.getItem('jarvis_custom_memories') || '[]');
@@ -829,7 +823,7 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
-  // 1. CLEAR CHAT (Strictly triggered by "clear jarvis" command or UI clear click)
+  // 1. CLEAR CHAT (Strictly triggered by "clear jarvis" command)
   if (query === "clear jarvis" || query.includes("clear jarvis")) {
     if (currentSession.messages.length > 0) {
       SESSIONS.unshift(currentSession);
@@ -857,25 +851,25 @@ function handleHardcoded(text) {
     return "All workspace files switched to Natural Color Rendering, Boss.";
   }
 
-  if (query === "all files holographic" || query === "holographic all files") {
+  if (query === "all files 3d" || query === "3d all files") {
     workspaceFiles3D.forEach(f => {
-      if (f.type === 'image' && f.holoTexture) {
-        f.mesh.material.map = f.holoTexture;
+      if (f.type === 'image' && f.threeDTexture) {
+        f.mesh.material.map = f.threeDTexture;
         f.mesh.material.needsUpdate = true;
-        f.mode = 'holographic';
+        f.mode = '3d';
       }
     });
-    return "All workspace files switched to Blue Holographic Rendering, Boss.";
+    return "All workspace files switched to 3D Rendering, Boss.";
   }
 
-  // 3. RENDERING CONTROL: SPECIFIC FILE COMMANDS ("Natural f1", "Holographic f2")
-  const fileMatch = query.match(/f\d+/);
+  // 3. RENDERING CONTROL: DYNAMIC FILE COMMANDS ("natural f1", "3d f2", "natural f4", etc.)
+  const fileMatch = query.match(/f\d+/i);
   if (fileMatch && workspaceFiles3D.length > 0) {
-    const fileLabel = fileMatch[0];
+    const fileLabel = fileMatch[0].toLowerCase();
     const target = workspaceFiles3D.find(f => f.label.toLowerCase() === fileLabel);
 
     if (target) {
-      if (query.startsWith("natural")) {
+      if (query.includes("natural")) {
         if (target.type === 'image' && target.originalTexture) {
           target.mesh.material.map = target.originalTexture;
           target.mesh.material.needsUpdate = true;
@@ -884,21 +878,21 @@ function handleHardcoded(text) {
         return `File ${target.label.toUpperCase()} set to Natural Render mode, Boss.`;
       }
 
-      if (query.startsWith("holographic")) {
-        if (target.type === 'image' && target.holoTexture) {
-          target.mesh.material.map = target.holoTexture;
+      if (query.includes("3d")) {
+        if (target.type === 'image' && target.threeDTexture) {
+          target.mesh.material.map = target.threeDTexture;
           target.mesh.material.needsUpdate = true;
-          target.mode = 'holographic';
+          target.mode = '3d';
         }
-        return `File ${target.label.toUpperCase()} set to Holographic Render mode, Boss.`;
+        return `File ${target.label.toUpperCase()} set to 3D Render mode, Boss.`;
       }
     }
   }
 
   // 4. UI NAVIGATION COMMANDS
-  if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional")) {
+  if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional") || query.includes("3d workspace")) {
     open3DWorkspaceModal();
-    return "Initializing Holographic Workspace Table, Boss.";
+    return "Initializing 3D Workspace Table, Boss.";
   }
 
   if (query.includes("go back") || query.includes("go to home") || query.includes("home") || query.includes("back")) {
@@ -908,7 +902,7 @@ function handleHardcoded(text) {
     return "Returned to home screen, Boss.";
   }
 
-  if (query.includes("open my files") || query.includes("open folder jarvis") || query.includes("open folder") || query.includes("open my details") || query.includes("open memory box") || query.includes("my files") || query.includes("files")) {
+  if (query.includes("open my files") || query.includes("open memory") || query.includes("open folder jarvis") || query.includes("open folder") || query.includes("open my details") || query.includes("open memory box") || query.includes("memory")) {
     renderCustomMemories();
     if (memoryModal) {
       memoryModal.style.display = 'block';
@@ -917,7 +911,7 @@ function handleHardcoded(text) {
         setTimeout(() => memorySearchInput.focus(), 150);
       }
     }
-    return "Opening your Files and Details Memory Box, Boss.";
+    return "Opening your Memory Box, Boss.";
   }
 
   if (query.includes("open gallery") || query.includes("gallery")) {
@@ -974,13 +968,12 @@ async function callGemini(text) {
   const customMems = getCustomMemories();
   let contextualInstruction = SYSTEM_INSTRUCTION;
 
-  // Check if user is explicitly querying a specific 3D workspace file (e.g. "f1", "f2")
   let targetFile = null;
   if (text) {
     const lowerText = text.toLowerCase();
-    const match = lowerText.match(/f\d+/);
+    const match = lowerText.match(/f\d+/i);
     if (match && workspaceFiles3D.length > 0) {
-      const labelQuery = match[0];
+      const labelQuery = match[0].toLowerCase();
       targetFile = workspaceFiles3D.find(f => f.label.toLowerCase() === labelQuery);
     }
   }
@@ -998,7 +991,7 @@ async function callGemini(text) {
   } else {
     if (workspaceFiles3D.length > 0) {
       const summaryList = workspaceFiles3D.map(f => f.type === 'text' ? `${f.label.toUpperCase()}: Text("${f.content}")` : `${f.label.toUpperCase()}: Image(${f.fileName})`).join(', ');
-      contextualInstruction += `\n\n[Current 3D Holographic Workspace Files Available]: ${summaryList}. (Remember: Do not analyze unless explicitly asked for a specific file like 'f1').`;
+      contextualInstruction += `\n\n[Current 3D Workspace Files Available]: ${summaryList}. (Remember: Do not analyze unless explicitly asked for a specific file like 'f1').`;
     }
   }
 
@@ -1237,8 +1230,8 @@ if (clearAllHistoryBtn) {
 if (executeBtn) executeBtn.addEventListener('click', handleUserCommand);
 if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleUserCommand(); });
 
-if (filesBtn) {
-  filesBtn.addEventListener('click', () => {
+if (memoryBtn) {
+  memoryBtn.addEventListener('click', () => {
     renderCustomMemories();
     if (memoryModal) {
       memoryModal.style.display = 'block';
