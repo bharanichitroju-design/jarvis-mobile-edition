@@ -64,7 +64,7 @@ const input = document.getElementById('msg');
 const executeBtn = document.getElementById('execute-btn');
 const micBtn = document.getElementById('mic-btn');
 const galleryBtn = document.getElementById('gallery-btn');
-const memoryBtn = document.getElementById('files-btn') || document.getElementById('memory-btn');
+const memoryBtn = document.getElementById('memory-btn') || document.getElementById('files-btn');
 const clearBtn = document.getElementById('clear-btn');
 const imgInput = document.getElementById('img-input');
 const apiKeyBtn = document.getElementById('api-key-btn');
@@ -296,12 +296,12 @@ function create3DTexture(imgObj) {
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
 
-  // Draw original image with full high-resolution clarity
+  // Draw original image with full crisp resolution
   ctx.drawImage(imgObj, 0, 0, 512, 512);
 
-  // Apply a crystal-clear subtle blue tint overlay without blurring text/lines
+  // Apply clear blue overlay without distorting text/lines
   ctx.globalCompositeOperation = 'source-atop';
-  ctx.fillStyle = 'rgba(0, 180, 255, 0.28)';
+  ctx.fillStyle = 'rgba(0, 180, 255, 0.32)';
   ctx.fillRect(0, 0, 512, 512);
 
   return new THREE.CanvasTexture(canvas);
@@ -424,6 +424,24 @@ function handle3DBlueprintUpload(e) {
   };
   reader.readAsDataURL(file);
   this.value = '';
+}
+
+function removeFileByLabel(fileLabel) {
+  const targetIndex = workspaceFiles3D.findIndex(f => f.label.toLowerCase() === fileLabel.toLowerCase());
+  if (targetIndex > -1) {
+    const targetObj = workspaceFiles3D[targetIndex];
+    playTrashSound3D();
+    if (desktopGroup3D && targetObj.mesh) {
+      desktopGroup3D.remove(targetObj.mesh);
+    }
+    const loadedIdx = loadedObjects3D.indexOf(targetObj.mesh);
+    if (loadedIdx > -1) loadedObjects3D.splice(loadedIdx, 1);
+    workspaceFiles3D.splice(targetIndex, 1);
+    
+    if (selectedObject3D === targetObj.mesh) selectedObject3D = null;
+    return true;
+  }
+  return false;
 }
 
 function checkTrashCollision3D(clientX, clientY) {
@@ -839,7 +857,21 @@ function handleHardcoded(text) {
     return "Chat display cleared and moved to history folder, Boss.";
   }
 
-  // 2. RENDERING CONTROL: GLOBAL COMMANDS
+  // 2. DYNAMIC DELETE FILE COMMAND ("delete f1", "delete f2", "delete f10", etc.)
+  if (query.includes("delete")) {
+    const deleteMatch = query.match(/delete\s+(f\d+)/i);
+    if (deleteMatch) {
+      const targetLabel = deleteMatch[1];
+      const removed = removeFileByLabel(targetLabel);
+      if (removed) {
+        return `File ${targetLabel.toUpperCase()} removed from 3D Workspace, Boss.`;
+      } else {
+        return `File ${targetLabel.toUpperCase()} not found in 3D Workspace, Boss.`;
+      }
+    }
+  }
+
+  // 3. RENDERING CONTROL: GLOBAL COMMANDS
   if (query === "natural all files" || query === "all files natural") {
     workspaceFiles3D.forEach(f => {
       if (f.type === 'image' && f.originalTexture) {
@@ -862,7 +894,7 @@ function handleHardcoded(text) {
     return "All workspace files switched to 3D Rendering, Boss.";
   }
 
-  // 3. RENDERING CONTROL: DYNAMIC FILE COMMANDS ("natural f1", "3d f2", "natural f4", etc.)
+  // 4. RENDERING CONTROL: DYNAMIC FILE COMMANDS ("natural f1", "3d f2", "natural f4", etc.)
   const fileMatch = query.match(/f\d+/i);
   if (fileMatch && workspaceFiles3D.length > 0) {
     const fileLabel = fileMatch[0].toLowerCase();
@@ -889,7 +921,7 @@ function handleHardcoded(text) {
     }
   }
 
-  // 4. UI NAVIGATION COMMANDS
+  // 5. UI NAVIGATION COMMANDS
   if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional") || query.includes("3d workspace")) {
     open3DWorkspaceModal();
     return "Initializing 3D Workspace Table, Boss.";
@@ -902,7 +934,7 @@ function handleHardcoded(text) {
     return "Returned to home screen, Boss.";
   }
 
-  if (query.includes("open my files") || query.includes("open memory") || query.includes("open folder jarvis") || query.includes("open folder") || query.includes("open my details") || query.includes("open memory box") || query.includes("memory")) {
+  if (query.includes("open memory") || query.includes("open my files") || query.includes("open folder jarvis") || query.includes("open folder") || query.includes("open my details") || query.includes("open memory box") || query.includes("memory")) {
     renderCustomMemories();
     if (memoryModal) {
       memoryModal.style.display = 'block';
