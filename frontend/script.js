@@ -54,7 +54,9 @@ let currentSession = {
 
 let pendingImageData = null;
 let isJarvisSpeaking = false;
-let workspaceFiles3D = []; // Stores 3D workspace uploaded files with f1, f2, f3 labels and base64 data
+
+// 3D Workspace Array Stores: { label: 'f1', mesh: Mesh, type: 'image'|'text', mode: 'holographic'|'natural', originalTexture: Texture, holoTexture: Texture, data: Base64, content: String }
+let workspaceFiles3D = []; 
 
 // DOM Elements
 const chat = document.getElementById('chat');
@@ -92,7 +94,6 @@ let selectedObject3D = null;
 let touches3D = [];
 let isMouseDown3D = false;
 let prevMousePos3D = { x: 0, y: 0 };
-let initialPinchDistance3D = null;
 let audioCtx3D = null;
 let hologramRiseProgress = 0; 
 
@@ -210,7 +211,7 @@ function init3DBoxScene() {
 
   loadedObjects3D = [];
   selectedObject3D = null;
-  workspaceFiles3D = []; // Reset workspace files list on new scene open
+  workspaceFiles3D = []; 
 
   setup3DInteractions(viewport);
 
@@ -227,6 +228,208 @@ function init3DBoxScene() {
     }
   }
   animateBoxScene();
+}
+
+/* =========================================================
+   MAP POINTING PIN GENERATOR FOR 3D HUD LABELS
+   ========================================================= */
+function createMapPinCanvas(fileLabel) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 160;
+  const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw Map Pin Outer Tear-Drop Body
+  ctx.beginPath();
+  ctx.moveTo(64, 155);
+  ctx.bezierCurveTo(20, 100, 10, 70, 10, 50);
+  ctx.arc(64, 50, 54, Math.PI, 0, false);
+  ctx.bezierCurveTo(118, 70, 108, 100, 64, 155);
+  ctx.closePath();
+
+  ctx.fillStyle = '#00f3ff';
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#ffffff';
+  ctx.stroke();
+
+  // Draw Pin Inner Circle
+  ctx.beginPath();
+  ctx.arc(64, 50, 32, 0, Math.PI * 2);
+  ctx.fillStyle = '#000f1e';
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#00f3ff';
+  ctx.stroke();
+
+  // Draw Text Label (f1, f2, f3...)
+  ctx.fillStyle = '#00f3ff';
+  ctx.font = 'bold 30px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(fileLabel.toUpperCase(), 64, 50);
+
+  return canvas;
+}
+
+function attachMapPinToMesh(mesh, fileLabel) {
+  const pinCanvas = createMapPinCanvas(fileLabel);
+  const pinTexture = new THREE.CanvasTexture(pinCanvas);
+  const pinGeo = new THREE.PlaneGeometry(3.5, 4.4);
+  const pinMat = new THREE.MeshBasicMaterial({
+    map: pinTexture,
+    transparent: true,
+    side: THREE.DoubleSide
+  });
+  const pinMesh = new THREE.Mesh(pinGeo, pinMat);
+  
+  // Position Map Pin Pin-Tip directly attached to top center edge of photo plane
+  pinMesh.position.set(0, 8.2, 0.1);
+  mesh.add(pinMesh);
+}
+
+function createHologramTexture(imgObj) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+
+  ctx.drawImage(imgObj, 0, 0, 512, 512);
+
+  // Tint image with Cyan/Blue Hologram overlay
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.fillStyle = 'rgba(0, 243, 255, 0.75)';
+  ctx.fillRect(0, 0, 512, 512);
+
+  // Add Holographic scanlines
+  ctx.fillStyle = 'rgba(0, 15, 30, 0.35)';
+  for (let i = 0; i < 512; i += 8) {
+    ctx.fillRect(0, i, 512, 4);
+  }
+
+  return new THREE.CanvasTexture(canvas);
+}
+
+function spawn3DTextFromInput() {
+  const textInput = document.getElementById('td-box-input');
+  const hud = document.getElementById('td-hud-status');
+  if (!textInput) return;
+  const val = textInput.value.trim();
+  if (!val) return;
+
+  const fileLabel = `f${workspaceFiles3D.length + 1}`;
+
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = 512;
+  canvas.height = 512;
+
+  ctx.fillStyle = '#000f1e';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#00ffff';
+  ctx.font = 'bold 36px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(val, 256, 256);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const geometry = new THREE.PlaneGeometry(12, 12);
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.95
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(0, 10, 0);
+
+  const edges = new THREE.EdgesGeometry(geometry);
+  const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+  const wireframe = new THREE.LineSegments(edges, lineMat);
+  wireframe.name = "outline";
+  wireframe.visible = false;
+  mesh.add(wireframe);
+
+  attachMapPinToMesh(mesh, fileLabel);
+
+  desktopGroup3D.add(mesh);
+  loadedObjects3D.push(mesh);
+  
+  workspaceFiles3D.push({ 
+    label: fileLabel, 
+    mesh: mesh, 
+    type: 'text', 
+    mode: 'holographic', 
+    content: val 
+  });
+
+  textInput.value = '';
+  if (hud) hud.innerText = `TEXT SPAWNED AS ${fileLabel.toUpperCase()}. SILENTLY SAVED.`;
+}
+
+function handle3DBlueprintUpload(e) {
+  const file = e.target.files[0];
+  const hud = document.getElementById('td-hud-status');
+  if (!file) return;
+
+  const fileLabel = `f${workspaceFiles3D.length + 1}`;
+
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    const base64FullData = evt.target.result;
+    const base64DataOnly = base64FullData.split(',')[1];
+
+    const img = new Image();
+    img.src = base64FullData;
+    img.onload = () => {
+      const origTexture = new THREE.TextureLoader().load(base64FullData);
+      const holoTexture = createHologramTexture(img);
+
+      const geometry = new THREE.PlaneGeometry(12, 12);
+      const material = new THREE.MeshBasicMaterial({
+        map: holoTexture, // Default state: Holographic (Blue)
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.95
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(0, 10, 0); 
+
+      const edges = new THREE.EdgesGeometry(geometry);
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+      const wireframe = new THREE.LineSegments(edges, lineMat);
+      wireframe.name = "outline";
+      wireframe.visible = false;
+      mesh.add(wireframe);
+
+      // Attach Map Pin on Top Edge
+      attachMapPinToMesh(mesh, fileLabel);
+
+      desktopGroup3D.add(mesh);
+      loadedObjects3D.push(mesh);
+
+      workspaceFiles3D.push({ 
+        label: fileLabel, 
+        mesh: mesh, 
+        type: 'image', 
+        mode: 'holographic',
+        originalTexture: origTexture,
+        holoTexture: holoTexture,
+        mimeType: file.type, 
+        data: base64DataOnly, 
+        fileName: file.name 
+      });
+
+      if (hud) hud.innerText = `IMAGE UPLOADED AS ${fileLabel.toUpperCase()}. SILENTLY SAVED.`;
+    };
+  };
+  reader.readAsDataURL(file);
+  this.value = '';
 }
 
 function checkTrashCollision3D(clientX, clientY) {
@@ -257,141 +460,6 @@ function deleteSelectedObject3D() {
   if (trashBin) trashBin.classList.remove('highlight');
   const hud = document.getElementById('td-hud-status');
   if (hud) hud.innerText = "OBJECT DELETED. HOLOGRAPHIC WORKSPACE";
-}
-
-function spawn3DTextFromInput() {
-  const textInput = document.getElementById('td-box-input');
-  const hud = document.getElementById('td-hud-status');
-  if (!textInput) return;
-  const val = textInput.value.trim();
-  if (!val) return;
-
-  const fileLabel = `f${workspaceFiles3D.length + 1}`;
-
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = 512;
-  canvas.height = 512;
-
-  // Draw circle label at the top (Iron Man style f1, f2, f3 labels)
-  ctx.fillStyle = '#000f1e';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.beginPath();
-  ctx.arc(256, 80, 50, 0, Math.PI * 2);
-  ctx.fillStyle = '#00ffff';
-  ctx.fill();
-  ctx.lineWidth = 6;
-  ctx.strokeStyle = '#ffffff';
-  ctx.stroke();
-
-  ctx.fillStyle = '#000000';
-  ctx.font = 'bold 36px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(fileLabel.toUpperCase(), 256, 80);
-
-  // Draw text content below
-  ctx.fillStyle = '#00ffff';
-  ctx.font = 'bold 42px monospace';
-  ctx.fillText(val, 256, 300);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  const geometry = new THREE.PlaneGeometry(12, 12);
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.95
-  });
-
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(0, 10, 0);
-
-  const edges = new THREE.EdgesGeometry(geometry);
-  const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
-  const wireframe = new THREE.LineSegments(edges, lineMat);
-  wireframe.name = "outline";
-  wireframe.visible = false;
-  mesh.add(wireframe);
-
-  desktopGroup3D.add(mesh);
-  loadedObjects3D.push(mesh);
-  
-  // Store file label and info silently without triggering assistant response
-  workspaceFiles3D.push({ label: fileLabel, type: 'text', content: val });
-
-  textInput.value = '';
-  if (hud) hud.innerText = `TEXT SPAWNED AS ${fileLabel.toUpperCase()}. SILENTLY SAVED.`;
-}
-
-function handle3DBlueprintUpload(e) {
-  const file = e.target.files[0];
-  const hud = document.getElementById('td-hud-status');
-  if (!file) return;
-
-  const fileLabel = `f${workspaceFiles3D.length + 1}`;
-
-  const reader = new FileReader();
-  reader.onload = function(evt) {
-    const base64FullData = evt.target.result;
-    const base64DataOnly = base64FullData.split(',')[1];
-
-    const img = new Image();
-    img.src = base64FullData;
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = 512;
-      canvas.height = 512;
-
-      ctx.drawImage(img, 0, 0, 512, 400);
-
-      // Draw circle label at the top with f1, f2, f3 numbering
-      ctx.beginPath();
-      ctx.arc(256, 60, 45, 0, Math.PI * 2);
-      ctx.fillStyle = '#00ffff';
-      ctx.fill();
-      ctx.lineWidth = 5;
-      ctx.strokeStyle = '#ffffff';
-      ctx.stroke();
-
-      ctx.fillStyle = '#000000';
-      ctx.font = 'bold 32px monospace';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(fileLabel.toUpperCase(), 256, 60);
-
-      const texture = new THREE.CanvasTexture(canvas);
-      const geometry = new THREE.PlaneGeometry(14, 14);
-      const material = new THREE.MeshBasicMaterial({
-        map: texture,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.95
-      });
-
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(0, 10, 0); 
-
-      const edges = new THREE.EdgesGeometry(geometry);
-      const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
-      const wireframe = new THREE.LineSegments(edges, lineMat);
-      wireframe.name = "outline";
-      wireframe.visible = false;
-      mesh.add(wireframe);
-
-      desktopGroup3D.add(mesh);
-      loadedObjects3D.push(mesh);
-
-      // Store file label and image data silently for explicit query requests
-      workspaceFiles3D.push({ label: fileLabel, type: 'image', mimeType: file.type, data: base64DataOnly, fileName: file.name });
-
-      if (hud) hud.innerText = `IMAGE UPLOADED AS ${fileLabel.toUpperCase()}. SILENTLY SAVED.`;
-    };
-  };
-  reader.readAsDataURL(file);
-  this.value = '';
 }
 
 function setup3DInteractions(viewport) {
@@ -761,6 +829,73 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
+  // 1. CLEAR CHAT (Strictly triggered by "clear jarvis" command or UI clear click)
+  if (query === "clear jarvis" || query.includes("clear jarvis")) {
+    if (currentSession.messages.length > 0) {
+      SESSIONS.unshift(currentSession);
+      saveSessions();
+    }
+    currentSession = {
+      id: Date.now(),
+      title: "New Conversation",
+      date: format12HourTime(new Date()),
+      messages: []
+    };
+    if (chat) chat.innerHTML = '';
+    return "Chat display cleared and moved to history folder, Boss.";
+  }
+
+  // 2. RENDERING CONTROL: GLOBAL COMMANDS
+  if (query === "natural all files" || query === "all files natural") {
+    workspaceFiles3D.forEach(f => {
+      if (f.type === 'image' && f.originalTexture) {
+        f.mesh.material.map = f.originalTexture;
+        f.mesh.material.needsUpdate = true;
+        f.mode = 'natural';
+      }
+    });
+    return "All workspace files switched to Natural Color Rendering, Boss.";
+  }
+
+  if (query === "all files holographic" || query === "holographic all files") {
+    workspaceFiles3D.forEach(f => {
+      if (f.type === 'image' && f.holoTexture) {
+        f.mesh.material.map = f.holoTexture;
+        f.mesh.material.needsUpdate = true;
+        f.mode = 'holographic';
+      }
+    });
+    return "All workspace files switched to Blue Holographic Rendering, Boss.";
+  }
+
+  // 3. RENDERING CONTROL: SPECIFIC FILE COMMANDS ("Natural f1", "Holographic f2")
+  const fileMatch = query.match(/f\d+/);
+  if (fileMatch && workspaceFiles3D.length > 0) {
+    const fileLabel = fileMatch[0];
+    const target = workspaceFiles3D.find(f => f.label.toLowerCase() === fileLabel);
+
+    if (target) {
+      if (query.startsWith("natural")) {
+        if (target.type === 'image' && target.originalTexture) {
+          target.mesh.material.map = target.originalTexture;
+          target.mesh.material.needsUpdate = true;
+          target.mode = 'natural';
+        }
+        return `File ${target.label.toUpperCase()} set to Natural Render mode, Boss.`;
+      }
+
+      if (query.startsWith("holographic")) {
+        if (target.type === 'image' && target.holoTexture) {
+          target.mesh.material.map = target.holoTexture;
+          target.mesh.material.needsUpdate = true;
+          target.mode = 'holographic';
+        }
+        return `File ${target.label.toUpperCase()} set to Holographic Render mode, Boss.`;
+      }
+    }
+  }
+
+  // 4. UI NAVIGATION COMMANDS
   if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional")) {
     open3DWorkspaceModal();
     return "Initializing Holographic Workspace Table, Boss.";
@@ -803,21 +938,6 @@ function handleHardcoded(text) {
     return "Opening History Folders, Boss.";
   }
 
-  if (query.includes("clear chat") || query.includes("clear memory") || query.includes("clear")) {
-    if (currentSession.messages.length > 0) {
-      SESSIONS.unshift(currentSession);
-      saveSessions();
-    }
-    currentSession = {
-      id: Date.now(),
-      title: "New Conversation",
-      date: format12HourTime(new Date()),
-      messages: []
-    };
-    if (chat) chat.innerHTML = '';
-    return "Chat display cleared and moved to history folder, Boss.";
-  }
-
   if (query.includes("open key") || query.includes("key") || query.includes("api key")) {
     const newKey = prompt('Update Gemini API Key:', API_KEY);
     if (newKey !== null) {
@@ -854,11 +974,11 @@ async function callGemini(text) {
   const customMems = getCustomMemories();
   let contextualInstruction = SYSTEM_INSTRUCTION;
 
-  // Check if the user is explicitly requesting a specific 3D workspace file like "f1", "f2", etc.
+  // Check if user is explicitly querying a specific 3D workspace file (e.g. "f1", "f2")
   let targetFile = null;
   if (text) {
     const lowerText = text.toLowerCase();
-    const match = lowerText.match(/f\d+/); // matches f1, f2, f3, etc.
+    const match = lowerText.match(/f\d+/);
     if (match && workspaceFiles3D.length > 0) {
       const labelQuery = match[0];
       targetFile = workspaceFiles3D.find(f => f.label.toLowerCase() === labelQuery);
@@ -876,7 +996,6 @@ async function callGemini(text) {
       contextualInstruction += `\n\n[Active Target File Analysis]: The Boss is asking about file ${targetFile.label.toUpperCase()} containing text: "${targetFile.content}". Explain and analyze this text in detail.`;
     }
   } else {
-    // If general query or no specific file requested, give summary of available workspace files
     if (workspaceFiles3D.length > 0) {
       const summaryList = workspaceFiles3D.map(f => f.type === 'text' ? `${f.label.toUpperCase()}: Text("${f.content}")` : `${f.label.toUpperCase()}: Image(${f.fileName})`).join(', ');
       contextualInstruction += `\n\n[Current 3D Holographic Workspace Files Available]: ${summaryList}. (Remember: Do not analyze unless explicitly asked for a specific file like 'f1').`;
