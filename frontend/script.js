@@ -55,7 +55,7 @@ let currentSession = {
 let pendingImageData = null;
 let isJarvisSpeaking = false;
 
-// 3D Workspace Array Stores: { label: 'f1', mesh: Mesh, type: 'image'|'text', mode: '3d'|'natural', originalTexture: Texture, threeDTexture: Texture, data: Base64, content: String }
+// 3D Workspace Array Stores: { label: 'f1', mesh: Mesh, type: 'image'|'text', mode: '3d'|'natural', originalTexture: Texture, threeDTexture: Texture, data: Base64, content: String, isDeleted: Boolean, originalPosition: Vector3, originalScale: Vector3 }
 let workspaceFiles3D = []; 
 
 // DOM Elements
@@ -128,10 +128,11 @@ function ensure3DModalExists() {
     modal.id = 'td-workspace-modal';
     modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; justify-content:center; align-items:center;";
     
+    // Expanded Larger Workspace Box Window
     modal.innerHTML = `
-      <div style="width:90%; max-width:800px; height:85vh; background:#000f1e; border:2px solid #00ffff; box-shadow:0 0 30px rgba(0,255,255,0.7); display:flex; flex-direction:column; border-radius:10px; overflow:hidden; font-family:monospace; position:relative;">
+      <div style="width:96%; max-width:1100px; height:92vh; background:#000f1e; border:2px solid #00ffff; box-shadow:0 0 40px rgba(0,255,255,0.7); display:flex; flex-direction:column; border-radius:12px; overflow:hidden; font-family:monospace; position:relative;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:rgba(0,30,60,0.95); border-bottom:1px solid #00ffff; z-index:10;">
-          <span id="td-hud-status" style="color:#00ffff; font-weight:bold; font-size:12px; letter-spacing:1px;">3D WORKSPACE INITIALIZED (1-Finger Rotate | 2-Finger Move & Pinch Zoom)</span>
+          <span id="td-hud-status" style="color:#00ffff; font-weight:bold; font-size:12px; letter-spacing:1px;">3D WORKSPACE EXPANDED (1-Finger Rotate | 2-Finger Move & Pinch Zoom)</span>
           <button id="close-td-box" style="background:none; border:none; color:#ff3366; font-size:20px; font-weight:bold; cursor:pointer;">✕</button>
         </div>
         
@@ -189,7 +190,7 @@ function init3DBoxScene() {
   scene3DBox.background = new THREE.Color(0x010814);
 
   camera3DBox = new THREE.PerspectiveCamera(60, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
-  camera3DBox.position.set(0, 25, 60);
+  camera3DBox.position.set(0, 25, 65);
   camera3DBox.lookAt(0, 0, 0);
 
   renderer3DBox = new THREE.WebGLRenderer({ antialias: true });
@@ -206,7 +207,7 @@ function init3DBoxScene() {
   desktopGroup3D.position.set(0, -40, 0);
   scene3DBox.add(desktopGroup3D);
 
-  const gridHelper = new THREE.GridHelper(150, 150, 0x00ffff, 0x003355);
+  const gridHelper = new THREE.GridHelper(180, 180, 0x00ffff, 0x003355);
   desktopGroup3D.add(gridHelper);
 
   loadedObjects3D = [];
@@ -231,61 +232,61 @@ function init3DBoxScene() {
 }
 
 /* =========================================================
-   RESIZED SMALLER MAP POINTING PIN GENERATOR FOR 3D HUD LABELS
+   NOTEBOOK PAGE-TURN STYLE TOP CIRCLE PIN GENERATOR FOR FULLSCREEN
    ========================================================= */
-function createMapPinCanvas(fileLabel) {
+function createNotebookPagePinCanvas(fileLabel) {
   const canvas = document.createElement('canvas');
-  canvas.width = 96;
+  canvas.width = 120;
   canvas.height = 120;
   const ctx = canvas.getContext('2d');
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw Smaller Map Pin Tear-Drop Body
+  // Draw Notebook Page-Turn Top Corner Glow Circle
   ctx.beginPath();
-  ctx.moveTo(48, 115);
-  ctx.bezierCurveTo(15, 75, 8, 50, 8, 38);
-  ctx.arc(48, 38, 40, Math.PI, 0, false);
-  ctx.bezierCurveTo(88, 50, 81, 75, 48, 115);
-  ctx.closePath();
-
-  ctx.fillStyle = '#00f3ff';
+  ctx.arc(60, 40, 32, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0, 15, 30, 0.9)';
   ctx.fill();
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#00ffff';
+  ctx.stroke();
+
+  // Inner Core Glowing Ring
+  ctx.beginPath();
+  ctx.arc(60, 40, 24, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0, 243, 255, 0.25)';
+  ctx.fill();
+  ctx.lineWidth = 2;
   ctx.strokeStyle = '#ffffff';
   ctx.stroke();
 
-  // Draw Pin Inner Circle
-  ctx.beginPath();
-  ctx.arc(48, 38, 24, 0, Math.PI * 2);
-  ctx.fillStyle = '#000f1e';
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = '#00f3ff';
-  ctx.stroke();
-
-  // Draw Text Label (f1, f2, f3...)
-  ctx.fillStyle = '#00f3ff';
-  ctx.font = 'bold 22px monospace';
+  // File Label Number (f1, f2, f3...)
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 24px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(fileLabel.toUpperCase(), 48, 38);
+  ctx.fillText(fileLabel.toUpperCase(), 60, 40);
 
   return canvas;
 }
 
-function attachMapPinToMesh(mesh, fileLabel) {
-  const pinCanvas = createMapPinCanvas(fileLabel);
+function attachNotebookPinToMesh(mesh, fileLabel) {
+  // Remove existing pin if any
+  const oldPin = mesh.getObjectByName("notebookPin");
+  if (oldPin) mesh.remove(oldPin);
+
+  const pinCanvas = createNotebookPagePinCanvas(fileLabel);
   const pinTexture = new THREE.CanvasTexture(pinCanvas);
-  const pinGeo = new THREE.PlaneGeometry(2.2, 2.8);
+  const pinGeo = new THREE.PlaneGeometry(3.2, 3.2);
   const pinMat = new THREE.MeshBasicMaterial({
     map: pinTexture,
     transparent: true,
     side: THREE.DoubleSide
   });
   const pinMesh = new THREE.Mesh(pinGeo, pinMat);
+  pinMesh.name = "notebookPin";
   
-  pinMesh.position.set(0, 7.4, 0.1);
+  pinMesh.position.set(0, 7.2, 0.15);
   mesh.add(pinMesh);
 }
 
@@ -296,10 +297,8 @@ function create3DTexture(imgObj) {
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
 
-  // Draw original image with full crisp resolution
   ctx.drawImage(imgObj, 0, 0, 512, 512);
 
-  // Apply clear blue overlay without distorting text/lines
   ctx.globalCompositeOperation = 'source-atop';
   ctx.fillStyle = 'rgba(0, 180, 255, 0.32)';
   ctx.fillRect(0, 0, 512, 512);
@@ -349,8 +348,6 @@ function spawn3DTextFromInput() {
   wireframe.visible = false;
   mesh.add(wireframe);
 
-  attachMapPinToMesh(mesh, fileLabel);
-
   desktopGroup3D.add(mesh);
   loadedObjects3D.push(mesh);
   
@@ -359,7 +356,10 @@ function spawn3DTextFromInput() {
     mesh: mesh, 
     type: 'text', 
     mode: '3d', 
-    content: val 
+    content: val,
+    isDeleted: false,
+    originalPosition: mesh.position.clone(),
+    originalScale: mesh.scale.clone()
   });
 
   textInput.value = '';
@@ -386,7 +386,7 @@ function handle3DBlueprintUpload(e) {
 
       const geometry = new THREE.PlaneGeometry(12, 12);
       const material = new THREE.MeshBasicMaterial({
-        map: threeDTexture, // Default state: 3D Blue Tint Mode
+        map: threeDTexture,
         side: THREE.DoubleSide,
         transparent: true,
         opacity: 0.95
@@ -402,8 +402,6 @@ function handle3DBlueprintUpload(e) {
       wireframe.visible = false;
       mesh.add(wireframe);
 
-      attachMapPinToMesh(mesh, fileLabel);
-
       desktopGroup3D.add(mesh);
       loadedObjects3D.push(mesh);
 
@@ -416,7 +414,10 @@ function handle3DBlueprintUpload(e) {
         threeDTexture: threeDTexture,
         mimeType: file.type, 
         data: base64DataOnly, 
-        fileName: file.name 
+        fileName: file.name,
+        isDeleted: false,
+        originalPosition: mesh.position.clone(),
+        originalScale: mesh.scale.clone()
       });
 
       if (hud) hud.innerText = `IMAGE UPLOADED AS ${fileLabel.toUpperCase()}. SILENTLY SAVED.`;
@@ -426,19 +427,96 @@ function handle3DBlueprintUpload(e) {
   this.value = '';
 }
 
-function removeFileByLabel(fileLabel) {
-  const targetIndex = workspaceFiles3D.findIndex(f => f.label.toLowerCase() === fileLabel.toLowerCase());
-  if (targetIndex > -1) {
-    const targetObj = workspaceFiles3D[targetIndex];
-    playTrashSound3D();
-    if (desktopGroup3D && targetObj.mesh) {
-      desktopGroup3D.remove(targetObj.mesh);
+/* =========================================================
+   FULLSCREEN & MULTI-FILE GRID ADAPTATION (UP TO 6+ FILES)
+   ========================================================= */
+function handleFullscreenFiles(labelsArray) {
+  const activeFiles = workspaceFiles3D.filter(f => !f.isDeleted && labelsArray.includes(f.label.toLowerCase()));
+  if (activeFiles.length === 0) return false;
+
+  const count = activeFiles.length;
+  // Compute auto-grid positions for up to 6+ files smoothly on screen
+  activeFiles.forEach((fileObj, idx) => {
+    let posX = 0, posY = 12, posZ = 0, scaleVal = 1.0;
+
+    if (count === 1) {
+      posX = 0; posY = 12; posZ = 5; scaleVal = 2.2;
+    } else if (count === 2) {
+      posX = (idx === 0) ? -10 : 10;
+      posY = 12; posZ = 2; scaleVal = 1.6;
+    } else if (count === 3) {
+      const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+      posX = Math.sin(angles[idx]) * 12;
+      posY = 12;
+      posZ = Math.cos(angles[idx]) * 12;
+      scaleVal = 1.3;
+    } else {
+      // 4 to 6+ files grid layout adaptation
+      const col = idx % 3;
+      const row = Math.floor(idx / 3);
+      posX = (col - 1) * 14;
+      posY = 14 - (row * 12);
+      posZ = 2;
+      scaleVal = 1.1;
     }
-    const loadedIdx = loadedObjects3D.indexOf(targetObj.mesh);
+
+    fileObj.mesh.position.set(posX, posY, posZ);
+    fileObj.mesh.scale.set(scaleVal, scaleVal, scaleVal);
+    attachNotebookPinToMesh(fileObj.mesh, fileObj.label);
+  });
+
+  return true;
+}
+
+function returnAllFilesToNormal() {
+  workspaceFiles3D.forEach(f => {
+    if (!f.isDeleted) {
+      f.mesh.position.copy(f.originalPosition);
+      f.mesh.scale.copy(f.originalScale);
+      const pin = f.mesh.getObjectByName("notebookPin");
+      if (pin) f.mesh.remove(pin);
+    }
+  });
+}
+
+function returnSingleFileToNormal(fileLabel) {
+  const target = workspaceFiles3D.find(f => f.label.toLowerCase() === fileLabel.toLowerCase());
+  if (target && !target.isDeleted) {
+    target.mesh.position.copy(target.originalPosition);
+    target.mesh.scale.copy(target.originalScale);
+    const pin = target.mesh.getObjectByName("notebookPin");
+    if (pin) target.mesh.remove(pin);
+    return true;
+  }
+  return false;
+}
+
+function removeFileByLabel(fileLabel) {
+  const target = workspaceFiles3D.find(f => f.label.toLowerCase() === fileLabel.toLowerCase());
+  if (target && !target.isDeleted) {
+    target.isDeleted = true;
+    playTrashSound3D();
+    if (desktopGroup3D && target.mesh) {
+      desktopGroup3D.remove(target.mesh);
+    }
+    const loadedIdx = loadedObjects3D.indexOf(target.mesh);
     if (loadedIdx > -1) loadedObjects3D.splice(loadedIdx, 1);
-    workspaceFiles3D.splice(targetIndex, 1);
-    
-    if (selectedObject3D === targetObj.mesh) selectedObject3D = null;
+    if (selectedObject3D === target.mesh) selectedObject3D = null;
+    return true;
+  }
+  return false;
+}
+
+function restoreFileByLabel(fileLabel) {
+  const target = workspaceFiles3D.find(f => f.label.toLowerCase() === fileLabel.toLowerCase());
+  if (target && target.isDeleted) {
+    target.isDeleted = false;
+    desktopGroup3D.add(target.mesh);
+    loadedObjects3D.push(target.mesh);
+    target.mesh.position.copy(target.originalPosition);
+    target.mesh.scale.copy(target.originalScale);
+    const pin = target.mesh.getObjectByName("notebookPin");
+    if (pin) target.mesh.remove(pin);
     return true;
   }
   return false;
@@ -460,12 +538,12 @@ function deleteSelectedObject3D() {
   if (!selectedObject3D) return;
   playTrashSound3D();
 
+  const found = workspaceFiles3D.find(f => f.mesh === selectedObject3D);
+  if (found) found.isDeleted = true;
+
   desktopGroup3D.remove(selectedObject3D);
   const index = loadedObjects3D.indexOf(selectedObject3D);
-  if (index > -1) {
-    loadedObjects3D.splice(index, 1);
-    workspaceFiles3D.splice(index, 1);
-  }
+  if (index > -1) loadedObjects3D.splice(index, 1);
 
   selectedObject3D = null;
   const trashBin = document.getElementById('td-trash-bin');
@@ -857,7 +935,49 @@ function handleHardcoded(text) {
     return "Chat display cleared and moved to history folder, Boss.";
   }
 
-  // 2. DYNAMIC DELETE FILE COMMAND ("delete f1", "delete f2", "delete f10", etc.)
+  // 2. RETURN DELETED FILE COMMAND ("return f1", "return f2", etc.)
+  if (query.includes("return")) {
+    const returnMatch = query.match(/return\s+(f\d+)/i);
+    if (returnMatch) {
+      const targetLabel = returnMatch[1];
+      const restored = restoreFileByLabel(targetLabel);
+      if (restored) {
+        return `File ${targetLabel.toUpperCase()} restored to 3D Workspace, Boss.`;
+      } else {
+        return `File ${targetLabel.toUpperCase()} is already active or not found, Boss.`;
+      }
+    }
+  }
+
+  // 3. FULLSCREEN ADAPTATION COMMANDS (e.g. "fullscreen f1, f2, f3" or "fullscreen f1")
+  if (query.includes("fullscreen") || query.includes("full screen")) {
+    const matches = query.match(/f\d+/gi);
+    if (matches && matches.length > 0) {
+      const success = handleFullscreenFiles(matches);
+      if (success) {
+        return `Fullscreen active for files: ${matches.join(', ').toUpperCase()}, Boss.`;
+      }
+    }
+  }
+
+  // 4. GO BACK COMMANDS ("go back all files" vs "go back f1")
+  if (query.includes("go back") || query.includes("goback")) {
+    if (query.includes("all files") || query.includes("all")) {
+      returnAllFilesToNormal();
+      return "All workspace files returned to normal placement, Boss.";
+    } else {
+      const match = query.match(/f\d+/i);
+      if (match) {
+        const targetLabel = match[0];
+        const res = returnSingleFileToNormal(targetLabel);
+        if (res) {
+          return `File ${targetLabel.toUpperCase()} returned to normal placement, Boss.`;
+        }
+      }
+    }
+  }
+
+  // 5. DYNAMIC DELETE FILE COMMAND ("delete f1", "delete f2", etc.)
   if (query.includes("delete")) {
     const deleteMatch = query.match(/delete\s+(f\d+)/i);
     if (deleteMatch) {
@@ -871,7 +991,7 @@ function handleHardcoded(text) {
     }
   }
 
-  // 3. RENDERING CONTROL: GLOBAL COMMANDS
+  // 6. RENDERING CONTROL: GLOBAL COMMANDS
   if (query === "natural all files" || query === "all files natural") {
     workspaceFiles3D.forEach(f => {
       if (f.type === 'image' && f.originalTexture) {
@@ -894,7 +1014,7 @@ function handleHardcoded(text) {
     return "All workspace files switched to 3D Rendering, Boss.";
   }
 
-  // 4. RENDERING CONTROL: DYNAMIC FILE COMMANDS ("natural f1", "3d f2", "natural f4", etc.)
+  // 7. RENDERING CONTROL: DYNAMIC FILE COMMANDS ("natural f1", "3d f2", etc.)
   const fileMatch = query.match(/f\d+/i);
   if (fileMatch && workspaceFiles3D.length > 0) {
     const fileLabel = fileMatch[0].toLowerCase();
@@ -921,13 +1041,13 @@ function handleHardcoded(text) {
     }
   }
 
-  // 5. UI NAVIGATION COMMANDS
+  // 8. UI NAVIGATION COMMANDS
   if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional") || query.includes("3d workspace")) {
     open3DWorkspaceModal();
-    return "Initializing 3D Workspace Table, Boss.";
+    return "Initializing Expanded 3D Workspace Table, Boss.";
   }
 
-  if (query.includes("go back") || query.includes("go to home") || query.includes("home") || query.includes("back")) {
+  if (query.includes("go home") || query.includes("home")) {
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
     close3DWorkspaceModal();
