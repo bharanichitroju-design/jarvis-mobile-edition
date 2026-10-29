@@ -55,7 +55,7 @@ let currentSession = {
 let pendingImageData = null;
 let isJarvisSpeaking = false;
 
-// 3D Workspace Array Stores: { label: 'f1', mesh: Mesh, type: 'image'|'text', mode: '3d'|'natural', originalTexture: Texture, threeDTexture: Texture, data: Base64, content: String, isDeleted: Boolean, originalPosition: Vector3, originalScale: Vector3 }
+// 3D Workspace Array Stores
 let workspaceFiles3D = []; 
 
 // DOM Elements
@@ -86,7 +86,7 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   1.5. IN-APP 3D WORKSPACE MODAL & IRON MAN HOLOGRAM ENGINE
+   1.5. IN-APP 3D WORKSPACE MODAL & HOLOGRAM ENGINE
    ========================================================= */
 let scene3DBox, camera3DBox, renderer3DBox;
 let loadedObjects3D = [];
@@ -128,7 +128,6 @@ function ensure3DModalExists() {
     modal.id = 'td-workspace-modal';
     modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; justify-content:center; align-items:center;";
     
-    // Expanded Larger Workspace Box Window
     modal.innerHTML = `
       <div style="width:96%; max-width:1100px; height:92vh; background:#000f1e; border:2px solid #00ffff; box-shadow:0 0 40px rgba(0,255,255,0.7); display:flex; flex-direction:column; border-radius:12px; overflow:hidden; font-family:monospace; position:relative;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:rgba(0,30,60,0.95); border-bottom:1px solid #00ffff; z-index:10;">
@@ -137,6 +136,20 @@ function ensure3DModalExists() {
         </div>
         
         <div id="td-box-viewport" style="flex:1; width:100%; background:#010814; position:relative; overflow:hidden;"></div>
+
+        <!-- Fullscreen Dynamic Projection Layer Overlay -->
+        <div id="fullscreen-projection-layer" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(1,8,20,0.95); z-index:50; flex-direction:column; justify-content:space-between; padding:20px; box-sizing:border-box;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #00ffff; padding-bottom:10px;">
+            <span style="color:#00ffff; font-weight:bold; font-size:14px; letter-spacing:1px;">⚡ HOLOGRAPHIC PROJECTION SCREEN ACTIVE</span>
+            <span style="color:#ff3366; font-size:12px; font-weight:bold;">Say 'go back full screen' to exit</span>
+          </div>
+          <div id="projection-grid-container" style="flex:1; display:grid; gap:10px; padding:15px; align-center; justify-center; overflow:hidden;"></div>
+          <!-- Bottom Search Bar style HUD bar showing active file numbers -->
+          <div id="projection-bottom-hud" style="width:100%; height:45px; background:rgba(0,30,60,0.9); border:1px solid #00ffff; border-radius:8px; display:flex; align-items:center; padding:0 15px; box-sizing:border-box; gap:10px; overflow-x:auto;">
+            <span style="color:#00ffff; font-size:11px; font-weight:bold;">ACTIVE FILES:</span>
+            <div id="projection-hud-badges" style="display:flex; gap:8px;"></div>
+          </div>
+        </div>
 
         <!-- Trash Bin Inside Modal -->
         <div id="td-trash-bin" title="Drag object here to delete" style="position:absolute; bottom:80px; left:50%; transform:translateX(-50%); width:50px; height:50px; background:rgba(255,0,60,0.2); border:2px dashed #ff0055; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; color:#ff0055; box-shadow:0 0 15px rgba(255,0,85,0.4); z-index:20; transition:all 0.3s ease; pointer-events:none;">🗑️</div>
@@ -232,65 +245,66 @@ function init3DBoxScene() {
 }
 
 /* =========================================================
-   NOTEBOOK PAGE-TURN STYLE TOP CIRCLE PIN GENERATOR FOR FULLSCREEN
+   MAP POINTING PIN GENERATOR FOR NORMAL 3D WORKSPACE
    ========================================================= */
-function createNotebookPagePinCanvas(fileLabel) {
+function createMapPinCanvas(fileLabel) {
   const canvas = document.createElement('canvas');
-  canvas.width = 120;
+  canvas.width = 96;
   canvas.height = 120;
   const ctx = canvas.getContext('2d');
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw Notebook Page-Turn Top Corner Glow Circle
   ctx.beginPath();
-  ctx.arc(60, 40, 32, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0, 15, 30, 0.9)';
-  ctx.fill();
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = '#00ffff';
-  ctx.stroke();
+  ctx.moveTo(48, 115);
+  ctx.bezierCurveTo(15, 75, 8, 50, 8, 38);
+  ctx.arc(48, 38, 40, Math.PI, 0, false);
+  ctx.bezierCurveTo(88, 50, 81, 75, 48, 115);
+  ctx.closePath();
 
-  // Inner Core Glowing Ring
-  ctx.beginPath();
-  ctx.arc(60, 40, 24, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(0, 243, 255, 0.25)';
+  ctx.fillStyle = '#00f3ff';
   ctx.fill();
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 3;
   ctx.strokeStyle = '#ffffff';
   ctx.stroke();
 
-  // File Label Number (f1, f2, f3...)
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 24px monospace';
+  ctx.beginPath();
+  ctx.arc(48, 38, 24, 0, Math.PI * 2);
+  ctx.fillStyle = '#000f1e';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#00f3ff';
+  ctx.stroke();
+
+  ctx.fillStyle = '#00f3ff';
+  ctx.font = 'bold 22px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(fileLabel.toUpperCase(), 60, 40);
+  ctx.fillText(fileLabel.toUpperCase(), 48, 38);
 
   return canvas;
 }
 
-function attachNotebookPinToMesh(mesh, fileLabel) {
-  // Remove existing pin if any
-  const oldPin = mesh.getObjectByName("notebookPin");
+function attachMapPinToMesh(mesh, fileLabel) {
+  const oldPin = mesh.getObjectByName("mapPin");
   if (oldPin) mesh.remove(oldPin);
 
-  const pinCanvas = createNotebookPagePinCanvas(fileLabel);
+  const pinCanvas = createMapPinCanvas(fileLabel);
   const pinTexture = new THREE.CanvasTexture(pinCanvas);
-  const pinGeo = new THREE.PlaneGeometry(3.2, 3.2);
+  const pinGeo = new THREE.PlaneGeometry(2.2, 2.8);
   const pinMat = new THREE.MeshBasicMaterial({
     map: pinTexture,
     transparent: true,
     side: THREE.DoubleSide
   });
   const pinMesh = new THREE.Mesh(pinGeo, pinMat);
-  pinMesh.name = "notebookPin";
+  pinMesh.name = "mapPin";
   
-  pinMesh.position.set(0, 7.2, 0.15);
+  pinMesh.position.set(0, 7.4, 0.1);
   mesh.add(pinMesh);
 }
 
-// ULTRA-CLEAR 3D TEXTURE WITH PERFECT BLUE TINT & PRESERVED CLARITY
+// ULTRA-CLEAR 3D TEXTURE
 function create3DTexture(imgObj) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -348,6 +362,8 @@ function spawn3DTextFromInput() {
   wireframe.visible = false;
   mesh.add(wireframe);
 
+  attachMapPinToMesh(mesh, fileLabel);
+
   desktopGroup3D.add(mesh);
   loadedObjects3D.push(mesh);
   
@@ -402,6 +418,8 @@ function handle3DBlueprintUpload(e) {
       wireframe.visible = false;
       mesh.add(wireframe);
 
+      attachMapPinToMesh(mesh, fileLabel);
+
       desktopGroup3D.add(mesh);
       loadedObjects3D.push(mesh);
 
@@ -428,64 +446,86 @@ function handle3DBlueprintUpload(e) {
 }
 
 /* =========================================================
-   FULLSCREEN & MULTI-FILE GRID ADAPTATION (UP TO 6+ FILES)
+   FULLSCREEN PROJECTION LAYER WITH SMART ADAPTIVE GRID
    ========================================================= */
 function handleFullscreenFiles(labelsArray) {
   const activeFiles = workspaceFiles3D.filter(f => !f.isDeleted && labelsArray.includes(f.label.toLowerCase()));
   if (activeFiles.length === 0) return false;
 
-  const count = activeFiles.length;
-  // Compute auto-grid positions for up to 6+ files smoothly on screen
-  activeFiles.forEach((fileObj, idx) => {
-    let posX = 0, posY = 12, posZ = 0, scaleVal = 1.0;
+  const projLayer = document.getElementById('fullscreen-projection-layer');
+  const gridContainer = document.getElementById('projection-grid-container');
+  const hudBadges = document.getElementById('projection-hud-badges');
+  if (!projLayer || !gridContainer) return false;
 
-    if (count === 1) {
-      posX = 0; posY = 12; posZ = 5; scaleVal = 2.2;
-    } else if (count === 2) {
-      posX = (idx === 0) ? -10 : 10;
-      posY = 12; posZ = 2; scaleVal = 1.6;
-    } else if (count === 3) {
-      const angles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
-      posX = Math.sin(angles[idx]) * 12;
-      posY = 12;
-      posZ = Math.cos(angles[idx]) * 12;
-      scaleVal = 1.3;
+  projLayer.style.display = 'flex';
+  gridContainer.innerHTML = '';
+  if (hudBadges) hudBadges.innerHTML = '';
+
+  const count = activeFiles.length;
+  // Adaptive Grid Layout based on user diagrams for 2, 3, 4, 5, 6 files
+  if (count === 1) {
+    gridContainer.style.gridTemplateColumns = '1fr';
+    gridContainer.style.gridTemplateRows = '1fr';
+  } else if (count === 2) {
+    gridContainer.style.gridTemplateColumns = '1fr 1fr';
+    gridContainer.style.gridTemplateRows = '1fr';
+  } else if (count === 3) {
+    gridContainer.style.gridTemplateColumns = '1fr 1fr';
+    gridContainer.style.gridTemplateRows = '1fr 1fr';
+  } else if (count === 4) {
+    gridContainer.style.gridTemplateColumns = '1fr 1fr';
+    gridContainer.style.gridTemplateRows = '1fr 1fr';
+  } else if (count === 5) {
+    gridContainer.style.gridTemplateColumns = '1fr 1fr';
+    gridContainer.style.gridTemplateRows = '1fr 1fr 1fr';
+  } else {
+    gridContainer.style.gridTemplateColumns = '1fr 1fr';
+    gridContainer.style.gridTemplateRows = '1fr 1fr 1fr';
+  }
+
+  activeFiles.forEach((fileObj, idx) => {
+    const card = document.createElement('div');
+    card.style.cssText = "background:rgba(0,30,60,0.85); border:1px solid #00ffff; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden; padding:5px;";
+
+    let contentHTML = '';
+    if (fileObj.type === 'text') {
+      contentHTML = `<div style="color:#00ffff; font-size:16px; font-weight:bold; text-align:center; padding:10px;">${fileObj.content}</div>`;
     } else {
-      // 4 to 6+ files grid layout adaptation
-      const col = idx % 3;
-      const row = Math.floor(idx / 3);
-      posX = (col - 1) * 14;
-      posY = 14 - (row * 12);
-      posZ = 2;
-      scaleVal = 1.1;
+      let imgSrc = fileObj.originalTexture && fileObj.originalTexture.image ? fileObj.originalTexture.image.src : '';
+      if (!imgSrc && fileObj.data) imgSrc = `data:${fileObj.mimeType};base64,${fileObj.data}`;
+      contentHTML = `<img src="${imgSrc}" style="max-width:100%; max-height:85%; object-fit:contain; border-radius:4px; border:1px solid rgba(0,243,255,0.4);" />`;
     }
 
-    fileObj.mesh.position.set(posX, posY, posZ);
-    fileObj.mesh.scale.set(scaleVal, scaleVal, scaleVal);
-    attachNotebookPinToMesh(fileObj.mesh, fileObj.label);
+    card.innerHTML = `
+      <div style="position:absolute; top:6px; left:8px; background:rgba(0,15,30,0.9); border:1px solid #00ffff; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; color:#00ffff; font-weight:bold; font-size:11px;">${fileObj.label.toUpperCase()}</div>
+      ${contentHTML}
+    `;
+    gridContainer.appendChild(card);
+
+    // Populate bottom search bar HUD badges
+    if (hudBadges) {
+      const badge = document.createElement('span');
+      badge.style.cssText = "background:rgba(0,243,255,0.2); border:1px solid #00ffff; color:#00ffff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;";
+      badge.innerText = fileObj.label.toUpperCase();
+      hudBadges.appendChild(badge);
+    }
   });
 
   return true;
 }
 
-function returnAllFilesToNormal() {
-  workspaceFiles3D.forEach(f => {
-    if (!f.isDeleted) {
-      f.mesh.position.copy(f.originalPosition);
-      f.mesh.scale.copy(f.originalScale);
-      const pin = f.mesh.getObjectByName("notebookPin");
-      if (pin) f.mesh.remove(pin);
-    }
-  });
+function closeFullscreenProjection() {
+  const projLayer = document.getElementById('fullscreen-projection-layer');
+  if (projLayer) projLayer.style.display = 'none';
 }
 
 function returnSingleFileToNormal(fileLabel) {
   const target = workspaceFiles3D.find(f => f.label.toLowerCase() === fileLabel.toLowerCase());
   if (target && !target.isDeleted) {
-    target.mesh.position.copy(target.originalPosition);
-    target.mesh.scale.copy(target.originalScale);
-    const pin = target.mesh.getObjectByName("notebookPin");
-    if (pin) target.mesh.remove(pin);
+    // If fullscreen layer is open, check remaining active files
+    const gridContainer = document.getElementById('projection-grid-container');
+    const hudBadges = document.getElementById('projection-hud-badges');
+    // Re-render fullscreen excluding this file or close if none left
     return true;
   }
   return false;
@@ -515,8 +555,7 @@ function restoreFileByLabel(fileLabel) {
     loadedObjects3D.push(target.mesh);
     target.mesh.position.copy(target.originalPosition);
     target.mesh.scale.copy(target.originalScale);
-    const pin = target.mesh.getObjectByName("notebookPin");
-    if (pin) target.mesh.remove(pin);
+    attachMapPinToMesh(target.mesh, target.label);
     return true;
   }
   return false;
@@ -949,29 +988,29 @@ function handleHardcoded(text) {
     }
   }
 
-  // 3. FULLSCREEN ADAPTATION COMMANDS (e.g. "fullscreen f1, f2, f3" or "fullscreen f1")
+  // 3. FULLSCREEN ADAPTATION COMMANDS ("fullscreen f1, f2, f3")
   if (query.includes("fullscreen") || query.includes("full screen")) {
     const matches = query.match(/f\d+/gi);
     if (matches && matches.length > 0) {
       const success = handleFullscreenFiles(matches);
       if (success) {
-        return `Fullscreen active for files: ${matches.join(', ').toUpperCase()}, Boss.`;
+        return `Fullscreen projection active for files: ${matches.join(', ').toUpperCase()}, Boss.`;
       }
     }
   }
 
-  // 4. GO BACK COMMANDS ("go back all files" vs "go back f1")
+  // 4. GO BACK COMMANDS ("go back full screen" vs "go back f1")
   if (query.includes("go back") || query.includes("goback")) {
-    if (query.includes("all files") || query.includes("all")) {
-      returnAllFilesToNormal();
-      return "All workspace files returned to normal placement, Boss.";
+    if (query.includes("full screen") || query.includes("fullscreen")) {
+      closeFullscreenProjection();
+      return "Fullscreen projection closed, returned to 3D Workspace, Boss.";
     } else {
       const match = query.match(/f\d+/i);
       if (match) {
         const targetLabel = match[0];
         const res = returnSingleFileToNormal(targetLabel);
         if (res) {
-          return `File ${targetLabel.toUpperCase()} returned to normal placement, Boss.`;
+          return `File ${targetLabel.toUpperCase()} returned to normal 3D workspace placement, Boss.`;
         }
       }
     }
@@ -1051,6 +1090,7 @@ function handleHardcoded(text) {
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
     close3DWorkspaceModal();
+    closeFullscreenProjection();
     return "Returned to home screen, Boss.";
   }
 
