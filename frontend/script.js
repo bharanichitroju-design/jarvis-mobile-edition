@@ -54,6 +54,7 @@ let currentSession = {
 
 let pendingImageData = null;
 let isJarvisSpeaking = false;
+let latest3DWorkspaceData = []; // Store uploaded/spawned 3D contents for Jarvis AI context
 
 // DOM Elements
 const chat = document.getElementById('chat');
@@ -83,7 +84,7 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   1.5. IN-APP 3D WORKSPACE MODAL & FULL 3D COMMAND ENGINE
+   1.5. IN-APP 3D WORKSPACE MODAL & IRON MAN HOLOGRAM ENGINE
    ========================================================= */
 let scene3DBox, camera3DBox, renderer3DBox;
 let loadedObjects3D = [];
@@ -93,6 +94,7 @@ let isMouseDown3D = false;
 let prevMousePos3D = { x: 0, y: 0 };
 let initialPinchDistance3D = null;
 let audioCtx3D = null;
+let hologramRiseProgress = 0; // Tony Stark holographic table rise-up animation tracker
 
 function playTrashSound3D() {
   try {
@@ -128,7 +130,7 @@ function ensure3DModalExists() {
     modal.innerHTML = `
       <div style="width:90%; max-width:800px; height:85vh; background:#000f1e; border:2px solid #00ffff; box-shadow:0 0 30px rgba(0,255,255,0.7); display:flex; flex-direction:column; border-radius:10px; overflow:hidden; font-family:monospace; position:relative;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:rgba(0,30,60,0.95); border-bottom:1px solid #00ffff; z-index:10;">
-          <span id="td-hud-status" style="color:#00ffff; font-weight:bold; font-size:12px; letter-spacing:1px;">WORKSPACE MODE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)</span>
+          <span id="td-hud-status" style="color:#00ffff; font-weight:bold; font-size:12px; letter-spacing:1px;">HOLOGRAPHIC TABLE INITIALIZED (1-Finger Rotate | 2-Finger Move & Pinch Zoom)</span>
           <button id="close-td-box" style="background:none; border:none; color:#ff3366; font-size:20px; font-weight:bold; cursor:pointer;">✕</button>
         </div>
         
@@ -154,7 +156,6 @@ function ensure3DModalExists() {
       if (e.target === modal) close3DWorkspaceModal();
     });
 
-    // Bind inside modal controls
     document.getElementById('td-box-spawn').addEventListener('click', spawn3DTextFromInput);
     document.getElementById('td-upload-btn').addEventListener('click', () => {
       document.getElementById('td-file-input').click();
@@ -168,6 +169,7 @@ function open3DWorkspaceModal() {
   const modal = document.getElementById('td-workspace-modal');
   if (modal) {
     modal.style.display = 'flex';
+    hologramRiseProgress = 0; // Reset rise-up animation on open
     init3DBoxScene();
   }
 }
@@ -200,7 +202,8 @@ function init3DBoxScene() {
   scene3DBox.add(dirLight);
 
   desktopGroup3D = new THREE.Group();
-  desktopGroup3D.position.set(0, -8, 0);
+  // Tony Stark style: Start underground (y = -40) and rise up smoothly to y = -8
+  desktopGroup3D.position.set(0, -40, 0);
   scene3DBox.add(desktopGroup3D);
 
   const gridHelper = new THREE.GridHelper(150, 150, 0x00ffff, 0x003355);
@@ -208,11 +211,19 @@ function init3DBoxScene() {
 
   loadedObjects3D = [];
   selectedObject3D = null;
+  latest3DWorkspaceData = [];
 
   setup3DInteractions(viewport);
 
   function animateBoxScene() {
     requestAnimationFrame(animateBoxScene);
+
+    // Iron Man Holographic Rise-Up Animation from underground (-40 to -8)
+    if (hologramRiseProgress < 1) {
+      hologramRiseProgress += 0.03;
+      desktopGroup3D.position.y = THREE.MathUtils.lerp(-40, -8, hologramRiseProgress);
+    }
+
     if (renderer3DBox && scene3DBox && camera3DBox) {
       renderer3DBox.render(scene3DBox, camera3DBox);
     }
@@ -238,13 +249,16 @@ function deleteSelectedObject3D() {
 
   desktopGroup3D.remove(selectedObject3D);
   const index = loadedObjects3D.indexOf(selectedObject3D);
-  if (index > -1) loadedObjects3D.splice(index, 1);
+  if (index > -1) {
+    loadedObjects3D.splice(index, 1);
+    latest3DWorkspaceData.splice(index, 1);
+  }
 
   selectedObject3D = null;
   const trashBin = document.getElementById('td-trash-bin');
   if (trashBin) trashBin.classList.remove('highlight');
   const hud = document.getElementById('td-hud-status');
-  if (hud) hud.innerText = "OBJECT DELETED. WORKSPACE MODE";
+  if (hud) hud.innerText = "OBJECT DELETED. HOLOGRAPHIC WORKSPACE";
 }
 
 function spawn3DTextFromInput() {
@@ -292,8 +306,12 @@ function spawn3DTextFromInput() {
 
   desktopGroup3D.add(mesh);
   loadedObjects3D.push(mesh);
+  
+  // Store text data for Jarvis AI context analysis
+  latest3DWorkspaceData.push({ type: 'text', content: val });
+
   textInput.value = '';
-  if (hud) hud.innerText = "TEXT SPAWNED. DOUBLE CLICK TO SELECT & MOVE.";
+  if (hud) hud.innerText = "TEXT HOLOGRAPHIC SPAWNED. DOUBLE CLICK TO SELECT.";
 }
 
 function handle3DBlueprintUpload(e) {
@@ -343,7 +361,11 @@ function handle3DBlueprintUpload(e) {
 
     desktopGroup3D.add(mesh);
     loadedObjects3D.push(mesh);
-    if (hud) hud.innerText = "BLUEPRINT LOADED. DOUBLE CLICK IMAGE TO SELECT.";
+
+    // Store image upload info for Jarvis AI context analysis
+    latest3DWorkspaceData.push({ type: 'image', fileName: file.name });
+
+    if (hud) hud.innerText = "BLUEPRINT IMAGE PROJECTED. DOUBLE CLICK TO SELECT.";
   };
   this.value = '';
 }
@@ -381,7 +403,7 @@ function setup3DInteractions(viewport) {
       const trashBin = document.getElementById('td-trash-bin');
       if (trashBin) trashBin.classList.remove('highlight');
       const hud = document.getElementById('td-hud-status');
-      if (hud) hud.innerText = "WORKSPACE MODE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)";
+      if (hud) hud.innerText = "HOLOGRAPHIC WORKSPACE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)";
     }
   }
 
@@ -472,7 +494,6 @@ function setup3DInteractions(viewport) {
     if (e.touches.length < 2) initialPinchDist = null;
   });
 
-  // Mouse Fallbacks inside Modal
   viewport.addEventListener('mousedown', (e) => {
     isMouseDown3D = true;
     prevMousePos3D = { x: e.clientX, y: e.clientY };
@@ -718,7 +739,7 @@ function handleHardcoded(text) {
 
   if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional")) {
     open3DWorkspaceModal();
-    return "Opening Three Dimensional Workspace Box, Boss.";
+    return "Initializing Holographic Workspace Table, Boss.";
   }
 
   if (query.includes("go back") || query.includes("go to home") || query.includes("home") || query.includes("back")) {
@@ -796,7 +817,7 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. ROBUST AI ENGINE CALL WITH SAFE SEARCH & FALLBACKS
+   7. ROBUST AI ENGINE CALL WITH 3D WORKSPACE CONTEXT ANALYSIS
    ========================================================= */
 async function callGemini(text) {
   let activeKey = API_KEY || localStorage.getItem('jarvis_key');
@@ -808,6 +829,12 @@ async function callGemini(text) {
 
   const customMems = getCustomMemories();
   let contextualInstruction = SYSTEM_INSTRUCTION;
+
+  // Inject current 3D Holographic Workspace contents into AI Context so Jarvis can analyze and answer queries about them!
+  if (latest3DWorkspaceData && latest3DWorkspaceData.length > 0) {
+    const workspaceSummary = latest3DWorkspaceData.map(item => item.type === 'text' ? `Text Object: "${item.content}"` : `Blueprint Image: "${item.fileName}"`).join(', ');
+    contextualInstruction += `\n\n[Active 3D Holographic Table Contents on Screen]: ${workspaceSummary}. Analyze these objects when the Boss asks questions about them.`;
+  }
 
   const isOfflineQuery = text && text.toLowerCase().includes("offline");
 
