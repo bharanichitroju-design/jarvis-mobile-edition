@@ -87,6 +87,94 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
+   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL
+   ========================================================= */
+function ensureYouTubeModalExists() {
+  let modal = document.getElementById('youtube-workspace-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'youtube-workspace-modal';
+    modal.style.cssText = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:99999; justify-content:center; align-items:center;";
+    
+    modal.innerHTML = `
+      <div style="width:96%; max-width:1100px; height:92vh; background:#000f1e; border:2px solid #ff0000; box-shadow:0 0 40px rgba(255,0,0,0.7); display:flex; flex-direction:column; border-radius:12px; overflow:hidden; font-family:monospace; position:relative;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:rgba(30,0,0,0.95); border-bottom:1px solid #ff0000; z-index:10;">
+          <span style="color:#ff3333; font-weight:bold; font-size:12px; letter-spacing:1px;">🔴 YOUTUBE HOLOGRAPHIC STREAM ACTIVE</span>
+          <button id="close-youtube-box" style="background:none; border:none; color:#ff3366; font-size:20px; font-weight:bold; cursor:pointer;">✕</button>
+        </div>
+        
+        <!-- Embedded YouTube Viewport / Iframe -->
+        <div style="flex:1; width:100%; background:#000; position:relative; display:flex; justify-content:center; align-items:center;">
+          <iframe id="youtube-frame" src="https://www.youtube.com/embed?autoplay=1" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+
+        <div style="padding:15px; background:rgba(20,0,0,0.95); border-top:1px solid rgba(255,0,0,0.4); display:flex; gap:10px; z-index:10;">
+          <input type="text" id="youtube-search-input" placeholder="Search YouTube or paste video link..." style="flex:2; background:rgba(30,0,0,0.9); border:1px solid #ff0000; color:#ff3333; padding:10px; outline:none; font-family:monospace;">
+          <button id="youtube-search-btn" style="flex:1; background:rgba(50,0,0,0.9); border:1px solid #ff0000; color:#ff3333; padding:10px; font-weight:bold; cursor:pointer;">PLAY / SEARCH</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById('close-youtube-box').addEventListener('click', closeYouTubeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeYouTubeModal();
+    });
+
+    document.getElementById('youtube-search-btn').addEventListener('click', () => {
+      const query = document.getElementById('youtube-search-input').value.trim();
+      if (query) {
+        loadYouTubeSearch(query);
+      }
+    });
+  }
+}
+
+function openYouTubeModal(searchQuery = "") {
+  ensureYouTubeModalExists();
+  const modal = document.getElementById('youtube-workspace-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+    if (searchQuery) {
+      loadYouTubeSearch(searchQuery);
+    }
+  }
+}
+
+function closeYouTubeModal() {
+  const modal = document.getElementById('youtube-workspace-modal');
+  if (modal) {
+    modal.style.display = 'none';
+    const iframe = document.getElementById('youtube-frame');
+    if (iframe) iframe.src = ""; 
+  }
+}
+
+function loadYouTubeSearch(query) {
+  const iframe = document.getElementById('youtube-frame');
+  if (!iframe) return;
+  
+  if (query.includes('youtube.com/watch?v=')) {
+    try {
+      const urlParams = new URLSearchParams(new URL(query).search);
+      const videoId = urlParams.get('v');
+      if (videoId) {
+        iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+        return;
+      }
+    } catch(e) {}
+  } else if (query.includes('youtu.be/')) {
+    const videoId = query.split('youtu.be/')[1]?.split('?')[0];
+    if (videoId) {
+      iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+      return;
+    }
+  }
+
+  iframe.src = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(query)}&autoplay=1`;
+}
+
+/* =========================================================
    1.5. IN-APP 3D WORKSPACE MODAL & HOLOGRAM ENGINE
    ========================================================= */
 let scene3DBox, camera3DBox, renderer3DBox;
@@ -1090,6 +1178,7 @@ function handleHardcoded(text) {
     if (memoryModal) memoryModal.style.display = 'none';
     close3DWorkspaceModal();
     closeFullscreenProjection();
+    closeYouTubeModal();
     return "Returned to home screen, Boss.";
   }
 
@@ -1133,10 +1222,18 @@ function handleHardcoded(text) {
     return "API Key configuration opened, Boss.";
   }
 
-  if (query.includes("open youtube")) {
-    window.open("https://www.youtube.com", "_blank");
-    return "Opening YouTube, Boss.";
+  // --- INTEGRATED YOUTUBE HOLOGRAPHIC MODAL VOICE COMMANDS ---
+  if (query.includes("open youtube") || query.includes("youtube modal") || query.includes("play on youtube")) {
+    let searchTerm = query.replace("open youtube", "").replace("play on youtube", "").replace("youtube modal", "").trim();
+    openYouTubeModal(searchTerm || "Jarvis AI Assistant");
+    return searchTerm ? `Playing ${searchTerm} on YouTube in holographic window, Boss.` : "Opening YouTube Holographic Workspace, Boss.";
   }
+
+  if (query.includes("close youtube") || query.includes("exit youtube")) {
+    closeYouTubeModal();
+    return "YouTube workspace closed, Boss.";
+  }
+
   if (query.includes("open google")) {
     window.open("https://www.google.com", "_blank");
     return "Opening Google Search, Boss.";
@@ -1502,7 +1599,7 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
     recognition = new SpeechRecognition();
     recognition.lang = 'en-US'; 
     recognition.continuous = true;     
-    recognition.interimResults = false; // DISABLED interim results to prevent partial repeating texts
+    recognition.interimResults = false; 
 
     recognition.onstart = () => {
       if (statusText) statusText.innerText = "LISTENING...";
@@ -1523,7 +1620,6 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
 
       const lowerTranscript = rawTranscript.toLowerCase();
 
-      // If Jarvis is speaking and detects the word 'jarvis', stop speaking immediately
       if (isJarvisSpeaking && lowerTranscript.includes("jarvis")) {
         if ('speechSynthesis' in window) {
           window.speechSynthesis.cancel();
@@ -1534,7 +1630,6 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
 
       if (input) input.value = rawTranscript;
 
-      // Check if strictJarvisKeywordMode is active
       if (strictJarvisKeywordMode && !lowerTranscript.includes("jarvis")) {
         if (input) input.value = '';
         return;
