@@ -54,6 +54,7 @@ let currentSession = {
 
 let pendingImageData = null;
 let isJarvisSpeaking = false;
+let strictJarvisKeywordMode = false; // Flag for Jarvis Mode / Jarvis On
 
 // 3D Workspace Array Stores
 let workspaceFiles3D = []; 
@@ -952,6 +953,17 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
+  // Jarvis Mode Activation Commands
+  if (query.includes("jarvis mode activate") || query === "jarvis mode" || query === "jarvis on" || query === "jarvis activate") {
+    strictJarvisKeywordMode = true;
+    return "Jarvis Mode activated, Boss. Replies will now trigger only when 'Jarvis' is mentioned in your sentence.";
+  }
+
+  if (query.includes("jarvis mode deactivate") || query === "jarvis off" || query === "normal mode") {
+    strictJarvisKeywordMode = false;
+    return "Jarvis Mode deactivated, Boss. Listening to all inputs.";
+  }
+
   if (query === "clear jarvis" || query.includes("clear jarvis")) {
     if (currentSession.messages.length > 0) {
       SESSIONS.unshift(currentSession);
@@ -1207,42 +1219,24 @@ async function callGemini(text) {
 
   contents.push({ role: 'user', parts: userParts });
 
-  if (statusText) statusText.innerText = "SEARCHING WEB & AI...";
+  if (statusText) statusText.innerText = "PROCESSING...";
 
+  // Optimized ultra-fast model checking for immediate response
   for (let model of MODELS) {
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: contents,
-          system_instruction: { parts: [{ text: contextualInstruction }] },
-          tools: [{ googleSearch: {} }]
-        })
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); 
 
-      if (res.ok) {
-        const data = await res.json();
-        pendingImageData = null;
-        if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
-          return data.candidates[0].content.parts[0].text;
-        }
-      }
-    } catch (e) {
-      console.warn("Search-enabled model attempt failed: " + model, e);
-    }
-  }
-
-  for (let model of MODELS) {
-    try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: contents,
           system_instruction: { parts: [{ text: contextualInstruction }] }
-        })
+        }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (res.ok) {
         const data = await res.json();
@@ -1252,7 +1246,7 @@ async function callGemini(text) {
         }
       }
     } catch (e) {
-      console.warn("Fallback model attempt failed: " + model, e);
+      console.warn("Fast model attempt failed/timed out: " + model, e);
     }
   }
 
@@ -1495,7 +1489,7 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. ENHANCED VOICE RECOGNITION (HIGH CLARITY & MULTI-LANGUAGE)
+   11. ENHANCED VOICE RECOGNITION (ALWAYS ON + CONDITIONAL STRICT KEYWORD MODE)
    ========================================================= */
 let startJarvisListening = function() {};
 
@@ -1506,10 +1500,9 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
 
   function initRecognition() {
     recognition = new SpeechRecognition();
-    // Multi-language support (Telugu and English) for high accuracy even from a distance
     recognition.lang = 'en-US'; 
-    recognition.continuous = true;     // Kept continuous so it doesn't cut off mid-sentence
-    recognition.interimResults = true; // Enables live capturing to prevent missing words
+    recognition.continuous = true;     
+    recognition.interimResults = true; 
 
     let finalTranscriptBuffer = '';
 
@@ -1531,21 +1524,38 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
         }
       }
 
-      const transcript = (finalTranscriptBuffer || interim).trim();
-      if (!transcript) return;
+      const rawTranscript = (finalTranscriptBuffer || interim).trim();
+      if (!rawTranscript) return;
 
-      if (input) input.value = transcript;
+      const lowerTranscript = rawTranscript.toLowerCase();
 
-      // If a final confirmed sentence is detected, process the command immediately
+      // If Jarvis is speaking and detects the word 'jarvis', stop speaking immediately
+      if (isJarvisSpeaking && lowerTranscript.includes("jarvis")) {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+        isJarvisSpeaking = false;
+        if (statusText) statusText.innerText = "LISTENING...";
+      }
+
+      if (input) input.value = rawTranscript;
+
       if (finalTranscriptBuffer) {
+        // Check if strictJarvisKeywordMode is active via "Jarvis mode activate"
+        if (strictJarvisKeywordMode && !lowerTranscript.includes("jarvis")) {
+          finalTranscriptBuffer = '';
+          if (input) input.value = '';
+          return;
+        }
+
         if ('speechSynthesis' in window) {
           window.speechSynthesis.cancel();
         }
 
-        if (transcript.toLowerCase().includes("smart stop listening") || transcript.toLowerCase().includes("stop listening")) {
+        if (lowerTranscript.includes("smart stop listening") || lowerTranscript.includes("stop listening")) {
           isListeningActive = false;
           try { recognition.stop(); } catch(e){}
-          addMessage(`You: ${transcript}`, 'user');
+          addMessage(`You: ${rawTranscript}`, 'user');
           addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
           speak('Stopped Listening, Boss.');
           return;
@@ -1596,7 +1606,7 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
       isListeningActive = true;
       try {
         recognition.start();
-        addMessage(`Jarvis: Listening continuously with high clarity, Boss...`, 'ai');
+        addMessage(`Jarvis: Active and listening continuously. Say 'Jarvis mode activate' to enable keyword filtering mode, Boss...`, 'ai');
         speak('Listening continuously, Boss.');
       } catch (err) {
         console.log(err);
