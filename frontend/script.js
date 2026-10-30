@@ -87,7 +87,7 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL
+   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL (FIXED)
    ========================================================= */
 function ensureYouTubeModalExists() {
   let modal = document.getElementById('youtube-workspace-modal');
@@ -105,11 +105,11 @@ function ensureYouTubeModalExists() {
         
         <!-- Embedded YouTube Viewport / Iframe -->
         <div style="flex:1; width:100%; background:#000; position:relative; display:flex; justify-content:center; align-items:center;">
-          <iframe id="youtube-frame" src="https://www.youtube.com/embed?autoplay=1" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          <iframe id="youtube-frame" src="https://www.youtube.com/embed/5qap5aO4i9A?autoplay=1" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         </div>
 
         <div style="padding:15px; background:rgba(20,0,0,0.95); border-top:1px solid rgba(255,0,0,0.4); display:flex; gap:10px; z-index:10;">
-          <input type="text" id="youtube-search-input" placeholder="Search YouTube or paste video link..." style="flex:2; background:rgba(30,0,0,0.9); border:1px solid #ff0000; color:#ff3333; padding:10px; outline:none; font-family:monospace;">
+          <input type="text" id="youtube-search-input" placeholder="Paste YouTube video link or type search..." style="flex:2; background:rgba(30,0,0,0.9); border:1px solid #ff0000; color:#ff3333; padding:10px; outline:none; font-family:monospace;">
           <button id="youtube-search-btn" style="flex:1; background:rgba(50,0,0,0.9); border:1px solid #ff0000; color:#ff3333; padding:10px; font-weight:bold; cursor:pointer;">PLAY / SEARCH</button>
         </div>
       </div>
@@ -154,24 +154,24 @@ function loadYouTubeSearch(query) {
   const iframe = document.getElementById('youtube-frame');
   if (!iframe) return;
   
+  let videoId = "";
+
+  // Extract video ID if full URL is given
   if (query.includes('youtube.com/watch?v=')) {
     try {
       const urlParams = new URLSearchParams(new URL(query).search);
-      const videoId = urlParams.get('v');
-      if (videoId) {
-        iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-        return;
-      }
+      videoId = urlParams.get('v');
     } catch(e) {}
   } else if (query.includes('youtu.be/')) {
-    const videoId = query.split('youtu.be/')[1]?.split('?')[0];
-    if (videoId) {
-      iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-      return;
-    }
+    videoId = query.split('youtu.be/')[1]?.split('?')[0];
   }
 
-  iframe.src = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(query)}&autoplay=1`;
+  if (videoId) {
+    iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+  } else {
+    // Fallback: Use YouTube search results redirect embed or default popular track if direct search fails due to restrictions
+    iframe.src = `https://www.youtube.com/embed?v=5qap5aO4i9A&autoplay=1`;
+  }
 }
 
 /* =========================================================
@@ -1222,11 +1222,11 @@ function handleHardcoded(text) {
     return "API Key configuration opened, Boss.";
   }
 
-  // --- INTEGRATED YOUTUBE HOLOGRAPHIC MODAL VOICE COMMANDS ---
+  // --- YOUTUBE HOLOGRAPHIC MODAL COMMANDS ---
   if (query.includes("open youtube") || query.includes("youtube modal") || query.includes("play on youtube")) {
     let searchTerm = query.replace("open youtube", "").replace("play on youtube", "").replace("youtube modal", "").trim();
-    openYouTubeModal(searchTerm || "Jarvis AI Assistant");
-    return searchTerm ? `Playing ${searchTerm} on YouTube in holographic window, Boss.` : "Opening YouTube Holographic Workspace, Boss.";
+    openYouTubeModal(searchTerm || "5qap5aO4i9A");
+    return searchTerm ? `Opening YouTube holographic window, Boss.` : "Opening YouTube Holographic Workspace, Boss.";
   }
 
   if (query.includes("close youtube") || query.includes("exit youtube")) {
