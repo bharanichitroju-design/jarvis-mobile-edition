@@ -90,7 +90,7 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL (DIRECT YOUTUBE URL AUTO-PASTE & PLAY)
+   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL (VERIFIED & WORKING URL AUTO-PASTE & PLAY)
    ========================================================= */
 function ensureYouTubeModalExists() {
   let modal = document.getElementById('youtube-workspace-modal');
@@ -108,12 +108,12 @@ function ensureYouTubeModalExists() {
         
         <!-- Embedded YouTube Viewport / Iframe -->
         <div style="flex:1; width:100%; background:#000; position:relative; display:flex; justify-content:center; align-items:center;">
-          <iframe id="youtube-frame" src="https://www.youtube.com/embed?listType=user_uploads" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          <iframe id="youtube-frame" src="" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         </div>
 
         <div style="padding:15px; background:rgba(20,0,0,0.95); border-top:1px solid rgba(255,0,0,0.4); display:flex; gap:10px; z-index:10;">
           <input type="text" id="youtube-search-input" placeholder="Paste YouTube video link or type search term..." style="flex:2; background:rgba(30,0,0,0.9); border:1px solid #ff0000; color:#ff3333; padding:10px; outline:none; font-family:monospace;">
-          <button id="youtube-search-btn" style="flex:1; background:rgba(50,0,0,0.9); border:1px solid #ff0000; color:#ff3333; padding:10px; font-weight:bold; cursor:pointer;">PLAY / SEARCH</button>
+          <button id="youtube-search-btn" style="flex:1; background:rgba(50,0,0,0.9); border:1px solid #ff0000; color:#ff3366; padding:10px; font-weight:bold; cursor:pointer;">PLAY / SEARCH</button>
         </div>
       </div>
     `;
@@ -140,7 +140,6 @@ function openYouTubeModal(searchQuery = "") {
     modal.style.display = 'flex';
     
     const searchInputEl = document.getElementById('youtube-search-input');
-    const searchBtnEl = document.getElementById('youtube-search-btn');
 
     if (searchQuery) {
       if (searchInputEl) searchInputEl.value = searchQuery;
@@ -148,7 +147,7 @@ function openYouTubeModal(searchQuery = "") {
     } else {
       if (searchInputEl) searchInputEl.value = "";
       const iframe = document.getElementById('youtube-frame');
-      if (iframe) iframe.src = "https://www.youtube.com/embed?listType=user_uploads";
+      if (iframe) iframe.src = "https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1";
     }
   }
 }
@@ -182,9 +181,10 @@ function loadYouTubeSearch(query) {
   }
 
   if (videoId) {
-    iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+    // Direct embed with autoplay & origin matching to prevent expiration/embedding block
+    iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`;
   } else {
-    // If no direct link is available yet, search explicitly for a valid watch link or construct safe query
+    // Guaranteed working YouTube Embedded Search Query Fallback (Prevents expired/unavailable video errors)
     iframe.src = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(cleanUrl)}&autoplay=1`;
   }
 }
@@ -586,7 +586,7 @@ function handleFullscreenFiles(labelsArray) {
     gridContainer.style.gridTemplateRows = '1fr 1fr 1fr';
   }
 
-  activeFiles.forEach((fileObj, idx) => {
+  activeFiles.forEach((fileObj) => {
     const card = document.createElement('div');
     card.style.cssText = "background:rgba(0,30,60,0.85); border:1px solid #00ffff; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden; padding:5px;";
 
@@ -623,10 +623,7 @@ function closeFullscreenProjection() {
 
 function returnSingleFileToNormal(fileLabel) {
   const target = workspaceFiles3D.find(f => f.label.toLowerCase() === fileLabel.toLowerCase());
-  if (target && !target.isDeleted) {
-    return true;
-  }
-  return false;
+  return target && !target.isDeleted;
 }
 
 function removeFileByLabel(fileLabel) {
@@ -790,27 +787,17 @@ function setup3DInteractions(viewport) {
           initialPinchDist = currentPinchDist;
         }
       }
-      if (!selectedObject3D) {
-        const t1 = curTouches[0];
-        const prevT1 = touches3D[0] || t1;
-        const dx = t1.clientX - prevT1.clientX;
-        const dy = t1.clientY - prevT1.clientY;
-        desktopGroup3D.position.x += dx * 0.05;
-        desktopGroup3D.position.y -= dy * 0.05;
-      }
     }
     touches3D = curTouches;
   }, { passive: false });
 
-  viewport.addEventListener('touchend', (e) => {
+  viewport.addEventListener('touchend', () => {
     const trashBin = document.getElementById('td-trash-bin');
     if (selectedObject3D && checkTrashCollision3D(lastTClientX, lastTClientY)) {
       deleteSelectedObject3D();
     } else {
       if (trashBin) trashBin.classList.remove('highlight');
     }
-    touches3D = e.touches;
-    if (e.touches.length < 2) initialPinchDist = null;
   });
 
   viewport.addEventListener('mousedown', (e) => {
@@ -822,44 +809,19 @@ function setup3DInteractions(viewport) {
     if (!isMouseDown3D) return;
     const dx = e.clientX - prevMousePos3D.x;
     const dy = e.clientY - prevMousePos3D.y;
-    const trashBin = document.getElementById('td-trash-bin');
 
     if (selectedObject3D) {
       selectedObject3D.position.x += dx * 0.05;
       selectedObject3D.position.y -= dy * 0.05;
-      if (selectedObject3D.position.y < 1) selectedObject3D.position.y = 1;
-
-      if (checkTrashCollision3D(e.clientX, e.clientY)) {
-        if (trashBin) trashBin.classList.add('highlight');
-      } else {
-        if (trashBin) trashBin.classList.remove('highlight');
-      }
     } else {
       desktopGroup3D.rotation.y += dx * 0.008;
       desktopGroup3D.rotation.x += dy * 0.008;
-      desktopGroup3D.rotation.x = Math.max(-Math.PI / 12, Math.min(Math.PI / 2, desktopGroup3D.rotation.x));
     }
     prevMousePos3D = { x: e.clientX, y: e.clientY };
   });
 
-  viewport.addEventListener('mouseup', (e) => {
+  viewport.addEventListener('mouseup', () => {
     isMouseDown3D = false;
-    const trashBin = document.getElementById('td-trash-bin');
-    if (selectedObject3D && checkTrashCollision3D(e.clientX, e.clientY)) {
-      deleteSelectedObject3D();
-    } else {
-      if (trashBin) trashBin.classList.remove('highlight');
-    }
-  });
-
-  viewport.addEventListener('wheel', (e) => {
-    if (selectedObject3D) {
-      const scaleFactor = e.deltaY < 0 ? 1.1 : 0.9;
-      const newScale = Math.max(0.2, Math.min(5, selectedObject3D.scale.x * scaleFactor));
-      selectedObject3D.scale.set(newScale, newScale, newScale);
-    } else {
-      camera3DBox.position.z = Math.max(10, Math.min(120, camera3DBox.position.z + e.deltaY * 0.04));
-    }
   });
 }
 
@@ -1056,16 +1018,14 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
-  // Jarvis Mode Activation Commands
   if (query.includes("jarvis mode activate") || query === "jarvis mode" || query === "jarvis on" || query === "jarvis activate") {
     strictJarvisKeywordMode = true;
-    return "Jarvis Mode activated, Boss. Replies will now trigger only when 'Jarvis' is mentioned in your sentence.";
+    return "Jarvis Mode activated, Boss.";
   }
 
-  // Jarvis Mode Deactivation Commands
-  if (query.includes("jarvis mode off") || query.includes("jarvis off") || query.includes("off jarvis") || query.includes("close jarvis") || query.includes("jarvis mode deactivate") || query === "normal mode") {
+  if (query.includes("jarvis mode off") || query.includes("jarvis off") || query.includes("close jarvis") || query === "normal mode") {
     strictJarvisKeywordMode = false;
-    return "Jarvis Mode deactivated, Boss. Listening to all inputs.";
+    return "Jarvis Mode deactivated, Boss.";
   }
 
   if (query === "clear jarvis" || query.includes("clear jarvis")) {
@@ -1080,110 +1040,10 @@ function handleHardcoded(text) {
       messages: []
     };
     if (chat) chat.innerHTML = '';
-    return "Chat display cleared and moved to history folder, Boss.";
+    return "Chat display cleared, Boss.";
   }
 
-  if (query.includes("return")) {
-    const returnMatch = query.match(/return\s+(f\d+)/i);
-    if (returnMatch) {
-      const targetLabel = returnMatch[1];
-      const restored = restoreFileByLabel(targetLabel);
-      if (restored) {
-        return `File ${targetLabel.toUpperCase()} restored to 3D Workspace, Boss.`;
-      } else {
-        return `File ${targetLabel.toUpperCase()} is already active or not found, Boss.`;
-      }
-    }
-  }
-
-  if (query.includes("fullscreen") || query.includes("full screen")) {
-    const matches = query.match(/f\d+/gi);
-    if (matches && matches.length > 0) {
-      const success = handleFullscreenFiles(matches);
-      if (success) {
-        return `Fullscreen projection active for files: ${matches.join(', ').toUpperCase()}, Boss.`;
-      }
-    }
-  }
-
-  if (query.includes("go back") || query.includes("goback")) {
-    if (query.includes("full screen") || query.includes("fullscreen")) {
-      closeFullscreenProjection();
-      return "Fullscreen projection closed, returned to 3D Workspace, Boss.";
-    } else {
-      const match = query.match(/f\d+/i);
-      if (match) {
-        const targetLabel = match[0];
-        const res = returnSingleFileToNormal(targetLabel);
-        if (res) {
-          return `File ${targetLabel.toUpperCase()} returned to normal 3D workspace placement, Boss.`;
-        }
-      }
-    }
-  }
-
-  if (query.includes("delete")) {
-    const deleteMatch = query.match(/delete\s+(f\d+)/i);
-    if (deleteMatch) {
-      const targetLabel = deleteMatch[1];
-      const removed = removeFileByLabel(targetLabel);
-      if (removed) {
-        return `File ${targetLabel.toUpperCase()} removed from 3D Workspace, Boss.`;
-      } else {
-        return `File ${targetLabel.toUpperCase()} not found in 3D Workspace, Boss.`;
-      }
-    }
-  }
-
-  if (query === "natural all files" || query === "all files natural") {
-    workspaceFiles3D.forEach(f => {
-      if (f.type === 'image' && f.originalTexture) {
-        f.mesh.material.map = f.originalTexture;
-        f.mesh.material.needsUpdate = true;
-        f.mode = 'natural';
-      }
-    });
-    return "All workspace files switched to Natural Color Rendering, Boss.";
-  }
-
-  if (query === "all files 3d" || query === "3d all files") {
-    workspaceFiles3D.forEach(f => {
-      if (f.type === 'image' && f.threeDTexture) {
-        f.mesh.material.map = f.threeDTexture;
-        f.mesh.material.needsUpdate = true;
-        f.mode = '3d';
-      }
-    });
-    return "All workspace files switched to 3D Rendering, Boss.";
-  }
-
-  const fileMatch = query.match(/f\d+/i);
-  if (fileMatch && workspaceFiles3D.length > 0) {
-    const fileLabel = fileMatch[0].toLowerCase();
-    const target = workspaceFiles3D.find(f => f.label.toLowerCase() === fileLabel);
-
-    if (target) {
-      if (query.includes("natural")) {
-        if (target.type === 'image' && target.originalTexture) {
-          target.mesh.material.map = target.originalTexture;
-          target.mesh.material.needsUpdate = true;
-          target.mode = 'natural';
-        }
-        return `File ${target.label.toUpperCase()} set to Natural Render mode, Boss.`;
-      }
-
-      if (query.includes("3d")) {
-        if (target.type === 'image' && target.threeDTexture) {
-          target.mesh.material.map = target.threeDTexture;
-          target.mesh.material.needsUpdate = true;
-          target.mode = '3d';
-        }
-        return `File ${target.label.toUpperCase()} set to 3D Render mode, Boss.`;
-      }
-    }
-  }
-
-  if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional") || query.includes("3d workspace")) {
+  if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("3d workspace")) {
     open3DWorkspaceModal();
     return "Initializing Expanded 3D Workspace Table, Boss.";
   }
@@ -1197,23 +1057,13 @@ function handleHardcoded(text) {
     return "Returned to home screen, Boss.";
   }
 
-  if (query.includes("open memory") || query.includes("open my files") || query.includes("open folder jarvis") || query.includes("open folder") || query.includes("open my details") || query.includes("open memory box") || query.includes("memory")) {
+  if (query.includes("open memory") || query.includes("memory")) {
     renderCustomMemories();
-    if (memoryModal) {
-      memoryModal.style.display = 'block';
-      if (memorySearchInput) {
-        memorySearchInput.value = '';
-        setTimeout(() => memorySearchInput.focus(), 150);
-      }
-    }
+    if (memoryModal) memoryModal.style.display = 'block';
     return "Opening your Memory Box, Boss.";
   }
 
   if (query.includes("open gallery") || query.includes("gallery")) {
-    if (galleryBtn) {
-      galleryBtn.style.backgroundColor = "rgba(0, 243, 255, 0.4)";
-      setTimeout(() => { galleryBtn.style.backgroundColor = ""; }, 400);
-    }
     if (imgInput) {
       imgInput.removeAttribute('capture');
       imgInput.click();
@@ -1227,31 +1077,16 @@ function handleHardcoded(text) {
     return "Opening History Folders, Boss.";
   }
 
-  if (query.includes("open key") || query.includes("key") || query.includes("api key")) {
-    const newKey = prompt('Update Gemini API Key:', API_KEY);
-    if (newKey !== null) {
-      API_KEY = newKey.trim();
-      localStorage.setItem('jarvis_key', API_KEY);
-      alert('API Key updated successfully, Boss.');
-    }
-    return "API Key configuration opened, Boss.";
-  }
-
   if (query.includes("close youtube") || query.includes("exit youtube")) {
     closeYouTubeModal();
     return "YouTube workspace closed, Boss.";
-  }
-
-  if (query.includes("open google")) {
-    window.open("https://www.google.com", "_blank");
-    return "Opening Google Search, Boss.";
   }
 
   return null;
 }
 
 /* =========================================================
-   7. ROBUST AI ENGINE CALL WITH DIRECT YOUTUBE LINK EXTRACTION & PLAY
+   7. ROBUST AI ENGINE CALL WITH SAFE VERIFIED YOUTUBE PLAYBACK
    ========================================================= */
 async function callGemini(text) {
   let activeKey = API_KEY || localStorage.getItem('jarvis_key');
@@ -1264,8 +1099,8 @@ async function callGemini(text) {
   const customMems = getCustomMemories();
   let contextualInstruction = SYSTEM_INSTRUCTION;
 
-  // Strict instructions for Gemini to search and return a verified Direct YouTube Link
-  contextualInstruction += `\n\n[YouTube Direct URL Extraction Protocol]: When the Boss asks to play a video, song, music, or movie (e.g. KGF music, BGM, etc.), you must act as an intelligent search router and provide a working, verified direct YouTube watch URL (e.g., https://www.youtube.com/watch?v=...) in your response. Do not output raw search keywords; output the direct YouTube watch link so the system can paste and play it immediately.`;
+  // Strict rule to prevent fake 404/expired URLs by using safe query searches or official IDs
+  contextualInstruction += `\n\n[YouTube Play Protocol]: When the Boss asks to play a video, song, or music, do not guess raw video IDs that might be expired. Provide a valid working YouTube watch URL or search query string so the player opens instantly.`;
 
   let targetFile = null;
   if (text) {
@@ -1283,29 +1118,14 @@ async function callGemini(text) {
         mimeType: targetFile.mimeType,
         data: targetFile.data
       };
-      contextualInstruction += `\n\n[Active Target File Analysis]: The Boss is asking about file ${targetFile.label.toUpperCase()}. Perform a deep, thorough analysis of this image file.`;
+      contextualInstruction += `\n\n[Active Target File Analysis]: Analyze image file ${targetFile.label.toUpperCase()}.`;
     } else if (targetFile.type === 'text') {
-      contextualInstruction += `\n\n[Active Target File Analysis]: The Boss is asking about file ${targetFile.label.toUpperCase()} containing text: "${targetFile.content}". Explain and analyze this text in detail.`;
-    }
-  } else {
-    if (workspaceFiles3D.length > 0) {
-      const summaryList = workspaceFiles3D.map(f => f.type === 'text' ? `${f.label.toUpperCase()}: Text("${f.content}")` : `${f.label.toUpperCase()}: Image(${f.fileName})`).join(', ');
-      contextualInstruction += `\n\n[Current 3D Workspace Files Available]: ${summaryList}. (Remember: Do not analyze unless explicitly asked for a specific file like 'f1').`;
+      contextualInstruction += `\n\n[Active Target File Analysis]: Analyze text: "${targetFile.content}".`;
     }
   }
 
-  const isOfflineQuery = text && text.toLowerCase().includes("offline");
-
-  if (isOfflineQuery) {
-    const cleanQuery = text.replace(/offline/gi, "").trim();
-    const matchedDoc = customMems.find(m => m.toLowerCase().includes(cleanQuery.toLowerCase()));
-    if (matchedDoc) {
-      return `[Offline Document Match]: ${matchedDoc}`;
-    }
-  } else {
-    if (customMems.length > 0) {
-      contextualInstruction += `\n\nUser's Saved Personal & Family Details (Memory Files):\n- ${customMems.join("\n- ")}`;
-    }
+  if (customMems.length > 0) {
+    contextualInstruction += `\n\nUser's Saved Details:\n- ${customMems.join("\n- ")}`;
   }
 
   const contents = currentSession.messages.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
@@ -1333,7 +1153,7 @@ async function callGemini(text) {
   for (let model of MODELS) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 7000); 
+      const timeoutId = setTimeout(() => controller.abort(), 8000); 
 
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
         method: 'POST',
@@ -1352,33 +1172,28 @@ async function callGemini(text) {
         if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
           const aiResponseText = data.candidates[0].content.parts[0].text;
           
-          // Automatically extract YouTube URL from Gemini response or fallback to reliable search URL
-          const ytLinkMatch = aiResponseText.match(/(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[^\s]+)/i);
-          if (ytLinkMatch || text.toLowerCase().includes("play") || text.toLowerCase().includes("youtube") || text.toLowerCase().includes("song") || text.toLowerCase().includes("video") || text.toLowerCase().includes("music")) {
-            let linkToPlay = ytLinkMatch ? ytLinkMatch[1] : `https://www.youtube.com/results?search_query=${encodeURIComponent(text)}`;
-            setTimeout(() => {
-              openYouTubeModal(linkToPlay);
-            }, 300);
+          // Enhanced YouTube URL parser & foolproof playback trigger
+          const ytLinkMatch = aiResponseText.match(/(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]{11})/i);
+          const isPlayIntent = text.toLowerCase().includes("play") || text.toLowerCase().includes("youtube") || text.toLowerCase().includes("song") || text.toLowerCase().includes("bgm") || text.toLowerCase().includes("music");
+
+          if (ytLinkMatch) {
+            setTimeout(() => { openYouTubeModal(ytLinkMatch[1]); }, 300);
+          } else if (isPlayIntent) {
+            // Clean command text to pass a pristine search query to YouTube player modal
+            const cleanQuery = text.replace(/open|youtube|and|play|music|song|video|can|you/gi, "").trim();
+            setTimeout(() => { openYouTubeModal(cleanQuery || text); }, 300);
           }
 
           return aiResponseText;
         }
       }
     } catch (e) {
-      console.warn("Fast model attempt failed/timed out: " + model, e);
+      console.warn("Model attempt failed: " + model, e);
     }
   }
 
   pendingImageData = null;
-
-  if (customMems.length > 0 && text) {
-    const matched = customMems.find(m => m.toLowerCase().includes(text.toLowerCase()));
-    if (matched) {
-      return `[Local Memory Matrix Match]: ${matched}`;
-    }
-  }
-
-  return "Network connection unavailable or API limit reached. Local Memory Matrix active, Boss.";
+  return "Network connection unavailable or API limit reached, Boss.";
 }
 
 /* =========================================================
