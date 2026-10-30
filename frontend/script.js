@@ -56,6 +56,9 @@ let pendingImageData = null;
 let isJarvisSpeaking = false;
 let strictJarvisKeywordMode = false; // Flag for Jarvis Mode
 
+// Pending YouTube clarification state
+let pendingYouTubeQuery = null;
+
 // 3D Workspace Array Stores
 let workspaceFiles3D = []; 
 
@@ -87,7 +90,7 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL (PERFECTED)
+   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL (SMART AUTO-SEARCH & PLAY)
    ========================================================= */
 function ensureYouTubeModalExists() {
   let modal = document.getElementById('youtube-workspace-modal');
@@ -135,9 +138,16 @@ function openYouTubeModal(searchQuery = "") {
   const modal = document.getElementById('youtube-workspace-modal');
   if (modal) {
     modal.style.display = 'flex';
+    
+    // Automatically set value into search bar and click play/search button
+    const searchInputEl = document.getElementById('youtube-search-input');
+    const searchBtnEl = document.getElementById('youtube-search-btn');
+
     if (searchQuery) {
+      if (searchInputEl) searchInputEl.value = searchQuery;
       loadYouTubeSearch(searchQuery);
     } else {
+      if (searchInputEl) searchInputEl.value = "";
       const iframe = document.getElementById('youtube-frame');
       if (iframe) iframe.src = "https://www.youtube.com/embed?listType=user_uploads";
     }
@@ -1044,6 +1054,14 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
+  // Handle clarification response if pending YouTube query exists
+  if (pendingYouTubeQuery) {
+    let finalQuery = `${pendingYouTubeQuery} ${query}`;
+    pendingYouTubeQuery = null;
+    openYouTubeModal(finalQuery);
+    return `Searching and playing ${finalQuery} in YouTube holographic window, Boss.`;
+  }
+
   // Jarvis Mode Activation Commands
   if (query.includes("jarvis mode activate") || query === "jarvis mode" || query === "jarvis on" || query === "jarvis activate") {
     strictJarvisKeywordMode = true;
@@ -1225,11 +1243,18 @@ function handleHardcoded(text) {
     return "API Key configuration opened, Boss.";
   }
 
-  // --- YOUTUBE HOLOGRAPHIC MODAL COMMANDS ---
-  if (query.includes("open youtube") || query.includes("youtube modal") || query.includes("play on youtube")) {
-    let searchTerm = query.replace("open youtube", "").replace("play on youtube", "").replace("youtube modal", "").trim();
+  // --- SMART YOUTUBE HOLOGRAPHIC MODAL WITH ASSISTANT CLARIFICATION ---
+  if (query.includes("open youtube") || query.includes("youtube modal") || query.includes("play on youtube") || query.includes("play ")) {
+    let searchTerm = query.replace("open youtube", "").replace("play on youtube", "").replace("youtube modal", "").replace("play", "").trim();
+    
+    // Check if clarification is needed (e.g. general query like "kgf music" needing songs vs bgm specification)
+    if (searchTerm && (searchTerm.includes("kgf") || searchTerm.includes("movie") || searchTerm.includes("songs")) && !searchTerm.includes("bgm") && !searchTerm.includes("audio") && !searchTerm.includes("video")) {
+      pendingYouTubeQuery = searchTerm;
+      return `Boss, do you want the video songs or the BGM audio for ${searchTerm}? Please specify.`;
+    }
+
     openYouTubeModal(searchTerm);
-    return searchTerm ? `Searching and loading ${searchTerm} in YouTube holographic window, Boss.` : "Opening YouTube Holographic Workspace, Boss.";
+    return searchTerm ? `Searching and playing ${searchTerm} in YouTube holographic window, Boss.` : "Opening YouTube Holographic Workspace, Boss.";
   }
 
   if (query.includes("close youtube") || query.includes("exit youtube")) {
