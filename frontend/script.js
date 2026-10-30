@@ -529,7 +529,6 @@ function handle3DBlueprintUpload(e) {
   this.value = '';
 }
 
-// Function to update single 3D file texture between normal and blue tint
 function update3DFileDisplayMode(fileLabel, makeNormal) {
   const target = workspaceFiles3D.find(f => f.label.toLowerCase() === fileLabel.toLowerCase() && !f.isDeleted);
   if (!target || target.type !== 'image') return false;
@@ -544,7 +543,6 @@ function update3DFileDisplayMode(fileLabel, makeNormal) {
   return true;
 }
 
-// Function to update ALL 3D files mode
 function updateAll3DFilesMode(makeNormal) {
   workspaceFiles3D.forEach(f => {
     if (!f.isDeleted && f.type === 'image') {
@@ -595,7 +593,7 @@ function updateFullscreenSingleFileMode(fileLabel, makeNormal) {
 
 function updateFullscreenAllFilesMode(makeNormal) {
   activeFullscreenFilesState.forEach(f => {
-    fullscreenFilesNaturalMap[f.label.toLowerCase()] = makeNormal;
+    fullscreenFilesNaturalMap[fileLabel.toLowerCase()] = makeNormal;
   });
   renderFullscreenGrid();
 }
@@ -1019,11 +1017,16 @@ if (saveCustomMemory) {
 }
 
 /* =========================================================
-   6. HARDCODED COMMANDS & VOICE BUTTON ROUTING
+   6. HARDCODED COMMANDS & VOICE BUTTON ROUTING (FIXED)
    ========================================================= */
 function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
+
+  // CRITICAL FIX: If query contains explanation/analysis intent, strictly BYPASS hardcoded routing!
+  if (query.includes("explain") || query.includes("analyze") || query.includes("what is") || query.includes("matter")) {
+    return null;
+  }
 
   if (query.includes("jarvis mode activate") || query === "jarvis mode" || query === "jarvis on" || query === "jarvis activate") {
     strictJarvisKeywordMode = true;
@@ -1050,7 +1053,6 @@ function handleHardcoded(text) {
     return "Initializing Expanded 3D Workspace Table, Boss.";
   }
 
-  // Go Back / Go Home Navigation Logic
   if (query.includes("go back") || query.includes("back")) {
     const projLayer = document.getElementById('fullscreen-projection-layer');
     const tdModal = document.getElementById('td-workspace-modal');
@@ -1106,12 +1108,6 @@ function handleHardcoded(text) {
     return "YouTube workspace closed, Boss.";
   }
 
-  // FIXED: Prevent "explain f1" or "analyze f1" from intercepting as view toggle commands
-  if (query.includes("explain") || query.includes("analyze") || query.includes("what is this")) {
-    return null; // Let callGemini handle file explanation and analysis
-  }
-
-  // Handle Fullscreen vs 3D File Commands ('natural all files', '3d all files', 'natural f1', '3d f1')
   const isFullscreenModalOpen = document.getElementById('fullscreen-projection-layer')?.style.display === 'flex';
   const is3DModalOpen = document.getElementById('td-workspace-modal')?.style.display === 'flex';
 
@@ -1124,7 +1120,6 @@ function handleHardcoded(text) {
     }
   }
 
-  // Handle ALL files command ("natural all files" or "3d all files")
   if (query.includes("all files") || query.includes("all file")) {
     const makeNormal = query.includes("natural") || query.includes("normal");
     if (isFullscreenModalOpen) {
@@ -1136,18 +1131,20 @@ function handleHardcoded(text) {
     }
   }
 
-  // Handle single file command ("natural f1" or "3d f1")
-  const labelMatches = query.match(/f\d+/gi);
-  if (labelMatches && labelMatches.length > 0) {
-    const targetLabel = labelMatches[0].toLowerCase();
-    const makeNormal = query.includes("natural") || query.includes("normal");
+  // Pure View Mode Toggles Only ('natural f1', '3d f1', 'normal f1')
+  if (query.includes("natural") || query.includes("normal") || query.includes("3d")) {
+    const labelMatches = query.match(/f\d+/gi);
+    if (labelMatches && labelMatches.length > 0) {
+      const targetLabel = labelMatches[0].toLowerCase();
+      const makeNormal = query.includes("natural") || query.includes("normal");
 
-    if (isFullscreenModalOpen) {
-      const success = updateFullscreenSingleFileMode(targetLabel, makeNormal);
-      if (success) return `Fullscreen file ${targetLabel.toUpperCase()} switched to ${makeNormal ? 'natural' : '3D blue'} view, Boss.`;
-    } else if (is3DModalOpen) {
-      const success = update3DFileDisplayMode(targetLabel, makeNormal);
-      if (success) return `3D workspace file ${targetLabel.toUpperCase()} switched to ${makeNormal ? 'natural' : '3D blue'} view, Boss.`;
+      if (isFullscreenModalOpen) {
+        const success = updateFullscreenSingleFileMode(targetLabel, makeNormal);
+        if (success) return `Fullscreen file ${targetLabel.toUpperCase()} switched to ${makeNormal ? 'natural' : '3D blue'} view, Boss.`;
+      } else if (is3DModalOpen) {
+        const success = update3DFileDisplayMode(targetLabel, makeNormal);
+        if (success) return `3D workspace file ${targetLabel.toUpperCase()} switched to ${makeNormal ? 'natural' : '3D blue'} view, Boss.`;
+      }
     }
   }
 
@@ -1155,7 +1152,7 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. ROBUST AI ENGINE CALL WITH SAFE VERIFIED YOUTUBE PLAYBACK & FILE ANALYSIS
+   7. ROBUST AI ENGINE CALL WITH SAFE VERIFIED YOUTUBE PLAYBACK & FILE ANALYSIS (FIXED)
    ========================================================= */
 async function callGemini(text) {
   let activeKey = API_KEY || localStorage.getItem('jarvis_key');
@@ -1176,21 +1173,19 @@ async function callGemini(text) {
     const match = lowerText.match(/f\d+/i);
     if (match && workspaceFiles3D.length > 0) {
       const labelQuery = match[0].toLowerCase();
-      targetFile = workspaceFiles3D.find(f => f.label.toLowerCase() === labelQuery);
-    } else if (workspaceFiles3D.length > 0 && (lowerText.includes("explain") || lowerText.includes("analyze") || lowerText.includes("what is this"))) {
-      targetFile = workspaceFiles3D[workspaceFiles3D.length - 1];
+      targetFile = workspaceFiles3D.find(f => f.label.toLowerCase() === labelQuery && !f.isDeleted);
+    } else if (workspaceFiles3D.length > 0 && (lowerText.includes("explain") || lowerText.includes("analyze") || lowerText.includes("what is"))) {
+      targetFile = workspaceFiles3D.filter(f => !f.isDeleted).slice(-1)[0];
     }
   }
 
   if (targetFile) {
     if (targetFile.type === 'image') {
       pendingImageData = { mimeType: targetFile.mimeType, data: targetFile.data };
-      contextualInstruction += `\n\n[Active Target File Analysis]: Thoroughly explain and analyze image file ${targetFile.label.toUpperCase()} provided by the Boss. Describe all visual details, text, and information present in the image.`;
+      contextualInstruction += `\n\n[Active Target File Analysis]: Thoroughly analyze and explain the image in file ${targetFile.label.toUpperCase()}. Read any text visible and describe its details.`;
     } else if (targetFile.type === 'text') {
-      contextualInstruction += `\n\n[Active Target File Analysis]: Thoroughly explain text: "${targetFile.content}".`;
+      contextualInstruction += `\n\n[Active Target File Analysis]: Explain text from file ${targetFile.label.toUpperCase()}: "${targetFile.content}".`;
     }
-  } else if (pendingImageData) {
-    contextualInstruction += `\n\n[Active Target File Analysis]: Thoroughly explain and analyze the attached image file.`;
   }
 
   if (customMems.length > 0) {
@@ -1201,7 +1196,7 @@ async function callGemini(text) {
   const userParts = [];
 
   if (text) userParts.push({ text: text });
-  else if (pendingImageData) userParts.push({ text: "Please explain and analyze this file in detail, Boss." });
+  else if (pendingImageData) userParts.push({ text: "Please analyze and explain this file, Boss." });
 
   if (pendingImageData) {
     userParts.push({ inline_data: { mime_type: pendingImageData.mimeType, data: pendingImageData.data } });
@@ -1239,12 +1234,6 @@ async function callGemini(text) {
             setTimeout(() => { openYouTubeModal(cleanQuery || text); }, 300);
           }
 
-          const aiFileMatches = aiResponseText.match(/f\d+/gi);
-          if (aiFileMatches && (aiResponseText.toLowerCase().includes("screen") || aiResponseText.toLowerCase().includes("project") || aiResponseText.toLowerCase().includes("show"))) {
-            const isNatural = aiResponseText.toLowerCase().includes("natural") || aiResponseText.toLowerCase().includes("normal");
-            handleFullscreenFiles(aiFileMatches.map(l => l.toLowerCase()), isNatural);
-          }
-
           return aiResponseText;
         }
       }
@@ -1254,7 +1243,7 @@ async function callGemini(text) {
   }
 
   pendingImageData = null;
-  return "Network connection unavailable or API limit reached, Boss. Please verify your API Key or connection.";
+  return "Network connection unavailable or API limit reached, Boss. Please verify your API Key.";
 }
 
 /* =========================================================
