@@ -24,7 +24,7 @@ Behavior Guidelines:
 1. Always address Bharani as "Boss" or "Sir".
 2. If asked "What is your name?" or "Who are you?", respond with: "My name is Jarvis, created by Bharani (Sir)."
 3. Keep answers concise, direct, and helpful. Utilize the user's saved memory files and offline notes when requested.
-4. [Projection & File Control Commands]: Support commands like 'full screen f1', 'natural f1', '3d f1', 'natural all files', '3d all files', 'go back', and 'go home'.`;
+4. [Projection & File Control Commands]: Support commands like 'full screen f1', 'natural f1', '3d f1', 'natural all files', '3d all files', 'explain f1', 'analyze f1', 'go back', and 'go home'.`;
 
 let SESSIONS = [];
 try {
@@ -559,7 +559,7 @@ function updateAll3DFilesMode(makeNormal) {
    FULLSCREEN PROJECTION LAYER WITH INDEPENDENT CONTROLS
    ========================================================= */
 let activeFullscreenFilesState = [];
-let fullscreenFilesNaturalMap = {}; // Tracks natural state per file in fullscreen
+let fullscreenFilesNaturalMap = {}; 
 
 function handleFullscreenFiles(labelsArray, isNatural = false) {
   const activeFiles = workspaceFiles3D.filter(f => !f.isDeleted && labelsArray.includes(f.label.toLowerCase()));
@@ -1150,7 +1150,7 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. ROBUST AI ENGINE CALL WITH SAFE VERIFIED YOUTUBE PLAYBACK
+   7. ROBUST AI ENGINE CALL WITH SAFE VERIFIED YOUTUBE PLAYBACK & FILE ANALYSIS
    ========================================================= */
 async function callGemini(text) {
   let activeKey = API_KEY || localStorage.getItem('jarvis_key');
@@ -1172,16 +1172,21 @@ async function callGemini(text) {
     if (match && workspaceFiles3D.length > 0) {
       const labelQuery = match[0].toLowerCase();
       targetFile = workspaceFiles3D.find(f => f.label.toLowerCase() === labelQuery);
+    } else if (workspaceFiles3D.length > 0 && (lowerText.includes("explain") || lowerText.includes("analyze") || lowerText.includes("what is this"))) {
+      // Default to the last added file if no file number specified in explain/analyze command
+      targetFile = workspaceFiles3D[workspaceFiles3D.length - 1];
     }
   }
 
   if (targetFile) {
     if (targetFile.type === 'image') {
       pendingImageData = { mimeType: targetFile.mimeType, data: targetFile.data };
-      contextualInstruction += `\n\n[Active Target File Analysis]: Analyze image file ${targetFile.label.toUpperCase()}.`;
+      contextualInstruction += `\n\n[Active Target File Analysis]: Thoroughly explain and analyze image file ${targetFile.label.toUpperCase()} provided by the Boss. Describe all visual details, text, and information present in the image.`;
     } else if (targetFile.type === 'text') {
-      contextualInstruction += `\n\n[Active Target File Analysis]: Analyze text: "${targetFile.content}".`;
+      contextualInstruction += `\n\n[Active Target File Analysis]: Thoroughly explain text: "${targetFile.content}".`;
     }
+  } else if (pendingImageData) {
+    contextualInstruction += `\n\n[Active Target File Analysis]: Thoroughly explain and analyze the attached image file.`;
   }
 
   if (customMems.length > 0) {
@@ -1192,7 +1197,7 @@ async function callGemini(text) {
   const userParts = [];
 
   if (text) userParts.push({ text: text });
-  else if (pendingImageData) userParts.push({ text: "Please analyze this file, Boss." });
+  else if (pendingImageData) userParts.push({ text: "Please explain and analyze this file in detail, Boss." });
 
   if (pendingImageData) {
     userParts.push({ inline_data: { mime_type: pendingImageData.mimeType, data: pendingImageData.data } });
@@ -1204,7 +1209,7 @@ async function callGemini(text) {
   for (let model of MODELS) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); 
+      const timeoutId = setTimeout(() => controller.abort(), 12000); 
 
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
         method: 'POST',
@@ -1245,7 +1250,7 @@ async function callGemini(text) {
   }
 
   pendingImageData = null;
-  return "Network connection unavailable or API limit reached, Boss.";
+  return "Network connection unavailable or API limit reached, Boss. Please verify your API Key or connection.";
 }
 
 /* =========================================================
