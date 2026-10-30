@@ -90,7 +90,7 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL (SMART AUTO-SEARCH & PLAY)
+   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL (GEMINI API LINK AUTO-PASTE & PLAY)
    ========================================================= */
 function ensureYouTubeModalExists() {
   let modal = document.getElementById('youtube-workspace-modal');
@@ -139,7 +139,6 @@ function openYouTubeModal(searchQuery = "") {
   if (modal) {
     modal.style.display = 'flex';
     
-    // Automatically set value into search bar and click play/search button
     const searchInputEl = document.getElementById('youtube-search-input');
     const searchBtnEl = document.getElementById('youtube-search-btn');
 
@@ -168,20 +167,25 @@ function loadYouTubeSearch(query) {
   if (!iframe) return;
   
   let videoId = "";
+  let cleanUrl = query.trim();
 
-  if (query.includes('youtube.com/watch?v=')) {
+  // Handle direct YouTube Links or extracted URLs from Gemini API
+  if (cleanUrl.includes('youtube.com/watch?v=')) {
     try {
-      const urlParams = new URLSearchParams(new URL(query).search);
+      const urlParams = new URLSearchParams(new URL(cleanUrl).search);
       videoId = urlParams.get('v');
     } catch(e) {}
-  } else if (query.includes('youtu.be/')) {
-    videoId = query.split('youtu.be/')[1]?.split('?')[0];
+  } else if (cleanUrl.includes('youtu.be/')) {
+    videoId = cleanUrl.split('youtu.be/')[1]?.split('?')[0];
+  } else if (cleanUrl.match(/^[a-zA-Z0-9_-]{11}$/)) {
+    videoId = cleanUrl;
   }
 
   if (videoId) {
     iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-  } else if (query.trim() !== "") {
-    iframe.src = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(query)}&autoplay=1`;
+  } else if (cleanUrl !== "") {
+    // Fallback search query if URL parsing fails
+    iframe.src = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(cleanUrl)}&autoplay=1`;
   } else {
     iframe.src = "https://www.youtube.com/embed?listType=user_uploads";
   }
@@ -1243,20 +1247,6 @@ function handleHardcoded(text) {
     return "API Key configuration opened, Boss.";
   }
 
-  // --- SMART YOUTUBE HOLOGRAPHIC MODAL WITH ASSISTANT CLARIFICATION ---
-  if (query.includes("open youtube") || query.includes("youtube modal") || query.includes("play on youtube") || query.includes("play ")) {
-    let searchTerm = query.replace("open youtube", "").replace("play on youtube", "").replace("youtube modal", "").replace("play", "").trim();
-    
-    // Check if clarification is needed (e.g. general query like "kgf music" needing songs vs bgm specification)
-    if (searchTerm && (searchTerm.includes("kgf") || searchTerm.includes("movie") || searchTerm.includes("songs")) && !searchTerm.includes("bgm") && !searchTerm.includes("audio") && !searchTerm.includes("video")) {
-      pendingYouTubeQuery = searchTerm;
-      return `Boss, do you want the video songs or the BGM audio for ${searchTerm}? Please specify.`;
-    }
-
-    openYouTubeModal(searchTerm);
-    return searchTerm ? `Searching and playing ${searchTerm} in YouTube holographic window, Boss.` : "Opening YouTube Holographic Workspace, Boss.";
-  }
-
   if (query.includes("close youtube") || query.includes("exit youtube")) {
     closeYouTubeModal();
     return "YouTube workspace closed, Boss.";
@@ -1271,7 +1261,7 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. ROBUST AI ENGINE CALL WITH EXPLICIT 3D FILE QUERY SUPPORT
+   7. ROBUST AI ENGINE CALL WITH DIRECT YOUTUBE LINK EXTRACTION & PLAY
    ========================================================= */
 async function callGemini(text) {
   let activeKey = API_KEY || localStorage.getItem('jarvis_key');
@@ -1283,6 +1273,9 @@ async function callGemini(text) {
 
   const customMems = getCustomMemories();
   let contextualInstruction = SYSTEM_INSTRUCTION;
+
+  // Enhance system instruction so Gemini returns direct YouTube URL when a play/video intent is detected
+  contextualInstruction += `\n\n[YouTube Direct Link Automation Instruction]: When the Boss asks to play a video, song, movie, or trailer on YouTube, you must act as an intelligent router and return ONLY a valid YouTube watch URL (e.g., https://www.youtube.com/watch?v=...) relevant to the request. Do not just reply with text; if possible, include the direct YouTube URL in your response text so the system can extract it and play it immediately.`;
 
   let targetFile = null;
   if (text) {
@@ -1350,7 +1343,7 @@ async function callGemini(text) {
   for (let model of MODELS) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); 
+      const timeoutId = setTimeout(() => controller.abort(), 7000); 
 
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
         method: 'POST',
@@ -1367,7 +1360,18 @@ async function callGemini(text) {
         const data = await res.json();
         pendingImageData = null;
         if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
-          return data.candidates[0].content.parts[0].text;
+          const aiResponseText = data.candidates[0].content.parts[0].text;
+          
+          // Check if AI response contains a YouTube link, and automatically open/play it in the holographic modal
+          const ytLinkMatch = aiResponseText.match(/(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[^\s]+)/i);
+          if (ytLinkMatch || text.toLowerCase().includes("play") || text.toLowerCase().includes("youtube") || text.toLowerCase().includes("song") || text.toLowerCase().includes("video")) {
+            let queryToPlay = ytLinkMatch ? ytLinkMatch[1] : text;
+            setTimeout(() => {
+              openYouTubeModal(queryToPlay);
+            }, 300);
+          }
+
+          return aiResponseText;
         }
       }
     } catch (e) {
