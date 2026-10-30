@@ -462,7 +462,6 @@ function handleFullscreenFiles(labelsArray) {
   if (hudBadges) hudBadges.innerHTML = '';
 
   const count = activeFiles.length;
-  // Adaptive Grid Layout based on user diagrams for 2, 3, 4, 5, 6 files
   if (count === 1) {
     gridContainer.style.gridTemplateColumns = '1fr';
     gridContainer.style.gridTemplateRows = '1fr';
@@ -502,7 +501,6 @@ function handleFullscreenFiles(labelsArray) {
     `;
     gridContainer.appendChild(card);
 
-    // Populate bottom search bar HUD badges
     if (hudBadges) {
       const badge = document.createElement('span');
       badge.style.cssText = "background:rgba(0,243,255,0.2); border:1px solid #00ffff; color:#00ffff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;";
@@ -522,10 +520,6 @@ function closeFullscreenProjection() {
 function returnSingleFileToNormal(fileLabel) {
   const target = workspaceFiles3D.find(f => f.label.toLowerCase() === fileLabel.toLowerCase());
   if (target && !target.isDeleted) {
-    // If fullscreen layer is open, check remaining active files
-    const gridContainer = document.getElementById('projection-grid-container');
-    const hudBadges = document.getElementById('projection-hud-badges');
-    // Re-render fullscreen excluding this file or close if none left
     return true;
   }
   return false;
@@ -958,7 +952,6 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
-  // 1. CLEAR CHAT (Strictly triggered by "clear jarvis" command)
   if (query === "clear jarvis" || query.includes("clear jarvis")) {
     if (currentSession.messages.length > 0) {
       SESSIONS.unshift(currentSession);
@@ -974,7 +967,6 @@ function handleHardcoded(text) {
     return "Chat display cleared and moved to history folder, Boss.";
   }
 
-  // 2. RETURN DELETED FILE COMMAND ("return f1", "return f2", etc.)
   if (query.includes("return")) {
     const returnMatch = query.match(/return\s+(f\d+)/i);
     if (returnMatch) {
@@ -988,7 +980,6 @@ function handleHardcoded(text) {
     }
   }
 
-  // 3. FULLSCREEN ADAPTATION COMMANDS ("fullscreen f1, f2, f3")
   if (query.includes("fullscreen") || query.includes("full screen")) {
     const matches = query.match(/f\d+/gi);
     if (matches && matches.length > 0) {
@@ -999,7 +990,6 @@ function handleHardcoded(text) {
     }
   }
 
-  // 4. GO BACK COMMANDS ("go back full screen" vs "go back f1")
   if (query.includes("go back") || query.includes("goback")) {
     if (query.includes("full screen") || query.includes("fullscreen")) {
       closeFullscreenProjection();
@@ -1016,7 +1006,6 @@ function handleHardcoded(text) {
     }
   }
 
-  // 5. DYNAMIC DELETE FILE COMMAND ("delete f1", "delete f2", etc.)
   if (query.includes("delete")) {
     const deleteMatch = query.match(/delete\s+(f\d+)/i);
     if (deleteMatch) {
@@ -1030,7 +1019,6 @@ function handleHardcoded(text) {
     }
   }
 
-  // 6. RENDERING CONTROL: GLOBAL COMMANDS
   if (query === "natural all files" || query === "all files natural") {
     workspaceFiles3D.forEach(f => {
       if (f.type === 'image' && f.originalTexture) {
@@ -1053,7 +1041,6 @@ function handleHardcoded(text) {
     return "All workspace files switched to 3D Rendering, Boss.";
   }
 
-  // 7. RENDERING CONTROL: DYNAMIC FILE COMMANDS ("natural f1", "3d f2", etc.)
   const fileMatch = query.match(/f\d+/i);
   if (fileMatch && workspaceFiles3D.length > 0) {
     const fileLabel = fileMatch[0].toLowerCase();
@@ -1080,7 +1067,6 @@ function handleHardcoded(text) {
     }
   }
 
-  // 8. UI NAVIGATION COMMANDS
   if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("three dimensional") || query.includes("3d workspace")) {
     open3DWorkspaceModal();
     return "Initializing Expanded 3D Workspace Table, Boss.";
@@ -1509,7 +1495,7 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. SPEECH RECOGNITION (AUTO START)
+   11. ENHANCED VOICE RECOGNITION (HIGH CLARITY & MULTI-LANGUAGE)
    ========================================================= */
 let startJarvisListening = function() {};
 
@@ -1520,9 +1506,12 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
 
   function initRecognition() {
     recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    // Multi-language support (Telugu and English) for high accuracy even from a distance
+    recognition.lang = 'en-US'; 
+    recognition.continuous = true;     // Kept continuous so it doesn't cut off mid-sentence
+    recognition.interimResults = true; // Enables live capturing to prevent missing words
+
+    let finalTranscriptBuffer = '';
 
     recognition.onstart = () => {
       if (statusText) statusText.innerText = "LISTENING...";
@@ -1531,27 +1520,44 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
     };
 
     recognition.onresult = (event) => {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
+      let interim = '';
+      finalTranscriptBuffer = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscriptBuffer += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
       }
 
-      const transcript = event.results[0][0].transcript.trim();
+      const transcript = (finalTranscriptBuffer || interim).trim();
       if (!transcript) return;
 
-      if (transcript.toLowerCase().includes("smart stop listening") || transcript.toLowerCase().includes("stop listening")) {
-        isListeningActive = false;
-        try { recognition.stop(); } catch(e){}
-        addMessage(`You: ${transcript}`, 'user');
-        addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
-        speak('Stopped Listening, Boss.');
-        return;
-      }
-
       if (input) input.value = transcript;
-      handleUserCommand();
+
+      // If a final confirmed sentence is detected, process the command immediately
+      if (finalTranscriptBuffer) {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+
+        if (transcript.toLowerCase().includes("smart stop listening") || transcript.toLowerCase().includes("stop listening")) {
+          isListeningActive = false;
+          try { recognition.stop(); } catch(e){}
+          addMessage(`You: ${transcript}`, 'user');
+          addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
+          speak('Stopped Listening, Boss.');
+          return;
+        }
+
+        handleUserCommand();
+        finalTranscriptBuffer = '';
+      }
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
+      console.warn("Speech recognition error:", event.error);
       if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
     };
 
@@ -1590,7 +1596,7 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
       isListeningActive = true;
       try {
         recognition.start();
-        addMessage(`Jarvis: Listening continuously, Boss...`, 'ai');
+        addMessage(`Jarvis: Listening continuously with high clarity, Boss...`, 'ai');
         speak('Listening continuously, Boss.');
       } catch (err) {
         console.log(err);
