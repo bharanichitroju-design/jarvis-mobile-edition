@@ -487,7 +487,7 @@ function handle3DBlueprintUpload(e) {
       // Original Texture for Natural View mode
       const origTexture = new THREE.TextureLoader().load(base64FullData);
 
-      // --- Bluish Holographic Tint Conversion Logic from 3D Code ---
+      // --- Exact Blue Holographic Tint Conversion Logic ---
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = img.width;
