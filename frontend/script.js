@@ -90,7 +90,7 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL (GEMINI API LINK AUTO-PASTE & PLAY)
+   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL (DIRECT YOUTUBE URL AUTO-PASTE & PLAY)
    ========================================================= */
 function ensureYouTubeModalExists() {
   let modal = document.getElementById('youtube-workspace-modal');
@@ -169,7 +169,7 @@ function loadYouTubeSearch(query) {
   let videoId = "";
   let cleanUrl = query.trim();
 
-  // Handle direct YouTube Links or extracted URLs from Gemini API
+  // Strict Direct YouTube Link / Video ID parser
   if (cleanUrl.includes('youtube.com/watch?v=')) {
     try {
       const urlParams = new URLSearchParams(new URL(cleanUrl).search);
@@ -183,11 +183,9 @@ function loadYouTubeSearch(query) {
 
   if (videoId) {
     iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-  } else if (cleanUrl !== "") {
-    // Fallback search query if URL parsing fails
-    iframe.src = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(cleanUrl)}&autoplay=1`;
   } else {
-    iframe.src = "https://www.youtube.com/embed?listType=user_uploads";
+    // If no direct link is available yet, search explicitly for a valid watch link or construct safe query
+    iframe.src = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(cleanUrl)}&autoplay=1`;
   }
 }
 
@@ -1058,14 +1056,6 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
-  // Handle clarification response if pending YouTube query exists
-  if (pendingYouTubeQuery) {
-    let finalQuery = `${pendingYouTubeQuery} ${query}`;
-    pendingYouTubeQuery = null;
-    openYouTubeModal(finalQuery);
-    return `Searching and playing ${finalQuery} in YouTube holographic window, Boss.`;
-  }
-
   // Jarvis Mode Activation Commands
   if (query.includes("jarvis mode activate") || query === "jarvis mode" || query === "jarvis on" || query === "jarvis activate") {
     strictJarvisKeywordMode = true;
@@ -1274,8 +1264,8 @@ async function callGemini(text) {
   const customMems = getCustomMemories();
   let contextualInstruction = SYSTEM_INSTRUCTION;
 
-  // Enhance system instruction so Gemini returns direct YouTube URL when a play/video intent is detected
-  contextualInstruction += `\n\n[YouTube Direct Link Automation Instruction]: When the Boss asks to play a video, song, movie, or trailer on YouTube, you must act as an intelligent router and return ONLY a valid YouTube watch URL (e.g., https://www.youtube.com/watch?v=...) relevant to the request. Do not just reply with text; if possible, include the direct YouTube URL in your response text so the system can extract it and play it immediately.`;
+  // Strict instructions for Gemini to search and return a verified Direct YouTube Link
+  contextualInstruction += `\n\n[YouTube Direct URL Extraction Protocol]: When the Boss asks to play a video, song, music, or movie (e.g. KGF music, BGM, etc.), you must act as an intelligent search router and provide a working, verified direct YouTube watch URL (e.g., https://www.youtube.com/watch?v=...) in your response. Do not output raw search keywords; output the direct YouTube watch link so the system can paste and play it immediately.`;
 
   let targetFile = null;
   if (text) {
@@ -1362,12 +1352,12 @@ async function callGemini(text) {
         if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
           const aiResponseText = data.candidates[0].content.parts[0].text;
           
-          // Check if AI response contains a YouTube link, and automatically open/play it in the holographic modal
+          // Automatically extract YouTube URL from Gemini response or fallback to reliable search URL
           const ytLinkMatch = aiResponseText.match(/(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[^\s]+)/i);
-          if (ytLinkMatch || text.toLowerCase().includes("play") || text.toLowerCase().includes("youtube") || text.toLowerCase().includes("song") || text.toLowerCase().includes("video")) {
-            let queryToPlay = ytLinkMatch ? ytLinkMatch[1] : text;
+          if (ytLinkMatch || text.toLowerCase().includes("play") || text.toLowerCase().includes("youtube") || text.toLowerCase().includes("song") || text.toLowerCase().includes("video") || text.toLowerCase().includes("music")) {
+            let linkToPlay = ytLinkMatch ? ytLinkMatch[1] : `https://www.youtube.com/results?search_query=${encodeURIComponent(text)}`;
             setTimeout(() => {
-              openYouTubeModal(queryToPlay);
+              openYouTubeModal(linkToPlay);
             }, 300);
           }
 
