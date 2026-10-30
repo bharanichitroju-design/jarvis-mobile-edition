@@ -23,7 +23,8 @@ const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant cr
 Behavior Guidelines:
 1. Always address Bharani as "Boss" or "Sir".
 2. If asked "What is your name?" or "Who are you?", respond with: "My name is Jarvis, created by Bharani (Sir)."
-3. Keep answers concise, direct, and helpful. Utilize the user's saved memory files and offline notes when requested.`;
+3. Keep answers concise, direct, and helpful. Utilize the user's saved memory files and offline notes when requested.
+4. [Projection & File Control Commands]: When the Boss requests to view files in full screen, use phrases like 'full screen f1', 'show f1 and f2 in full screen', or 'natural f1' to toggle modes.`;
 
 let SESSIONS = [];
 try {
@@ -54,12 +55,8 @@ let currentSession = {
 
 let pendingImageData = null;
 let isJarvisSpeaking = false;
-let strictJarvisKeywordMode = false; // Flag for Jarvis Mode
+let strictJarvisKeywordMode = false;
 
-// Pending YouTube clarification state
-let pendingYouTubeQuery = null;
-
-// 3D Workspace Array Stores
 let workspaceFiles3D = []; 
 
 // DOM Elements
@@ -74,14 +71,12 @@ const imgInput = document.getElementById('img-input');
 const apiKeyBtn = document.getElementById('api-key-btn');
 const statusText = document.getElementById('status-text');
 
-// History Modal Elements
 const settingsBtn = document.getElementById('settings-btn');
 const historyModal = document.getElementById('history-modal');
 const closeHistory = document.getElementById('close-history');
 const historyList = document.getElementById('history-list');
 const clearAllHistoryBtn = document.getElementById('clear-all-history');
 
-// Memory Modal Elements
 const memoryModal = document.getElementById('memory-modal');
 const closeMemoryModal = document.getElementById('close-memory-modal');
 const memorySearchInput = document.getElementById('memory-search-input');
@@ -90,7 +85,7 @@ const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
 /* =========================================================
-   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL (VERIFIED & WORKING URL AUTO-PASTE & PLAY)
+   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL
    ========================================================= */
 function ensureYouTubeModalExists() {
   let modal = document.getElementById('youtube-workspace-modal');
@@ -105,12 +100,9 @@ function ensureYouTubeModalExists() {
           <span style="color:#ff3333; font-weight:bold; font-size:12px; letter-spacing:1px;">🔴 YOUTUBE HOLOGRAPHIC STREAM ACTIVE</span>
           <button id="close-youtube-box" style="background:none; border:none; color:#ff3366; font-size:20px; font-weight:bold; cursor:pointer;">✕</button>
         </div>
-        
-        <!-- Embedded YouTube Viewport / Iframe -->
         <div style="flex:1; width:100%; background:#000; position:relative; display:flex; justify-content:center; align-items:center;">
           <iframe id="youtube-frame" src="" style="width:100%; height:100%; border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         </div>
-
         <div style="padding:15px; background:rgba(20,0,0,0.95); border-top:1px solid rgba(255,0,0,0.4); display:flex; gap:10px; z-index:10;">
           <input type="text" id="youtube-search-input" placeholder="Paste YouTube video link or type search term..." style="flex:2; background:rgba(30,0,0,0.9); border:1px solid #ff0000; color:#ff3333; padding:10px; outline:none; font-family:monospace;">
           <button id="youtube-search-btn" style="flex:1; background:rgba(50,0,0,0.9); border:1px solid #ff0000; color:#ff3366; padding:10px; font-weight:bold; cursor:pointer;">PLAY / SEARCH</button>
@@ -126,9 +118,7 @@ function ensureYouTubeModalExists() {
 
     document.getElementById('youtube-search-btn').addEventListener('click', () => {
       const query = document.getElementById('youtube-search-input').value.trim();
-      if (query) {
-        loadYouTubeSearch(query);
-      }
+      if (query) loadYouTubeSearch(query);
     });
   }
 }
@@ -138,9 +128,7 @@ function openYouTubeModal(searchQuery = "") {
   const modal = document.getElementById('youtube-workspace-modal');
   if (modal) {
     modal.style.display = 'flex';
-    
     const searchInputEl = document.getElementById('youtube-search-input');
-
     if (searchQuery) {
       if (searchInputEl) searchInputEl.value = searchQuery;
       loadYouTubeSearch(searchQuery);
@@ -164,7 +152,6 @@ function closeYouTubeModal() {
 function loadYouTubeSearch(query) {
   const iframe = document.getElementById('youtube-frame');
   if (!iframe) return;
-  
   let videoId = "";
   let cleanUrl = query.trim();
 
@@ -187,7 +174,7 @@ function loadYouTubeSearch(query) {
 }
 
 /* =========================================================
-   1.3. MAP POINTING PIN & BLUE HOLOGRAPHIC BLUEPRINT GENERATOR (3D CODE INTEGRATION)
+   1.3. MAP POINTING PIN & BLUE HOLOGRAPHIC BLUEPRINT GENERATOR
    ========================================================= */
 function createMapPinCanvas(fileLabel) {
   const canvas = document.createElement('canvas');
@@ -196,7 +183,6 @@ function createMapPinCanvas(fileLabel) {
   const ctx = canvas.getContext('2d');
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   ctx.beginPath();
   ctx.moveTo(48, 115);
   ctx.bezierCurveTo(15, 75, 8, 50, 8, 38);
@@ -241,7 +227,6 @@ function attachMapPinToMesh(mesh, fileLabel) {
   });
   const pinMesh = new THREE.Mesh(pinGeo, pinMat);
   pinMesh.name = "mapPin";
-  
   pinMesh.position.set(0, 7.4, 0.1);
   mesh.add(pinMesh);
 }
@@ -260,12 +245,8 @@ let hologramRiseProgress = 0;
 
 function playTrashSound3D() {
   try {
-    if (!audioCtx3D) {
-      audioCtx3D = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx3D.state === 'suspended') {
-      audioCtx3D.resume();
-    }
+    if (!audioCtx3D) audioCtx3D = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx3D.state === 'suspended') audioCtx3D.resume();
     const osc = audioCtx3D.createOscillator();
     const gain = audioCtx3D.createGain();
     osc.type = 'triangle';
@@ -298,11 +279,11 @@ function ensure3DModalExists() {
         
         <div id="td-box-viewport" style="flex:1; width:100%; background:#010814; position:relative; overflow:hidden;"></div>
 
-        <!-- Fullscreen Dynamic Projection Layer Overlay -->
+        <!-- Fullscreen Dynamic Projection Layer Overlay with Blue Holographic Tint & Natural View support -->
         <div id="fullscreen-projection-layer" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(1,8,20,0.95); z-index:50; flex-direction:column; justify-content:space-between; padding:20px; box-sizing:border-box;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #00ffff; padding-bottom:10px;">
             <span style="color:#00ffff; font-weight:bold; font-size:14px; letter-spacing:1px;">⚡ HOLOGRAPHIC PROJECTION SCREEN ACTIVE</span>
-            <span style="color:#ff3366; font-size:12px; font-weight:bold;">Say 'go back full screen' to exit</span>
+            <span style="color:#ff3366; font-size:12px; font-weight:bold;">Say 'go back full screen' or close to exit</span>
           </div>
           <div id="projection-grid-container" style="flex:1; display:grid; gap:10px; padding:15px; align-center; justify-center; overflow:hidden;"></div>
           <div id="projection-bottom-hud" style="width:100%; height:45px; background:rgba(0,30,60,0.9); border:1px solid #00ffff; border-radius:8px; display:flex; align-items:center; padding:0 15px; box-sizing:border-box; gap:10px; overflow-x:auto;">
@@ -311,7 +292,6 @@ function ensure3DModalExists() {
           </div>
         </div>
 
-        <!-- Trash Bin Inside Modal -->
         <div id="td-trash-bin" title="Drag object here to delete" style="position:absolute; bottom:80px; left:50%; transform:translateX(-50%); width:50px; height:50px; background:rgba(255,0,60,0.2); border:2px dashed #ff0055; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; color:#ff0055; box-shadow:0 0 15px rgba(255,0,85,0.4); z-index:20; transition:all 0.3s ease; pointer-events:none;">🗑️</div>
 
         <div style="padding:15px; background:rgba(0,20,40,0.95); border-top:1px solid rgba(0,243,255,0.4); display:flex; flex-direction:column; gap:10px; z-index:10;">
@@ -391,12 +371,10 @@ function init3DBoxScene() {
 
   function animateBoxScene() {
     requestAnimationFrame(animateBoxScene);
-
     if (hologramRiseProgress < 1) {
       hologramRiseProgress += 0.03;
       desktopGroup3D.position.y = THREE.MathUtils.lerp(-40, -8, hologramRiseProgress);
     }
-
     if (renderer3DBox && scene3DBox && camera3DBox) {
       renderer3DBox.render(scene3DBox, camera3DBox);
     }
@@ -420,7 +398,6 @@ function spawn3DTextFromInput() {
 
   ctx.fillStyle = '#000f1e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-
   ctx.fillStyle = '#00ffff';
   ctx.font = 'bold 36px monospace';
   ctx.textAlign = 'center';
@@ -484,10 +461,8 @@ function handle3DBlueprintUpload(e) {
     const img = new Image();
     img.src = base64FullData;
     img.onload = () => {
-      // Original Texture for Natural View mode
       const origTexture = new THREE.TextureLoader().load(base64FullData);
 
-      // --- Exact Blue Holographic Tint Conversion Logic ---
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       canvas.width = img.width;
@@ -499,9 +474,9 @@ function handle3DBlueprintUpload(e) {
 
       for (let i = 0; i < data.length; i += 4) {
         const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-        data[i] = 0;             // Red channel removed
-        data[i + 1] = avg * 0.9; // Green adjusted
-        data[i + 2] = avg * 1.2; // Blue boosted for holographic blue glow
+        data[i] = 0;             
+        data[i + 1] = avg * 0.9; 
+        data[i + 2] = avg * 1.2; 
       }
       ctx.putImageData(imgData, 0, 0);
 
@@ -553,9 +528,9 @@ function handle3DBlueprintUpload(e) {
 }
 
 /* =========================================================
-   FULLSCREEN PROJECTION LAYER WITH SMART ADAPTIVE GRID
+   FULLSCREEN PROJECTION LAYER WITH BLUE FRAMEWORK & NATURAL TOGGLE SUPPORT
    ========================================================= */
-function handleFullscreenFiles(labelsArray) {
+function handleFullscreenFiles(labelsArray, isNatural = false) {
   const activeFiles = workspaceFiles3D.filter(f => !f.isDeleted && labelsArray.includes(f.label.toLowerCase()));
   if (activeFiles.length === 0) return false;
 
@@ -585,26 +560,46 @@ function handleFullscreenFiles(labelsArray) {
 
   activeFiles.forEach((fileObj) => {
     const card = document.createElement('div');
-    card.style.cssText = "background:rgba(0,30,60,0.85); border:1px solid #00ffff; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden; padding:5px;";
+    card.style.cssText = "background:rgba(0,30,60,0.85); border:2px solid #00ffff; box-shadow:0 0 20px rgba(0,255,255,0.4); border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden; padding:10px;";
 
     let contentHTML = '';
     if (fileObj.type === 'text') {
-      contentHTML = `<div style="color:#00ffff; font-size:16px; font-weight:bold; text-align:center; padding:10px;">${fileObj.content}</div>`;
+      contentHTML = `<div style="color:#00ffff; font-size:18px; font-weight:bold; text-align:center; padding:10px; font-family:monospace;">${fileObj.content}</div>`;
     } else {
-      let imgSrc = fileObj.originalTexture && fileObj.originalTexture.image ? fileObj.originalTexture.image.src : '';
-      if (!imgSrc && fileObj.data) imgSrc = `data:${fileObj.mimeType};base64,${fileObj.data}`;
-      contentHTML = `<img src="${imgSrc}" style="max-width:100%; max-height:85%; object-fit:contain; border-radius:4px; border:1px solid rgba(0,243,255,0.4);" />`;
+      let imgSrc = '';
+      if (isNatural) {
+        imgSrc = fileObj.originalTexture && fileObj.originalTexture.image ? fileObj.originalTexture.image.src : `data:${fileObj.mimeType};base64,${fileObj.data}`;
+      } else {
+        const tempCanvas = document.createElement('canvas');
+        const tempCtx = tempCanvas.getContext('2d');
+        const img = new Image();
+        img.src = `data:${fileObj.mimeType};base64,${fileObj.data}`;
+        tempCanvas.width = img.width || 500;
+        tempCanvas.height = img.height || 500;
+        tempCtx.drawImage(img, 0, 0);
+        const imgData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+        const data = imgData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+          data[i] = 0;
+          data[i + 1] = avg * 0.9;
+          data[i + 2] = avg * 1.2;
+        }
+        tempCtx.putImageData(imgData, 0, 0);
+        imgSrc = tempCanvas.toDataURL();
+      }
+      contentHTML = `<img src="${imgSrc}" style="max-width:100%; max-height:85%; object-fit:contain; border-radius:4px; border:1px solid rgba(0,243,255,0.6);" />`;
     }
 
     card.innerHTML = `
-      <div style="position:absolute; top:6px; left:8px; background:rgba(0,15,30,0.9); border:1px solid #00ffff; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; color:#00ffff; font-weight:bold; font-size:11px;">${fileObj.label.toUpperCase()}</div>
+      <div style="position:absolute; top:8px; left:10px; background:rgba(0,15,30,0.9); border:1px solid #00ffff; border-radius:50%; width:32px; height:32px; display:flex; align-items:center; justify-content:center; color:#00ffff; font-weight:bold; font-size:12px;">${fileObj.label.toUpperCase()}</div>
       ${contentHTML}
     `;
     gridContainer.appendChild(card);
 
     if (hudBadges) {
       const badge = document.createElement('span');
-      badge.style.cssText = "background:rgba(0,243,255,0.2); border:1px solid #00ffff; color:#00ffff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold;";
+      badge.style.cssText = "background:rgba(0,243,255,0.2); border:1px solid #00ffff; color:#00ffff; padding:3px 10px; border-radius:4px; font-size:11px; font-weight:bold;";
       badge.innerText = fileObj.label.toUpperCase();
       hudBadges.appendChild(badge);
     }
@@ -628,9 +623,7 @@ function removeFileByLabel(fileLabel) {
   if (target && !target.isDeleted) {
     target.isDeleted = true;
     playTrashSound3D();
-    if (desktopGroup3D && target.mesh) {
-      desktopGroup3D.remove(target.mesh);
-    }
+    if (desktopGroup3D && target.mesh) desktopGroup3D.remove(target.mesh);
     const loadedIdx = loadedObjects3D.indexOf(target.mesh);
     if (loadedIdx > -1) loadedObjects3D.splice(loadedIdx, 1);
     if (selectedObject3D === target.mesh) selectedObject3D = null;
@@ -668,14 +661,11 @@ function checkTrashCollision3D(clientX, clientY) {
 function deleteSelectedObject3D() {
   if (!selectedObject3D) return;
   playTrashSound3D();
-
   const found = workspaceFiles3D.find(f => f.mesh === selectedObject3D);
   if (found) found.isDeleted = true;
-
   desktopGroup3D.remove(selectedObject3D);
   const index = loadedObjects3D.indexOf(selectedObject3D);
   if (index > -1) loadedObjects3D.splice(index, 1);
-
   selectedObject3D = null;
   const trashBin = document.getElementById('td-trash-bin');
   if (trashBin) trashBin.classList.remove('highlight');
@@ -691,13 +681,11 @@ function setup3DInteractions(viewport) {
     const rect = viewport.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-
     mouse.x = (x / viewport.clientWidth) * 2 - 1;
     mouse.y = -(y / viewport.clientHeight) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera3DBox);
     const intersects = raycaster.intersectObjects(loadedObjects3D);
-
     const hud = document.getElementById('td-hud-status');
     if (intersects.length > 0) {
       if (selectedObject3D) deselect3D();
@@ -860,9 +848,7 @@ function init3DFace() {
       scene.add(faceMesh);
     },
     undefined,
-    (err) => {
-      console.error("Error loading texture:", err);
-    }
+    (err) => { console.error("Error loading texture:", err); }
   );
 
   animateFace();
@@ -870,10 +856,8 @@ function init3DFace() {
 
 function animateFace() {
   requestAnimationFrame(animateFace);
-  
   if (faceMesh) {
     faceMesh.position.y = Math.sin(Date.now() * 0.003) * 0.04;
-
     if (isJarvisSpeaking) {
       const time = Date.now() * 0.025;
       faceMesh.scale.y = 1 + Math.sin(time) * 0.12;
@@ -883,29 +867,22 @@ function animateFace() {
       faceMesh.scale.x += (1 - faceMesh.scale.x) * 0.1;
     }
   }
-
-  if (renderer && scene && camera) {
-    renderer.render(scene, camera);
-  }
+  if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
   init3DFace();
-  
   setTimeout(() => {
     const welcomeText = "Hi Sir, Your Jarvis was activated, ఏం చేద్దామో చెప్పండి సార్";
     addMessage(`Jarvis: ${welcomeText}`, 'ai');
     currentSession.messages.push({ role: 'model', text: welcomeText, time: format12HourTime(new Date()) });
     speak(welcomeText);
-    
-    if (typeof startJarvisListening === 'function') {
-      startJarvisListening();
-    }
+    if (typeof startJarvisListening === 'function') startJarvisListening();
   }, 1000);
 });
 
 /* =========================================================
-   3. TEXT-TO-SPEECH (TTS) WITH CLEANED TEXT & LIP-SYNC
+   3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT
    ========================================================= */
 function speak(text) {
   if ('speechSynthesis' in window) {
@@ -978,9 +955,7 @@ function renderCustomMemories(filterText = '') {
 }
 
 if (memorySearchInput) {
-  memorySearchInput.addEventListener('input', (e) => {
-    renderCustomMemories(e.target.value);
-  });
+  memorySearchInput.addEventListener('input', (e) => { renderCustomMemories(e.target.value); });
 }
 
 window.deleteCustomMemory = function(index) {
@@ -995,7 +970,6 @@ if (saveCustomMemory) {
     const valFromSearch = memorySearchInput.value.trim();
     const valFromTextarea = customMemoryInput.value.trim();
     const finalVal = valFromTextarea || valFromSearch;
-
     if (finalVal) {
       let mems = getCustomMemories();
       mems.push(finalVal);
@@ -1030,12 +1004,7 @@ function handleHardcoded(text) {
       SESSIONS.unshift(currentSession);
       saveSessions();
     }
-    currentSession = {
-      id: Date.now(),
-      title: "New Conversation",
-      date: format12HourTime(new Date()),
-      messages: []
-    };
+    currentSession = { id: Date.now(), title: "New Conversation", date: format12HourTime(new Date()), messages: [] };
     if (chat) chat.innerHTML = '';
     return "Chat display cleared, Boss.";
   }
@@ -1045,7 +1014,7 @@ function handleHardcoded(text) {
     return "Initializing Expanded 3D Workspace Table, Boss.";
   }
 
-  if (query.includes("go home") || query.includes("home")) {
+  if (query.includes("go home") || query.includes("home") || query.includes("go back full screen")) {
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
     close3DWorkspaceModal();
@@ -1061,10 +1030,7 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("open gallery") || query.includes("gallery")) {
-    if (imgInput) {
-      imgInput.removeAttribute('capture');
-      imgInput.click();
-    }
+    if (imgInput) { imgInput.removeAttribute('capture'); imgInput.click(); }
     return "Opening Gallery to attach image, Boss.";
   }
 
@@ -1077,6 +1043,16 @@ function handleHardcoded(text) {
   if (query.includes("close youtube") || query.includes("exit youtube")) {
     closeYouTubeModal();
     return "YouTube workspace closed, Boss.";
+  }
+
+  // Handle Fullscreen commands like "full screen f1", "natural f1", "show f1 and f2"
+  const labelMatches = query.match(/f\d+/gi);
+  if (labelMatches && (query.includes("full") || query.includes("screen") || query.includes("natural") || query.includes("show"))) {
+    const isNatural = query.includes("natural");
+    const success = handleFullscreenFiles(labelMatches.map(l => l.toLowerCase()), isNatural);
+    if (success) {
+      return `Projecting files [${labelMatches.join(', ').toUpperCase()}] in fullscreen, Boss.`;
+    }
   }
 
   return null;
@@ -1110,10 +1086,7 @@ async function callGemini(text) {
 
   if (targetFile) {
     if (targetFile.type === 'image') {
-      pendingImageData = {
-        mimeType: targetFile.mimeType,
-        data: targetFile.data
-      };
+      pendingImageData = { mimeType: targetFile.mimeType, data: targetFile.data };
       contextualInstruction += `\n\n[Active Target File Analysis]: Analyze image file ${targetFile.label.toUpperCase()}.`;
     } else if (targetFile.type === 'text') {
       contextualInstruction += `\n\n[Active Target File Analysis]: Analyze text: "${targetFile.content}".`;
@@ -1127,23 +1100,14 @@ async function callGemini(text) {
   const contents = currentSession.messages.slice(-10).map(m => ({ role: m.role, parts: [{ text: m.text }] }));
   const userParts = [];
 
-  if (text) {
-    userParts.push({ text: text });
-  } else if (pendingImageData) {
-    userParts.push({ text: "Please analyze this file, Boss." });
-  }
+  if (text) userParts.push({ text: text });
+  else if (pendingImageData) userParts.push({ text: "Please analyze this file, Boss." });
 
   if (pendingImageData) {
-    userParts.push({
-      inline_data: {
-        mime_type: pendingImageData.mimeType,
-        data: pendingImageData.data
-      }
-    });
+    userParts.push({ inline_data: { mime_type: pendingImageData.mimeType, data: pendingImageData.data } });
   }
 
   contents.push({ role: 'user', parts: userParts });
-
   if (statusText) statusText.innerText = "PROCESSING...";
 
   for (let model of MODELS) {
@@ -1154,10 +1118,7 @@ async function callGemini(text) {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: contents,
-          system_instruction: { parts: [{ text: contextualInstruction }] }
-        }),
+        body: JSON.stringify({ contents: contents, system_instruction: { parts: [{ text: contextualInstruction }] } }),
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -1176,6 +1137,13 @@ async function callGemini(text) {
           } else if (isPlayIntent) {
             const cleanQuery = text.replace(/open|youtube|and|play|music|song|video|can|you/gi, "").trim();
             setTimeout(() => { openYouTubeModal(cleanQuery || text); }, 300);
+          }
+
+          // Check if AI response suggests opening a fullscreen file projection
+          const aiFileMatches = aiResponseText.match(/f\d+/gi);
+          if (aiFileMatches && (aiResponseText.toLowerCase().includes("screen") || aiResponseText.toLowerCase().includes("project") || aiResponseText.toLowerCase().includes("show"))) {
+            const isNatural = aiResponseText.toLowerCase().includes("natural");
+            handleFullscreenFiles(aiFileMatches.map(l => l.toLowerCase()), isNatural);
           }
 
           return aiResponseText;
@@ -1297,12 +1265,7 @@ function renderHistoryFolders() {
 window.deleteSession = function(sessionId) {
   SESSIONS = SESSIONS.filter(s => s.id !== sessionId);
   if (currentSession.id === sessionId) {
-    currentSession = {
-      id: Date.now(),
-      title: "New Conversation",
-      date: format12HourTime(new Date()),
-      messages: []
-    };
+    currentSession = { id: Date.now(), title: "New Conversation", date: format12HourTime(new Date()), messages: [] };
     if (chat) chat.innerHTML = '';
   }
   saveSessions();
@@ -1312,12 +1275,7 @@ window.deleteSession = function(sessionId) {
 if (clearAllHistoryBtn) {
   clearAllHistoryBtn.addEventListener('click', () => {
     SESSIONS = [];
-    currentSession = {
-      id: Date.now(),
-      title: "New Conversation",
-      date: format12HourTime(new Date()),
-      messages: []
-    };
+    currentSession = { id: Date.now(), title: "New Conversation", date: format12HourTime(new Date()), messages: [] };
     saveSessions();
     renderHistoryFolders();
     if (chat) chat.innerHTML = '';
@@ -1335,10 +1293,7 @@ if (memoryBtn) {
     renderCustomMemories();
     if (memoryModal) {
       memoryModal.style.display = 'block';
-      if (memorySearchInput) {
-        memorySearchInput.value = '';
-        setTimeout(() => memorySearchInput.focus(), 150);
-      }
+      if (memorySearchInput) { memorySearchInput.value = ''; setTimeout(() => memorySearchInput.focus(), 150); }
     }
   });
 }
@@ -1349,12 +1304,7 @@ if (clearBtn) {
       SESSIONS.unshift(currentSession);
       saveSessions();
     }
-    currentSession = {
-      id: Date.now(),
-      title: "New Conversation",
-      date: format12HourTime(new Date()),
-      messages: []
-    };
+    currentSession = { id: Date.now(), title: "New Conversation", date: format12HourTime(new Date()), messages: [] };
     if (chat) chat.innerHTML = '';
     speak("Chat display cleared, Boss.");
   });
@@ -1385,10 +1335,7 @@ if (galleryBtn) {
   galleryBtn.addEventListener('click', () => {
     galleryBtn.style.backgroundColor = "rgba(0, 243, 255, 0.4)";
     setTimeout(() => { galleryBtn.style.backgroundColor = ""; }, 400);
-    if (imgInput) {
-      imgInput.removeAttribute('capture');
-      imgInput.click();
-    }
+    if (imgInput) { imgInput.removeAttribute('capture'); imgInput.click(); }
   });
 }
 
@@ -1399,10 +1346,7 @@ if (imgInput) {
       const reader = new FileReader();
       reader.onload = (evt) => {
         const base64Data = evt.target.result.split(',')[1];
-        pendingImageData = {
-          mimeType: file.type,
-          data: base64Data
-        };
+        pendingImageData = { mimeType: file.type, data: base64Data };
         addMessage(`You: [Attached Gallery Image: ${file.name}]`, 'user');
         handleUserCommand();
       };
@@ -1417,7 +1361,7 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. ENHANCED VOICE RECOGNITION (STRICT FINAL RESULTS ONLY)
+   11. ENHANCED VOICE RECOGNITION WITH IMMEDIATE SPEECH INTERRUPTION
    ========================================================= */
 let startJarvisListening = function() {};
 
@@ -1451,12 +1395,12 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
 
       const lowerTranscript = rawTranscript.toLowerCase();
 
-      if (isJarvisSpeaking && lowerTranscript.includes("jarvis")) {
+      // Immediately cancel speech if Jarvis is speaking and user speaks
+      if (isJarvisSpeaking) {
         if ('speechSynthesis' in window) {
           window.speechSynthesis.cancel();
         }
         isJarvisSpeaking = false;
-        if (statusText) statusText.innerText = "LISTENING...";
       }
 
       if (input) input.value = rawTranscript;
@@ -1492,9 +1436,7 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
         try {
           recognition.start();
         } catch (e) {
-          setTimeout(() => {
-            try { recognition.start(); } catch(err) {}
-          }, 200);
+          setTimeout(() => { try { recognition.start(); } catch(err) {} }, 200);
         }
       } else {
         if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
@@ -1509,11 +1451,7 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
   startJarvisListening = function() {
     if (!isListeningActive) {
       isListeningActive = true;
-      try {
-        recognition.start();
-      } catch (err) {
-        console.log(err);
-      }
+      try { recognition.start(); } catch (err) { console.log(err); }
     }
   };
 
@@ -1524,14 +1462,10 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
         recognition.start();
         addMessage(`Jarvis: Active and listening continuously, Boss...`, 'ai');
         speak('Listening continuously, Boss.');
-      } catch (err) {
-        console.log(err);
-      }
+      } catch (err) { console.log(err); }
     } else {
       isListeningActive = false;
-      try {
-        recognition.stop();
-      } catch (err) {}
+      try { recognition.stop(); } catch (err) {}
       addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
       speak('Stopped Listening, Boss.');
     }
