@@ -1106,6 +1106,11 @@ function handleHardcoded(text) {
     return "YouTube workspace closed, Boss.";
   }
 
+  // FIXED: Prevent "explain f1" or "analyze f1" from intercepting as view toggle commands
+  if (query.includes("explain") || query.includes("analyze") || query.includes("what is this")) {
+    return null; // Let callGemini handle file explanation and analysis
+  }
+
   // Handle Fullscreen vs 3D File Commands ('natural all files', '3d all files', 'natural f1', '3d f1')
   const isFullscreenModalOpen = document.getElementById('fullscreen-projection-layer')?.style.display === 'flex';
   const is3DModalOpen = document.getElementById('td-workspace-modal')?.style.display === 'flex';
@@ -1173,7 +1178,6 @@ async function callGemini(text) {
       const labelQuery = match[0].toLowerCase();
       targetFile = workspaceFiles3D.find(f => f.label.toLowerCase() === labelQuery);
     } else if (workspaceFiles3D.length > 0 && (lowerText.includes("explain") || lowerText.includes("analyze") || lowerText.includes("what is this"))) {
-      // Default to the last added file if no file number specified in explain/analyze command
       targetFile = workspaceFiles3D[workspaceFiles3D.length - 1];
     }
   }
