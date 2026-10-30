@@ -168,7 +168,6 @@ function loadYouTubeSearch(query) {
   let videoId = "";
   let cleanUrl = query.trim();
 
-  // Strict Direct YouTube Link / Video ID parser
   if (cleanUrl.includes('youtube.com/watch?v=')) {
     try {
       const urlParams = new URLSearchParams(new URL(cleanUrl).search);
@@ -181,12 +180,70 @@ function loadYouTubeSearch(query) {
   }
 
   if (videoId) {
-    // Direct embed with autoplay & origin matching to prevent expiration/embedding block
     iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&enablejsapi=1`;
   } else {
-    // Guaranteed working YouTube Embedded Search Query Fallback (Prevents expired/unavailable video errors)
     iframe.src = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(cleanUrl)}&autoplay=1`;
   }
+}
+
+/* =========================================================
+   1.3. MAP POINTING PIN & BLUE HOLOGRAPHIC BLUEPRINT GENERATOR (3D CODE INTEGRATION)
+   ========================================================= */
+function createMapPinCanvas(fileLabel) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 96;
+  canvas.height = 120;
+  const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.beginPath();
+  ctx.moveTo(48, 115);
+  ctx.bezierCurveTo(15, 75, 8, 50, 8, 38);
+  ctx.arc(48, 38, 40, Math.PI, 0, false);
+  ctx.bezierCurveTo(88, 50, 81, 75, 48, 115);
+  ctx.closePath();
+
+  ctx.fillStyle = '#00f3ff';
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#ffffff';
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(48, 38, 24, 0, Math.PI * 2);
+  ctx.fillStyle = '#000f1e';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#00f3ff';
+  ctx.stroke();
+
+  ctx.fillStyle = '#00f3ff';
+  ctx.font = 'bold 22px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(fileLabel.toUpperCase(), 48, 38);
+
+  return canvas;
+}
+
+function attachMapPinToMesh(mesh, fileLabel) {
+  const oldPin = mesh.getObjectByName("mapPin");
+  if (oldPin) mesh.remove(oldPin);
+
+  const pinCanvas = createMapPinCanvas(fileLabel);
+  const pinTexture = new THREE.CanvasTexture(pinCanvas);
+  const pinGeo = new THREE.PlaneGeometry(2.2, 2.8);
+  const pinMat = new THREE.MeshBasicMaterial({
+    map: pinTexture,
+    transparent: true,
+    side: THREE.DoubleSide
+  });
+  const pinMesh = new THREE.Mesh(pinGeo, pinMat);
+  pinMesh.name = "mapPin";
+  
+  pinMesh.position.set(0, 7.4, 0.1);
+  mesh.add(pinMesh);
 }
 
 /* =========================================================
@@ -248,7 +305,6 @@ function ensure3DModalExists() {
             <span style="color:#ff3366; font-size:12px; font-weight:bold;">Say 'go back full screen' to exit</span>
           </div>
           <div id="projection-grid-container" style="flex:1; display:grid; gap:10px; padding:15px; align-center; justify-center; overflow:hidden;"></div>
-          <!-- Bottom Search Bar style HUD bar showing active file numbers -->
           <div id="projection-bottom-hud" style="width:100%; height:45px; background:rgba(0,30,60,0.9); border:1px solid #00ffff; border-radius:8px; display:flex; align-items:center; padding:0 15px; box-sizing:border-box; gap:10px; overflow-x:auto;">
             <span style="color:#00ffff; font-size:11px; font-weight:bold;">ACTIVE FILES:</span>
             <div id="projection-hud-badges" style="display:flex; gap:8px;"></div>
@@ -348,82 +404,6 @@ function init3DBoxScene() {
   animateBoxScene();
 }
 
-/* =========================================================
-   MAP POINTING PIN GENERATOR FOR NORMAL 3D WORKSPACE
-   ========================================================= */
-function createMapPinCanvas(fileLabel) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 96;
-  canvas.height = 120;
-  const ctx = canvas.getContext('2d');
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.beginPath();
-  ctx.moveTo(48, 115);
-  ctx.bezierCurveTo(15, 75, 8, 50, 8, 38);
-  ctx.arc(48, 38, 40, Math.PI, 0, false);
-  ctx.bezierCurveTo(88, 50, 81, 75, 48, 115);
-  ctx.closePath();
-
-  ctx.fillStyle = '#00f3ff';
-  ctx.fill();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = '#ffffff';
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(48, 38, 24, 0, Math.PI * 2);
-  ctx.fillStyle = '#000f1e';
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = '#00f3ff';
-  ctx.stroke();
-
-  ctx.fillStyle = '#00f3ff';
-  ctx.font = 'bold 22px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(fileLabel.toUpperCase(), 48, 38);
-
-  return canvas;
-}
-
-function attachMapPinToMesh(mesh, fileLabel) {
-  const oldPin = mesh.getObjectByName("mapPin");
-  if (oldPin) mesh.remove(oldPin);
-
-  const pinCanvas = createMapPinCanvas(fileLabel);
-  const pinTexture = new THREE.CanvasTexture(pinCanvas);
-  const pinGeo = new THREE.PlaneGeometry(2.2, 2.8);
-  const pinMat = new THREE.MeshBasicMaterial({
-    map: pinTexture,
-    transparent: true,
-    side: THREE.DoubleSide
-  });
-  const pinMesh = new THREE.Mesh(pinGeo, pinMat);
-  pinMesh.name = "mapPin";
-  
-  pinMesh.position.set(0, 7.4, 0.1);
-  mesh.add(pinMesh);
-}
-
-// ULTRA-CLEAR 3D TEXTURE
-function create3DTexture(imgObj) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-
-  ctx.drawImage(imgObj, 0, 0, 512, 512);
-
-  ctx.globalCompositeOperation = 'source-atop';
-  ctx.fillStyle = 'rgba(0, 180, 255, 0.32)';
-  ctx.fillRect(0, 0, 512, 512);
-
-  return new THREE.CanvasTexture(canvas);
-}
-
 function spawn3DTextFromInput() {
   const textInput = document.getElementById('td-box-input');
   const hud = document.getElementById('td-hud-status');
@@ -486,6 +466,9 @@ function spawn3DTextFromInput() {
   if (hud) hud.innerText = `TEXT SPAWNED AS ${fileLabel.toUpperCase()}. SILENTLY SAVED.`;
 }
 
+/* =========================================================
+   BLUEPRINT IMAGE UPLOAD WITH EXACT HOLOGRAPHIC BLUE TINT LOGIC
+   ========================================================= */
 function handle3DBlueprintUpload(e) {
   const file = e.target.files[0];
   const hud = document.getElementById('td-hud-status');
@@ -501,10 +484,30 @@ function handle3DBlueprintUpload(e) {
     const img = new Image();
     img.src = base64FullData;
     img.onload = () => {
+      // Original Texture for Natural View mode
       const origTexture = new THREE.TextureLoader().load(base64FullData);
-      const threeDTexture = create3DTexture(img);
 
-      const geometry = new THREE.PlaneGeometry(12, 12);
+      // --- Bluish Holographic Tint Conversion Logic from 3D Code ---
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        data[i] = 0;             // Red channel removed
+        data[i + 1] = avg * 0.9; // Green adjusted
+        data[i + 2] = avg * 1.2; // Blue boosted for holographic blue glow
+      }
+      ctx.putImageData(imgData, 0, 0);
+
+      const threeDTexture = new THREE.CanvasTexture(canvas);
+      const aspect = img.width / img.height;
+      const geometry = new THREE.PlaneGeometry(14 * aspect, 14);
       const material = new THREE.MeshBasicMaterial({
         map: threeDTexture,
         side: THREE.DoubleSide,
@@ -542,7 +545,7 @@ function handle3DBlueprintUpload(e) {
         originalScale: mesh.scale.clone()
       });
 
-      if (hud) hud.innerText = `IMAGE UPLOADED AS ${fileLabel.toUpperCase()}. SILENTLY SAVED.`;
+      if (hud) hud.innerText = `IMAGE UPLOADED AS ${fileLabel.toUpperCase()} WITH BLUE HOLOGRAPHIC TINT.`;
     };
   };
   reader.readAsDataURL(file);
@@ -572,15 +575,9 @@ function handleFullscreenFiles(labelsArray) {
   } else if (count === 2) {
     gridContainer.style.gridTemplateColumns = '1fr 1fr';
     gridContainer.style.gridTemplateRows = '1fr';
-  } else if (count === 3) {
+  } else if (count === 3 || count === 4) {
     gridContainer.style.gridTemplateColumns = '1fr 1fr';
     gridContainer.style.gridTemplateRows = '1fr 1fr';
-  } else if (count === 4) {
-    gridContainer.style.gridTemplateColumns = '1fr 1fr';
-    gridContainer.style.gridTemplateRows = '1fr 1fr';
-  } else if (count === 5) {
-    gridContainer.style.gridTemplateColumns = '1fr 1fr';
-    gridContainer.style.gridTemplateRows = '1fr 1fr 1fr';
   } else {
     gridContainer.style.gridTemplateColumns = '1fr 1fr';
     gridContainer.style.gridTemplateRows = '1fr 1fr 1fr';
@@ -1099,8 +1096,7 @@ async function callGemini(text) {
   const customMems = getCustomMemories();
   let contextualInstruction = SYSTEM_INSTRUCTION;
 
-  // Strict rule to prevent fake 404/expired URLs by using safe query searches or official IDs
-  contextualInstruction += `\n\n[YouTube Play Protocol]: When the Boss asks to play a video, song, or music, do not guess raw video IDs that might be expired. Provide a valid working YouTube watch URL or search query string so the player opens instantly.`;
+  contextualInstruction += `\n\n[YouTube Play Protocol]: When the Boss asks to play a video, song, or music, provide a valid working YouTube watch URL or search query string so the player opens instantly.`;
 
   let targetFile = null;
   if (text) {
@@ -1172,14 +1168,12 @@ async function callGemini(text) {
         if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts[0].text) {
           const aiResponseText = data.candidates[0].content.parts[0].text;
           
-          // Enhanced YouTube URL parser & foolproof playback trigger
           const ytLinkMatch = aiResponseText.match(/(https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)[a-zA-Z0-9_-]{11})/i);
           const isPlayIntent = text.toLowerCase().includes("play") || text.toLowerCase().includes("youtube") || text.toLowerCase().includes("song") || text.toLowerCase().includes("bgm") || text.toLowerCase().includes("music");
 
           if (ytLinkMatch) {
             setTimeout(() => { openYouTubeModal(ytLinkMatch[1]); }, 300);
           } else if (isPlayIntent) {
-            // Clean command text to pass a pristine search query to YouTube player modal
             const cleanQuery = text.replace(/open|youtube|and|play|music|song|video|can|you/gi, "").trim();
             setTimeout(() => { openYouTubeModal(cleanQuery || text); }, 300);
           }
