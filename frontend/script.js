@@ -959,7 +959,7 @@ function handleHardcoded(text) {
     return "Jarvis Mode activated, Boss. Replies will now trigger only when 'Jarvis' is mentioned in your sentence.";
   }
 
-  // Jarvis Mode Deactivation Commands (including 'off' variants)
+  // Jarvis Mode Deactivation Commands
   if (query.includes("jarvis mode off") || query.includes("jarvis off") || query.includes("off jarvis") || query.includes("close jarvis") || query.includes("jarvis mode deactivate") || query === "normal mode") {
     strictJarvisKeywordMode = false;
     return "Jarvis Mode deactivated, Boss. Listening to all inputs.";
@@ -1222,7 +1222,6 @@ async function callGemini(text) {
 
   if (statusText) statusText.innerText = "PROCESSING...";
 
-  // Optimized ultra-fast model checking for immediate response
   for (let model of MODELS) {
     try {
       const controller = new AbortController();
@@ -1490,7 +1489,7 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. ENHANCED VOICE RECOGNITION (FIXED REPEATED PROMPTS & MODE TOGGLE)
+   11. ENHANCED VOICE RECOGNITION (STRICT FINAL RESULTS ONLY)
    ========================================================= */
 let startJarvisListening = function() {};
 
@@ -1498,15 +1497,12 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let isListeningActive = false;
-  let lastProcessedTranscript = ''; // Prevent repeated text triggers
 
   function initRecognition() {
     recognition = new SpeechRecognition();
     recognition.lang = 'en-US'; 
     recognition.continuous = true;     
-    recognition.interimResults = true; 
-
-    let finalTranscriptBuffer = '';
+    recognition.interimResults = false; // DISABLED interim results to prevent partial repeating texts
 
     recognition.onstart = () => {
       if (statusText) statusText.innerText = "LISTENING...";
@@ -1515,18 +1511,14 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
     };
 
     recognition.onresult = (event) => {
-      let interim = '';
-      finalTranscriptBuffer = '';
-
+      let finalTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
-          finalTranscriptBuffer += event.results[i][0].transcript;
-        } else {
-          interim += event.results[i][0].transcript;
+          finalTranscript += event.results[i][0].transcript;
         }
       }
 
-      const rawTranscript = (finalTranscriptBuffer || interim).trim();
+      const rawTranscript = finalTranscript.trim();
       if (!rawTranscript) return;
 
       const lowerTranscript = rawTranscript.toLowerCase();
@@ -1542,37 +1534,26 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
 
       if (input) input.value = rawTranscript;
 
-      if (finalTranscriptBuffer) {
-        // Prevent duplicate processing of the exact same recognized text
-        if (rawTranscript === lastProcessedTranscript) {
-          finalTranscriptBuffer = '';
-          return;
-        }
-        lastProcessedTranscript = rawTranscript;
-
-        // Check if strictJarvisKeywordMode is active
-        if (strictJarvisKeywordMode && !lowerTranscript.includes("jarvis")) {
-          finalTranscriptBuffer = '';
-          if (input) input.value = '';
-          return;
-        }
-
-        if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-        }
-
-        if (lowerTranscript.includes("smart stop listening") || lowerTranscript.includes("stop listening")) {
-          isListeningActive = false;
-          try { recognition.stop(); } catch(e){}
-          addMessage(`You: ${rawTranscript}`, 'user');
-          addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
-          speak('Stopped Listening, Boss.');
-          return;
-        }
-
-        handleUserCommand();
-        finalTranscriptBuffer = '';
+      // Check if strictJarvisKeywordMode is active
+      if (strictJarvisKeywordMode && !lowerTranscript.includes("jarvis")) {
+        if (input) input.value = '';
+        return;
       }
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+
+      if (lowerTranscript.includes("smart stop listening") || lowerTranscript.includes("stop listening")) {
+        isListeningActive = false;
+        try { recognition.stop(); } catch(e){}
+        addMessage(`You: ${rawTranscript}`, 'user');
+        addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
+        speak('Stopped Listening, Boss.');
+        return;
+      }
+
+      handleUserCommand();
     };
 
     recognition.onerror = (event) => {
