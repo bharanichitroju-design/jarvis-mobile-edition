@@ -24,7 +24,7 @@ Behavior Guidelines:
 1. Always address Bharani as "Boss" or "Sir".
 2. If asked "What is your name?" or "Who are you?", respond with: "My name is Jarvis, created by Bharani (Sir)."
 3. Keep answers concise, direct, and helpful. Utilize the user's saved memory files and offline notes when requested.
-4. [Projection & File Control Commands]: Support commands like 'full screen f1', 'normal f1', 'go back', and 'go home'.`;
+4. [Projection & File Control Commands]: Support commands like 'full screen f1', 'natural f1', '3d f1', 'natural all files', '3d all files', 'go back', and 'go home'.`;
 
 let SESSIONS = [];
 try {
@@ -529,7 +529,7 @@ function handle3DBlueprintUpload(e) {
   this.value = '';
 }
 
-// Function to update 3D file texture between normal/blue tint and original
+// Function to update single 3D file texture between normal and blue tint
 function update3DFileDisplayMode(fileLabel, makeNormal) {
   const target = workspaceFiles3D.find(f => f.label.toLowerCase() === fileLabel.toLowerCase() && !f.isDeleted);
   if (!target || target.type !== 'image') return false;
@@ -544,27 +544,60 @@ function update3DFileDisplayMode(fileLabel, makeNormal) {
   return true;
 }
 
+// Function to update ALL 3D files mode
+function updateAll3DFilesMode(makeNormal) {
+  workspaceFiles3D.forEach(f => {
+    if (!f.isDeleted && f.type === 'image') {
+      f.isNatural = makeNormal;
+      f.mesh.material.map = makeNormal ? f.originalTexture : f.threeDTexture;
+      f.mesh.material.needsUpdate = true;
+    }
+  });
+}
+
 /* =========================================================
    FULLSCREEN PROJECTION LAYER WITH INDEPENDENT CONTROLS
    ========================================================= */
 let activeFullscreenFilesState = [];
-let activeFullscreenIsNatural = false;
+let fullscreenFilesNaturalMap = {}; // Tracks natural state per file in fullscreen
 
 function handleFullscreenFiles(labelsArray, isNatural = false) {
   const activeFiles = workspaceFiles3D.filter(f => !f.isDeleted && labelsArray.includes(f.label.toLowerCase()));
   if (activeFiles.length === 0) return false;
 
   activeFullscreenFilesState = activeFiles;
-  activeFullscreenIsNatural = isNatural;
+  activeFiles.forEach(f => {
+    if (fullscreenFilesNaturalMap[f.label.toLowerCase()] === undefined) {
+      fullscreenFilesNaturalMap[f.label.toLowerCase()] = isNatural;
+    } else if (isNatural !== undefined) {
+      fullscreenFilesNaturalMap[f.label.toLowerCase()] = isNatural;
+    }
+  });
 
   const projLayer = document.getElementById('fullscreen-projection-layer');
   const gridContainer = document.getElementById('projection-grid-container');
-  const hudBadges = document.getElementById('projection-hud-badges');
   if (!projLayer || !gridContainer) return false;
 
   projLayer.style.display = 'flex';
   renderFullscreenGrid();
   return true;
+}
+
+function updateFullscreenSingleFileMode(fileLabel, makeNormal) {
+  const target = activeFullscreenFilesState.find(f => f.label.toLowerCase() === fileLabel.toLowerCase());
+  if (target) {
+    fullscreenFilesNaturalMap[fileLabel.toLowerCase()] = makeNormal;
+    renderFullscreenGrid();
+    return true;
+  }
+  return false;
+}
+
+function updateFullscreenAllFilesMode(makeNormal) {
+  activeFullscreenFilesState.forEach(f => {
+    fullscreenFilesNaturalMap[f.label.toLowerCase()] = makeNormal;
+  });
+  renderFullscreenGrid();
 }
 
 function renderFullscreenGrid() {
@@ -597,11 +630,13 @@ function renderFullscreenGrid() {
     card.style.cssText = "background:rgba(0,30,60,0.85); border:2px solid #00ffff; box-shadow:0 0 20px rgba(0,255,255,0.4); border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; overflow:hidden; padding:10px;";
 
     let contentHTML = '';
+    const isNaturalFile = fullscreenFilesNaturalMap[fileObj.label.toLowerCase()] || false;
+
     if (fileObj.type === 'text') {
       contentHTML = `<div style="color:#00ffff; font-size:18px; font-weight:bold; text-align:center; padding:10px; font-family:monospace;">${fileObj.content}</div>`;
     } else {
       let imgSrc = '';
-      if (activeFullscreenIsNatural) {
+      if (isNaturalFile) {
         imgSrc = fileObj.originalTexture && fileObj.originalTexture.image ? fileObj.originalTexture.image.src : `data:${fileObj.mimeType};base64,${fileObj.data}`;
       } else {
         const tempCanvas = document.createElement('canvas');
@@ -644,6 +679,7 @@ function closeFullscreenProjection() {
   const projLayer = document.getElementById('fullscreen-projection-layer');
   if (projLayer) projLayer.style.display = 'none';
   activeFullscreenFilesState = [];
+  fullscreenFilesNaturalMap = {};
 }
 
 function checkTrashCollision3D(clientX, clientY) {
@@ -1070,39 +1106,43 @@ function handleHardcoded(text) {
     return "YouTube workspace closed, Boss.";
   }
 
-  // Handle Fullscreen vs 3D File Commands
-  const labelMatches = query.match(/f\d+/gi);
-  if (labelMatches) {
-    const firstLabel = labelMatches[0].toLowerCase();
-    const isFullscreenModalOpen = document.getElementById('fullscreen-projection-layer')?.style.display === 'flex';
-    const is3DModalOpen = document.getElementById('td-workspace-modal')?.style.display === 'flex';
+  // Handle Fullscreen vs 3D File Commands ('natural all files', '3d all files', 'natural f1', '3d f1')
+  const isFullscreenModalOpen = document.getElementById('fullscreen-projection-layer')?.style.display === 'flex';
+  const is3DModalOpen = document.getElementById('td-workspace-modal')?.style.display === 'flex';
 
-    if (query.includes("full screen") || query.includes("fullscreen") || query.includes("show")) {
+  if (query.includes("full screen") || query.includes("fullscreen") || query.includes("show")) {
+    const labelMatches = query.match(/f\d+/gi);
+    if (labelMatches) {
       const isNatural = query.includes("natural") || query.includes("normal");
       const success = handleFullscreenFiles(labelMatches.map(l => l.toLowerCase()), isNatural);
-      if (success) return `Projecting files [${labelMatches.join(', ').toUpperCase()} in fullscreen, Boss.`;
+      if (success) return `Projecting files [${labelMatches.join(', ').toUpperCase()}] in fullscreen, Boss.`;
     }
+  }
 
-    if (query.includes("normal") || query.includes("natural")) {
-      if (isFullscreenModalOpen) {
-        // Toggle natural view in active fullscreen state
-        activeFullscreenIsNatural = true;
-        renderFullscreenGrid();
-        return `Fullscreen file ${firstLabel.toUpperCase()} switched to normal view, Boss.`;
-      } else if (is3DModalOpen) {
-        update3DFileDisplayMode(firstLabel, true);
-        return `3D file ${firstLabel.toUpperCase()} switched to normal view, Boss.`;
-      }
-    } else {
-      // Switch back to blue holographic tint if requested specifically
-      if (isFullscreenModalOpen) {
-        activeFullscreenIsNatural = false;
-        renderFullscreenGrid();
-        return `Fullscreen file ${firstLabel.toUpperCase()} switched to holographic blue view, Boss.`;
-      } else if (is3DModalOpen) {
-        update3DFileDisplayMode(firstLabel, false);
-        return `3D file ${firstLabel.toUpperCase()} switched to holographic blue view, Boss.`;
-      }
+  // Handle ALL files command ("natural all files" or "3d all files")
+  if (query.includes("all files") || query.includes("all file")) {
+    const makeNormal = query.includes("natural") || query.includes("normal");
+    if (isFullscreenModalOpen) {
+      updateFullscreenAllFilesMode(makeNormal);
+      return `All fullscreen files switched to ${makeNormal ? 'natural' : '3D blue'} view, Boss.`;
+    } else if (is3DModalOpen) {
+      updateAll3DFilesMode(makeNormal);
+      return `All 3D workspace files switched to ${makeNormal ? 'natural' : '3D blue'} view, Boss.`;
+    }
+  }
+
+  // Handle single file command ("natural f1" or "3d f1")
+  const labelMatches = query.match(/f\d+/gi);
+  if (labelMatches && labelMatches.length > 0) {
+    const targetLabel = labelMatches[0].toLowerCase();
+    const makeNormal = query.includes("natural") || query.includes("normal");
+
+    if (isFullscreenModalOpen) {
+      const success = updateFullscreenSingleFileMode(targetLabel, makeNormal);
+      if (success) return `Fullscreen file ${targetLabel.toUpperCase()} switched to ${makeNormal ? 'natural' : '3D blue'} view, Boss.`;
+    } else if (is3DModalOpen) {
+      const success = update3DFileDisplayMode(targetLabel, makeNormal);
+      if (success) return `3D workspace file ${targetLabel.toUpperCase()} switched to ${makeNormal ? 'natural' : '3D blue'} view, Boss.`;
     }
   }
 
