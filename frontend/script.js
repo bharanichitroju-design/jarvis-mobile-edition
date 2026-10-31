@@ -845,9 +845,9 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS 3D FACE IMAGE & LIP-SYNC ANIMATION (UPDATED)
+   2. THREE.JS 3D HUMANOID ROBOT FACE & LIP-SYNC ANIMATION (FIXED)
    ========================================================= */
-let scene, camera, renderer, faceMesh;
+let scene, camera, renderer, robotModel;
 
 function init3DFace() {
   const container = document.getElementById('face-container');
@@ -855,36 +855,51 @@ function init3DFace() {
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-  camera.position.z = 4.2;
+  camera.position.set(0, 0, 4.5);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(290, 290);
+  renderer.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer.domElement);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+  // Lighting for 3D GLB Model
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
   scene.add(ambientLight);
 
-  const pointLight = new THREE.PointLight(0x00f3ff, 2.5, 50);
-  pointLight.position.set(2, 3, 4);
-  scene.add(pointLight);
+  const dirLight = new THREE.DirectionalLight(0x00ffff, 2.5);
+  dirLight.position.set(5, 5, 5);
+  scene.add(dirLight);
 
-  // UPDATED: Loading the new humanoid robot face file uploaded via GitHub
-  const textureLoader = new THREE.TextureLoader();
-  textureLoader.load(
+  const backLight = new THREE.DirectionalLight(0x0088ff, 1.5);
+  backLight.position.set(-5, -5, -5);
+  scene.add(backLight);
+
+  // Loading the 3D .glb model using GLTFLoader
+  const loader = new THREE.GLTFLoader();
+  loader.load(
     './humanoid_robot_face (1).glb',
-    (texture) => {
-      const geometry = new THREE.PlaneGeometry(2.6, 2.6);
-      const material = new THREE.MeshBasicMaterial({
-        map: texture,
-        transparent: true,
-        side: THREE.DoubleSide
-      });
-      faceMesh = new THREE.Mesh(geometry, material);
-      scene.add(faceMesh);
+    (gltf) => {
+      robotModel = gltf.scene;
+      
+      // Auto-center and scale model to fit view
+      const box = new THREE.Box3().setFromObject(robotModel);
+      const center = box.getCenter(new THREE.Vector3());
+      const size = box.getSize(new THREE.Vector3());
+      
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const scale = 2.2 / maxDim;
+      robotModel.scale.set(scale, scale, scale);
+      
+      robotModel.position.sub(center.multiplyScalar(scale));
+      robotModel.position.y -= 0.1; // Fine-tune vertical position
+
+      scene.add(robotModel);
     },
-    undefined,
-    (err) => { 
-      console.warn("Texture loader fallback triggered, loading default fallback if needed:", err); 
+    (xhr) => {
+      console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+    },
+    (err) => {
+      console.error("Error loading 3D humanoid robot model (.glb):", err);
     }
   );
 
@@ -893,15 +908,13 @@ function init3DFace() {
 
 function animateFace() {
   requestAnimationFrame(animateFace);
-  if (faceMesh) {
-    faceMesh.position.y = Math.sin(Date.now() * 0.003) * 0.04;
+  if (robotModel) {
+    robotModel.position.y = Math.sin(Date.now() * 0.003) * 0.04;
     if (isJarvisSpeaking) {
       const time = Date.now() * 0.025;
-      faceMesh.scale.y = 1 + Math.sin(time) * 0.12;
-      faceMesh.scale.x = 1 + Math.cos(time * 0.7) * 0.02;
+      robotModel.scale.y = 1 + Math.sin(time) * 0.08;
     } else {
-      faceMesh.scale.y += (1 - faceMesh.scale.y) * 0.1;
-      faceMesh.scale.x += (1 - faceMesh.scale.x) * 0.1;
+      robotModel.scale.y += (1 - robotModel.scale.y) * 0.1;
     }
   }
   if (renderer && scene && camera) renderer.render(scene, camera);
@@ -917,6 +930,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof startJarvisListening === 'function') startJarvisListening();
   }, 1000);
 });
+
 
 /* =========================================================
    3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT
