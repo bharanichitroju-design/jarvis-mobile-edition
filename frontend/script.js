@@ -845,9 +845,9 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS 3D HUMANOID ROBOT FACE & LIP-SYNC ANIMATION (FIXED)
+   2. THREE.JS 3D FACE IMAGE & LIP-SYNC ANIMATION (RESTORED & FIXED)
    ========================================================= */
-let scene, camera, renderer, robotModel;
+let scene, camera, renderer, faceMesh;
 
 function init3DFace() {
   const container = document.getElementById('face-container');
@@ -855,66 +855,71 @@ function init3DFace() {
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-  camera.position.set(0, 0, 4.5);
+  camera.position.set(0, 0, 4.2);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(290, 290);
   renderer.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer.domElement);
 
-  // Lighting for 3D GLB Model
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
   scene.add(ambientLight);
 
-  const dirLight = new THREE.DirectionalLight(0x00ffff, 2.5);
-  dirLight.position.set(5, 5, 5);
-  scene.add(dirLight);
+  const pointLight = new THREE.PointLight(0x00f3ff, 2.5, 50);
+  pointLight.position.set(2, 3, 4);
+  scene.add(pointLight);
 
-  const backLight = new THREE.DirectionalLight(0x0088ff, 1.5);
-  backLight.position.set(-5, -5, -5);
-  scene.add(backLight);
-
-  // Loading the 3D .glb model using GLTFLoader
-  const loader = new THREE.GLTFLoader();
-  loader.load(
-    './humanoid_robot_face (1).glb',
-    (gltf) => {
-      robotModel = gltf.scene;
-      
-      // Auto-center and scale model to fit view
-      const box = new THREE.Box3().setFromObject(robotModel);
-      const center = box.getCenter(new THREE.Vector3());
-      const size = box.getSize(new THREE.Vector3());
-      
-      const maxDim = Math.max(size.x, size.y, size.z);
-      const scale = 2.2 / maxDim;
-      robotModel.scale.set(scale, scale, scale);
-      
-      robotModel.position.sub(center.multiplyScalar(scale));
-      robotModel.position.y -= 0.1; // Fine-tune vertical position
-
-      scene.add(robotModel);
+  // Loading the original face image properly centered and scaled as a 3D facing plane mesh
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.load(
+    './humanoid_robot_face (1).glb', // Fallback or image path check
+    (texture) => {
+      setupFaceMesh(texture);
     },
-    (xhr) => {
-      console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-    },
-    (err) => {
-      console.error("Error loading 3D humanoid robot model (.glb):", err);
+    undefined,
+    (err) => { 
+      // If glb fails to load as texture, fallback to direct image loading or default
+      textureLoader.load('./humanoid_robot_face.png', (tex) => {
+        setupFaceMesh(tex);
+      }, undefined, () => {
+        // Ultimate fallback placeholder texture or color
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#00f3ff';
+        ctx.fillRect(0,0,512,512);
+        const fallbackTex = new THREE.CanvasTexture(canvas);
+        setupFaceMesh(fallbackTex);
+      });
     }
   );
 
   animateFace();
 }
 
+function setupFaceMesh(texture) {
+  const geometry = new THREE.PlaneGeometry(2.8, 2.8);
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    side: THREE.DoubleSide
+  });
+  faceMesh = new THREE.Mesh(geometry, material);
+  faceMesh.position.set(0, 0, 0);
+  scene.add(faceMesh);
+}
+
 function animateFace() {
   requestAnimationFrame(animateFace);
-  if (robotModel) {
-    robotModel.position.y = Math.sin(Date.now() * 0.003) * 0.04;
+  if (faceMesh) {
+    faceMesh.position.y = Math.sin(Date.now() * 0.003) * 0.03;
     if (isJarvisSpeaking) {
       const time = Date.now() * 0.025;
-      robotModel.scale.y = 1 + Math.sin(time) * 0.08;
+      faceMesh.scale.y = 1 + Math.sin(time) * 0.10;
+      faceMesh.scale.x = 1 + Math.cos(time * 0.7) * 0.02;
     } else {
-      robotModel.scale.y += (1 - robotModel.scale.y) * 0.1;
+      faceMesh.scale.y += (1 - faceMesh.scale.y) * 0.1;
+      faceMesh.scale.x += (1 - faceMesh.scale.x) * 0.1;
     }
   }
   if (renderer && scene && camera) renderer.render(scene, camera);
@@ -930,7 +935,6 @@ window.addEventListener('DOMContentLoaded', () => {
     if (typeof startJarvisListening === 'function') startJarvisListening();
   }, 1000);
 });
-
 
 /* =========================================================
    3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT
