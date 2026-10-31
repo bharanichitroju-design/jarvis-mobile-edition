@@ -845,7 +845,7 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (SHIFTED DOWNWARD TO FIT CENTER)
+   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECT CIRCLE BOUNDARY FIT)
    ========================================================= */
 let scene, camera, renderer, faceModel3D;
 
@@ -855,6 +855,7 @@ function init3DFace() {
 
   scene = new THREE.Scene();
 
+  // Camera z-positioning for optimal 290px circular viewport containment
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
   camera.position.set(0, 0, 3.8);
 
@@ -881,22 +882,25 @@ function init3DFace() {
       (gltf) => {
         faceModel3D = gltf.scene;
 
+        // Compute exact bounding box and geometry center
         const box = new THREE.Box3().setFromObject(faceModel3D);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
+        // Center origin point of GLTF mesh
         faceModel3D.position.sub(center);
 
+        // Scale factor optimized so model spans from top edge to bottom edge of circle
         const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 2.1; 
+        const targetSize = 2.50; 
         const scaleFactor = targetSize / (maxDim > 0 ? maxDim : 1);
 
         faceModel3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
         const wrapperGroup = new THREE.Group();
         
-        // SHIFTED DOWNWARD: Negative Y offset pulls the overflowing model down into the center
-        faceModel3D.position.y = -0.45; 
+        // Exact vertical alignment offset to match circle top and bottom edges precisely
+        faceModel3D.position.y = -0.15; 
         
         wrapperGroup.add(faceModel3D);
         wrapperGroup.position.set(0, 0, 0); 
