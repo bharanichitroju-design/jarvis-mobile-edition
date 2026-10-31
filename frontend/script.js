@@ -845,7 +845,7 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECT CIRCLE BOUNDARY FIT)
+   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECTLY CENTERED IN VIEWPORT)
    ========================================================= */
 let scene, camera, renderer, faceModel3D;
 
@@ -855,12 +855,11 @@ function init3DFace() {
 
   scene = new THREE.Scene();
 
-  // Camera z-positioning for optimal 290px circular viewport containment
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
   camera.position.set(0, 0, 3.8);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(290, 290);
+  renderer.setSize(240, 240); // కంటైనర్ సైజ్ కి సరిగ్గా సెట్ చేయబడింది
   renderer.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer.domElement);
 
@@ -882,25 +881,21 @@ function init3DFace() {
       (gltf) => {
         faceModel3D = gltf.scene;
 
-        // Compute exact bounding box and geometry center
+        // బౌండింగ్ బాక్స్ లెక్కించి పర్ఫెక్ట్ సెంటర్ చేయడం
         const box = new THREE.Box3().setFromObject(faceModel3D);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
-        // Center origin point of GLTF mesh
-        faceModel3D.position.sub(center);
+        faceModel3D.position.sub(center); // మోడల్ ఒరిజిన్ ని కరెక్ట్ సెంటర్ కి మార్చడం
 
-        // Scale factor optimized so model spans from top edge to bottom edge of circle
         const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 2.50; 
+        const targetSize = 2.2; 
         const scaleFactor = targetSize / (maxDim > 0 ? maxDim : 1);
 
         faceModel3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
         const wrapperGroup = new THREE.Group();
-        
-        // Exact vertical alignment offset to match circle top and bottom edges precisely
-        faceModel3D.position.y = -0.15; 
+        faceModel3D.position.y = 0.0; // ఎక్సాక్ట్ వర్టికల్ సెంటర్ అలైన్‌మెంట్
         
         wrapperGroup.add(faceModel3D);
         wrapperGroup.position.set(0, 0, 0); 
@@ -1572,7 +1567,7 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
 
   startJarvisListening = function() {
     if (!isListeningActive) {
-      isListeningActive = true;
+      isListeningActive `true`;
       try { recognition.start(); } catch (err) { console.log(err); }
     }
   };
