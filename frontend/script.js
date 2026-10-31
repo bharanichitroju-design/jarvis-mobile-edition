@@ -845,73 +845,7 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECT CENTER FIT)
-   ========================================================= */
-let scene, camera, renderer, faceModel3D;
-
-function init3DFace() {
-  const container = document.getElementById('face-container');
-  if (!container) return;
-
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-  camera.position.set(0, 0, 4.5);
-
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(290, 290);
-  renderer.setPixelRatio(window.devicePixelRatio);
-  container.appendChild(renderer.domElement);
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
-  scene.add(ambientLight);
-
-  const dirLight = new THREE.DirectionalLight(0x00f3ff, 3);
-  dirLight.position.set(5, 5, 5);
-  scene.add(dirLight);
-
-  const backLight = new THREE.DirectionalLight(0xffffff, 1);
-  backLight.position.set(-5, -5, -5);
-  scene.add(backLight);
-
-  // Loading GLTF 3D Face Model and centering it perfectly inside the circle
-  if (typeof THREE.GLTFLoader !== 'undefined') {
-    const loader = new THREE.GLTFLoader();
-    loader.load(
-      './humanoid_robot_face (1).glb',
-      (gltf) => {
-        faceModel3D = gltf.scene;
-
-        // Compute bounding box and center offset so it stays precisely in the middle
-        const box = new THREE.Box3().setFromObject(faceModel3D);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-
-        // Shift model geometry to its exact geometric center
-        faceModel3D.position.sub(center);
-
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 2.4; 
-        const scaleFactor = targetSize / (maxDim > 0 ? maxDim : 1);
-
-        faceModel3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        
-        // Wrap in a parent group to center and rotate seamlessly, aligned above System Online
-        const wrapperGroup = new THREE.Group();
-        faceModel3D.position.y -= -0.10; // Adjusted offset to align precisely above System Online
-        wrapperGroup.add(faceModel3D);
-        wrapperGroup.position.set(0, 0, 0); 
-        
-        faceModel3D = wrapperGroup;
-        scene.add(faceModel3D);
-      },
-      undefined,
-      (error) => {
-        console.warn("GLTF load error, falling back to 3D shape:", error);
-        createFallback3DFace();
-      }
-    );
-/* =========================================================
-   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECT ALIGNMENT ABOVE QUOTE)
+   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECT CIRCLE BOUNDARY FIT)
    ========================================================= */
 let scene, camera, renderer, faceModel3D;
 
@@ -921,9 +855,9 @@ function init3DFace() {
 
   scene = new THREE.Scene();
 
-  // Field of view and camera setup for vertical clarity
+  // Camera z-positioning for optimal 290px circular viewport containment
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-  camera.position.set(0, 0, 4.2);
+  camera.position.set(0, 0, 3.8);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(290, 290);
@@ -948,26 +882,25 @@ function init3DFace() {
       (gltf) => {
         faceModel3D = gltf.scene;
 
-        // Compute model dimensions and bounding box offset
+        // Compute exact bounding box and geometry center
         const box = new THREE.Box3().setFromObject(faceModel3D);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
-        // Center origin point of GLTF mesh exactly
+        // Center origin point of GLTF mesh
         faceModel3D.position.sub(center);
 
-        // Calculate appropriate scale factor to fit within container
+        // Scale factor optimized so model spans from top edge to bottom edge of circle
         const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 2.15; 
+        const targetSize = 2.50; 
         const scaleFactor = targetSize / (maxDim > 0 ? maxDim : 1);
 
         faceModel3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
-        // Wrap in parent group to offset base position right above the text quote
         const wrapperGroup = new THREE.Group();
         
-        // Setting Y position to -0.65 shifts the visual base to touch the quotation line without clipping top
-        faceModel3D.position.y = -0.65; 
+        // Exact vertical alignment offset to match circle top and bottom edges precisely
+        faceModel3D.position.y = -0.15; 
         
         wrapperGroup.add(faceModel3D);
         wrapperGroup.position.set(0, 0, 0); 
@@ -989,10 +922,10 @@ function init3DFace() {
 }
 
 function createFallback3DFace() {
-  const geometry = new THREE.SphereGeometry(1.0, 32, 32);
+  const geometry = new THREE.SphereGeometry(1.2, 32, 32);
   const material = new THREE.MeshStandardMaterial({ color: 0x00f3ff, roughness: 0.3, metalness: 0.8 });
   faceModel3D = new THREE.Mesh(geometry, material);
-  faceModel3D.position.set(0, -0.4, 0);
+  faceModel3D.position.set(0, 0, 0);
   scene.add(faceModel3D);
 }
 
@@ -1007,6 +940,17 @@ function animateFace() {
     renderer.render(scene, camera);
   }
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+  init3DFace();
+  setTimeout(() => {
+    const welcomeText = "Hi Sir, Your Jarvis was activated, ఏం చేద్దామో చెప్పండి సార్";
+    addMessage(`Jarvis: ${welcomeText}`, 'ai');
+    currentSession.messages.push({ role: 'model', text: welcomeText, time: format12HourTime(new Date()) });
+    speak(welcomeText);
+    if (typeof startJarvisListening === 'function') startJarvisListening();
+  }, 1000);
+});
 
 /* =========================================================
    3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT
