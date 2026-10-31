@@ -845,7 +845,7 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (EXACTLY CENTERED)
+   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (SHIFTED DOWNWARD TO FIT CENTER)
    ========================================================= */
 let scene, camera, renderer, faceModel3D;
 
@@ -859,7 +859,7 @@ function init3DFace() {
   camera.position.set(0, 0, 3.8);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(240, 240);
+  renderer.setSize(290, 290);
   renderer.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer.domElement);
 
@@ -894,7 +894,9 @@ function init3DFace() {
         faceModel3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
         const wrapperGroup = new THREE.Group();
-        faceModel3D.position.set(0, 0, 0); 
+        
+        // SHIFTED DOWNWARD: Negative Y offset pulls the overflowing model down into the center
+        faceModel3D.position.y = -0.45; 
         
         wrapperGroup.add(faceModel3D);
         wrapperGroup.position.set(0, 0, 0); 
@@ -1048,7 +1050,7 @@ if (saveCustomMemory) {
 }
 
 /* =========================================================
-   6. HARDCODED COMMANDS & VOICE BUTTON ROUTING
+   6. HARDCODED COMMANDS & VOICE BUTTON ROUTING (FIXED)
    ========================================================= */
 function handleHardcoded(text) {
   if (!text) return null;
