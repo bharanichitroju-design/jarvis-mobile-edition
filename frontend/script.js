@@ -845,7 +845,7 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECT FIT SCALE)
+   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (DYNAMIC AUTO-FIT)
    ========================================================= */
 let scene, camera, renderer, faceModel3D;
 
@@ -873,16 +873,23 @@ function init3DFace() {
   backLight.position.set(-5, -5, -5);
   scene.add(backLight);
 
-  // Loading the actual GLTF/GLB 3D humanoid face model properly using GLTFLoader
+  // Loading the actual GLTF/GLB 3D humanoid face model with dynamic bounding-box scaling
   if (typeof THREE.GLTFLoader !== 'undefined') {
     const loader = new THREE.GLTFLoader();
     loader.load(
       './humanoid_robot_face (1).glb',
       (gltf) => {
         faceModel3D = gltf.scene;
-        // Scaled to 1.9 so it perfectly fills the outer circle boundary with a little margin
+        
+        // Dynamically compute bounding box to scale model perfectly to fit the container circle boundary
+        const box = new THREE.Box3().setFromObject(faceModel3D);
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const targetSize = 2.4; // Perfect diameter to fill circle boundary with slight margin
+        const scaleFactor = targetSize / (maxDim > 0 ? maxDim : 1);
+
+        faceModel3D.scale.set(scaleFactor * 1.5, scaleFactor * 1.5, scaleFactor * 1.5);
         faceModel3D.position.set(0, -0.2, 0);
-        faceModel3D.scale.set(1.9, 1.9, 1.9);
         scene.add(faceModel3D);
       },
       undefined,
@@ -899,8 +906,8 @@ function init3DFace() {
 }
 
 function createFallback3DFace() {
-  // Fallback 3D Sphere/Head model scaled to match the circular container perfectly
-  const geometry = new THREE.SphereGeometry(1.8, 32, 32);
+  // Fallback 3D Sphere/Head model sized to match the circular container perfectly
+  const geometry = new THREE.SphereGeometry(1.4, 32, 32);
   const material = new THREE.MeshStandardMaterial({ color: 0x00f3ff, roughness: 0.3, metalness: 0.8 });
   faceModel3D = new THREE.Mesh(geometry, material);
   scene.add(faceModel3D);
