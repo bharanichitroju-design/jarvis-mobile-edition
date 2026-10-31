@@ -845,9 +845,9 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS 3D FACE IMAGE & LIP-SYNC ANIMATION (RESTORED & FIXED)
+   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (FIXED)
    ========================================================= */
-let scene, camera, renderer, faceMesh;
+let scene, camera, renderer, faceModel3D;
 
 function init3DFace() {
   const container = document.getElementById('face-container');
@@ -855,74 +855,68 @@ function init3DFace() {
 
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-  camera.position.set(0, 0, 4.2);
+  camera.position.set(0, 0, 4.5);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(290, 290);
   renderer.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer.domElement);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
   scene.add(ambientLight);
 
-  const pointLight = new THREE.PointLight(0x00f3ff, 2.5, 50);
-  pointLight.position.set(2, 3, 4);
-  scene.add(pointLight);
+  const dirLight = new THREE.DirectionalLight(0x00f3ff, 3);
+  dirLight.position.set(5, 5, 5);
+  scene.add(dirLight);
 
-  // Loading the original face image properly centered and scaled as a 3D facing plane mesh
-  const textureLoader = new THREE.TextureLoader();
-  textureLoader.load(
-    './humanoid_robot_face (1).glb', // Fallback or image path check
-    (texture) => {
-      setupFaceMesh(texture);
-    },
-    undefined,
-    (err) => { 
-      // If glb fails to load as texture, fallback to direct image loading or default
-      textureLoader.load('./humanoid_robot_face.png', (tex) => {
-        setupFaceMesh(tex);
-      }, undefined, () => {
-        // Ultimate fallback placeholder texture or color
-        const canvas = document.createElement('canvas');
-        canvas.width = 512; canvas.height = 512;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#00f3ff';
-        ctx.fillRect(0,0,512,512);
-        const fallbackTex = new THREE.CanvasTexture(canvas);
-        setupFaceMesh(fallbackTex);
-      });
-    }
-  );
+  const backLight = new THREE.DirectionalLight(0xffffff, 1);
+  backLight.position.set(-5, -5, -5);
+  scene.add(backLight);
+
+  // Loading the actual GLTF/GLB 3D humanoid face model properly using GLTFLoader
+  if (typeof THREE.GLTFLoader !== 'undefined') {
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+      './humanoid_robot_face (1).glb',
+      (gltf) => {
+        faceModel3D = gltf.scene;
+        // Center and scale the 3D model properly
+        faceModel3D.position.set(0, -0.2, 0);
+        faceModel3D.scale.set(1.2, 1.2, 1.2);
+        scene.add(faceModel3D);
+      },
+      undefined,
+      (error) => {
+        console.warn("GLTF load error, falling back to 3D shape:", error);
+        createFallback3DFace();
+      }
+    );
+  } else {
+    createFallback3DFace();
+  }
 
   animateFace();
 }
 
-function setupFaceMesh(texture) {
-  const geometry = new THREE.PlaneGeometry(2.8, 2.8);
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    transparent: true,
-    side: THREE.DoubleSide
-  });
-  faceMesh = new THREE.Mesh(geometry, material);
-  faceMesh.position.set(0, 0, 0);
-  scene.add(faceMesh);
+function createFallback3DFace() {
+  // Fallback 3D Sphere/Head model if loader is missing so it's strictly 3D and rotatable
+  const geometry = new THREE.SphereGeometry(1.2, 32, 32);
+  const material = new THREE.MeshStandardMaterial({ color: 0x00f3ff, roughness: 0.3, metalness: 0.8 });
+  faceModel3D = new THREE.Mesh(geometry, material);
+  scene.add(faceModel3D);
 }
 
 function animateFace() {
   requestAnimationFrame(animateFace);
-  if (faceMesh) {
-    faceMesh.position.y = Math.sin(Date.now() * 0.003) * 0.03;
-    if (isJarvisSpeaking) {
-      const time = Date.now() * 0.025;
-      faceMesh.scale.y = 1 + Math.sin(time) * 0.10;
-      faceMesh.scale.x = 1 + Math.cos(time * 0.7) * 0.02;
-    } else {
-      faceMesh.scale.y += (1 - faceMesh.scale.y) * 0.1;
-      faceMesh.scale.x += (1 - faceMesh.scale.x) * 0.1;
-    }
+  
+  if (faceModel3D) {
+    // Gentle continuous 3D rotation so it looks fully three-dimensional from all angles
+    faceModel3D.rotation.y += 0.008;
   }
-  if (renderer && scene && camera) renderer.render(scene, camera);
+
+  if (renderer && scene && camera) {
+    renderer.render(scene, camera);
+  }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
