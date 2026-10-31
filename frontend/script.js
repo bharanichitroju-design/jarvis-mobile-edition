@@ -845,7 +845,7 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (FIXED)
+   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECT FIT SCALE)
    ========================================================= */
 let scene, camera, renderer, faceModel3D;
 
@@ -880,9 +880,9 @@ function init3DFace() {
       './humanoid_robot_face (1).glb',
       (gltf) => {
         faceModel3D = gltf.scene;
-        // Center and scale the 3D model properly
+        // Scaled to 1.9 so it perfectly fills the outer circle boundary with a little margin
         faceModel3D.position.set(0, -0.2, 0);
-        faceModel3D.scale.set(1.2, 1.2, 1.2);
+        faceModel3D.scale.set(1.9, 1.9, 1.9);
         scene.add(faceModel3D);
       },
       undefined,
@@ -899,8 +899,8 @@ function init3DFace() {
 }
 
 function createFallback3DFace() {
-  // Fallback 3D Sphere/Head model if loader is missing so it's strictly 3D and rotatable
-  const geometry = new THREE.SphereGeometry(1.2, 32, 32);
+  // Fallback 3D Sphere/Head model scaled to match the circular container perfectly
+  const geometry = new THREE.SphereGeometry(1.8, 32, 32);
   const material = new THREE.MeshStandardMaterial({ color: 0x00f3ff, roughness: 0.3, metalness: 0.8 });
   faceModel3D = new THREE.Mesh(geometry, material);
   scene.add(faceModel3D);
