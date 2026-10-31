@@ -12,8 +12,8 @@
 html, body {
   width: 100%;
   height: 100vh;
-  height: 100dvh; /* Mobile browser viewport fix */
-  overflow: hidden; /* Strict Single Viewport No-Scroll */
+  height: 100dvh;
+  overflow: hidden;
 }
 
 body {
@@ -88,14 +88,8 @@ header p {
 .settings-icon { left: 0px; }
 .api-key-icon { right: 0px; }
 
-.settings-icon:hover, .api-key-icon:hover {
-  background: #00f3ff;
-  color: #000;
-  box-shadow: 0 0 15px #00f3ff;
-}
-
 /* =========================================================
-   3. CORE CONTAINER & 3D FACE AVATAR (ENHANCED CLEARNESS & SIZE)
+   3. CORE CONTAINER & 3D FACE AVATAR (PERFECT CENTER ALIGNMENT)
    ========================================================= */
 .core-container {
   display: flex;
@@ -104,37 +98,37 @@ header p {
   justify-content: center;
   width: 100%;
   max-width: 500px;
-  height: 42vh; 
+  height: 38vh; 
   flex-shrink: 0;
-  margin: 2px 0;
+  margin: 0;
 }
 
 #face-container {
-  width: 290px; /* Optimized 3x larger size for ultra clarity */
-  height: 290px;
+  width: 240px; 
+  height: 240px;
   position: relative;
   display: flex;
   justify-content: center;
   align-items: center;
   background: transparent;
   border: none !important;
-  box-shadow: 0 0 25px rgba(0, 243, 255, 0.25) !important;
+  box-shadow: none !important;
   outline: none !important;
-  border-radius: 50%;
+  border-radius: 0 !important; /* సర్కిల్ క్రాపింగ్ మాస్క్ పూర్తిగా తొలగించబడింది, మోడల్ క్లియర్ గా కనిపిస్తుంది */
 }
 
 #face-container canvas {
   width: 100% !important;
   height: 100% !important;
   display: block;
-  filter: drop-shadow(0 0 10px rgba(0, 243, 255, 0.4)); /* Enhancing image clarity & glow */
+  filter: drop-shadow(0 0 12px rgba(0, 243, 255, 0.6));
 }
 
 .audio-wave-container {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .status-dot {
@@ -165,12 +159,12 @@ header p {
   box-shadow: 0 0 6px #00f3ff;
 }
 
-/* Boss quote doubled size compared to system online text (9px * 2 = 18px / refined to 14px for perfect UI balance) */
+/* Boss quote perfectly positioned right below system status */
 .boss-quote {
   font-size: 13px;
   letter-spacing: 1.5px;
   color: #00f3ff;
-  margin-top: 4px;
+  margin-top: 2px;
   text-align: center;
   font-weight: 700;
   text-shadow: 0 0 8px rgba(0, 243, 255, 0.6);
@@ -189,7 +183,6 @@ header p {
   gap: 4px;
 }
 
-/* Flexible Chat Container */
 .chat {
   flex: 1; 
   width: 100%;
@@ -202,16 +195,6 @@ header p {
   border-radius: 6px;
   background: rgba(1, 12, 28, 0.9);
   box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.9), 0 0 8px rgba(0, 243, 255, 0.2);
-  scrollbar-width: thin;
-  scrollbar-color: #00f3ff #020916;
-}
-
-.chat::-webkit-scrollbar {
-  width: 3px;
-}
-.chat::-webkit-scrollbar-thumb {
-  background: #00f3ff;
-  border-radius: 2px;
 }
 
 .message {
@@ -222,8 +205,6 @@ header p {
   line-height: 1.35;
   max-width: 88%;
   word-wrap: break-word;
-  user-select: text;
-  -webkit-user-select: text;
 }
 
 .message.user {
@@ -231,7 +212,6 @@ header p {
   background: rgba(0, 119, 255, 0.3);
   border: 1px solid #0077ff;
   color: #ffffff;
-  box-shadow: 0 0 6px rgba(0, 119, 255, 0.4);
 }
 
 .message.ai {
@@ -239,11 +219,10 @@ header p {
   background: rgba(0, 243, 255, 0.15);
   border: 1px solid #00f3ff;
   color: #00f3ff;
-  box-shadow: 0 0 6px rgba(0, 243, 255, 0.3);
 }
 
 /* =========================================================
-   5. FIXED BOTTOM INPUT CONTROLS (COMPACT)
+   5. FIXED BOTTOM INPUT CONTROLS
    ========================================================= */
 .input-area {
   width: 100%;
@@ -270,13 +249,6 @@ header p {
   font-family: inherit;
   font-size: 11.5px;
   outline: none;
-  box-shadow: inset 0 0 6px rgba(0, 243, 255, 0.3);
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-.input-area input#msg:focus {
-  box-shadow: 0 0 10px rgba(0, 243, 255, 0.8), inset 0 0 6px rgba(0, 243, 255, 0.4);
 }
 
 .btn {
@@ -288,181 +260,11 @@ header p {
   font-weight: bold;
   border-radius: 5px;
   font-size: 9.5px;
-  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 6px rgba(0, 243, 255, 0.3);
 }
 
-.btn:hover {
-  background: #00f3ff;
-  color: #000;
-  box-shadow: 0 0 12px #00f3ff;
-}
-
-.btn-primary {
-  background: #00f3ff;
-  color: #000;
-}
-
-.btn-danger {
-  border-color: #ff3366;
-  color: #ff3366;
-}
-
-.btn-danger:hover {
-  background: #ff3366;
-  color: #fff;
-  box-shadow: 0 0 12px #ff3366;
-}
-
-/* =========================================================
-   6. MODAL OVERLAYS & POPUPS
-   ========================================================= */
-.modal {
-  display: none;
-  position: fixed;
-  z-index: 100;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(1, 6, 18, 0.9);
-  backdrop-filter: blur(4px); /* Controlled optimal blur */
-  overflow-y: auto;
-  padding: 15px;
-}
-
-.modal-content {
-  background: rgba(4, 18, 38, 0.96);
-  margin: 5% auto;
-  padding: 15px;
-  border: 1px solid #00f3ff;
-  width: 92%;
-  max-width: 450px;
-  border-radius: 10px;
-  box-shadow: 0 0 25px rgba(0, 243, 255, 0.4);
-  position: relative;
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  border-bottom: 1px solid rgba(0, 243, 255, 0.3);
-  padding-bottom: 6px;
-}
-
-.modal-header h2 {
-  font-size: 13px;
-  letter-spacing: 2px;
-  color: #00f3ff;
-}
-
-.close-btn {
-  color: #00f3ff;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.close-btn:hover {
-  color: #ff3366;
-}
-
-@keyframes blueFlameGlow {
-  0%, 100% {
-    box-shadow: 0 0 12px #00f3ff, inset 0 0 12px #00f3ff;
-    border-color: #00f3ff;
-  }
-  50% {
-    box-shadow: 0 0 25px #0077ff, inset 0 0 20px #0077ff;
-    border-color: #0099ff;
-  }
-}
-
-.neon-flame-box {
-  border: 2px solid #00f3ff;
-  animation: blueFlameGlow 2.5s infinite ease-in-out;
-  background: rgba(3, 12, 28, 0.98);
-}
-
-#memory-search-input {
-  width: 100%;
-  padding: 7px;
-  margin-bottom: 7px;
-  background: rgba(0, 0, 0, 0.75);
-  border: 1px solid #00f3ff;
-  color: #00f3ff;
-  border-radius: 5px;
-  font-family: inherit;
-  font-size: 11px;
-  outline: none;
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-#custom-memory-input {
-  width: 100%;
-  height: 55px;
-  background: rgba(0, 0, 0, 0.65);
-  border: 1px solid #00f3ff;
-  color: #00f3ff;
-  padding: 7px;
-  border-radius: 5px;
-  resize: none;
-  font-family: inherit;
-  font-size: 10.5px;
-  outline: none;
-  margin-bottom: 7px;
-  user-select: text;
-  -webkit-user-select: text;
-}
-
-.neon-btn {
-  width: 100%;
-  background: #00f3ff;
-  color: #000;
-  font-weight: bold;
-  border: none;
-  padding: 7px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 10.5px;
-  letter-spacing: 1px;
-  box-shadow: 0 0 8px #00f3ff;
-  transition: 0.2s;
-}
-
-.neon-btn:hover {
-  background: #0077ff;
-  color: #fff;
-  box-shadow: 0 0 15px #0077ff;
-}
-
-.history-container {
-  max-height: 160px;
-  overflow-y: auto;
-  font-size: 10.5px;
-}
-
-.history-item {
-  margin-bottom: 5px;
-  padding: 6px;
-  background: rgba(0, 243, 255, 0.06);
-  border: 1px solid rgba(0, 243, 255, 0.25);
-  border-radius: 4px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-/* =========================================================
-   7. ANIMATION KEYFRAMES
-   ========================================================= */
 @keyframes pulse {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
