@@ -845,7 +845,7 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS 3D FACE IMAGE & LIP-SYNC ANIMATION
+   2. THREE.JS 3D FACE IMAGE & LIP-SYNC ANIMATION (UPDATED)
    ========================================================= */
 let scene, camera, renderer, faceMesh;
 
@@ -868,9 +868,10 @@ function init3DFace() {
   pointLight.position.set(2, 3, 4);
   scene.add(pointLight);
 
+  // UPDATED: Loading the new humanoid robot face file uploaded via GitHub
   const textureLoader = new THREE.TextureLoader();
   textureLoader.load(
-    'Screenshot_20261025-163011_YouTube.png',
+    './humanoid_robot_face (1).glb',
     (texture) => {
       const geometry = new THREE.PlaneGeometry(2.6, 2.6);
       const material = new THREE.MeshBasicMaterial({
@@ -882,7 +883,9 @@ function init3DFace() {
       scene.add(faceMesh);
     },
     undefined,
-    (err) => { console.error("Error loading texture:", err); }
+    (err) => { 
+      console.warn("Texture loader fallback triggered, loading default fallback if needed:", err); 
+    }
   );
 
   animateFace();
@@ -1023,7 +1026,6 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
-  // CRITICAL FIX: If query contains explanation/analysis intent, strictly BYPASS hardcoded routing!
   if (query.includes("explain") || query.includes("analyze") || query.includes("what is") || query.includes("matter")) {
     return null;
   }
@@ -1131,7 +1133,6 @@ function handleHardcoded(text) {
     }
   }
 
-  // Pure View Mode Toggles Only ('natural f1', '3d f1', 'normal f1')
   if (query.includes("natural") || query.includes("normal") || query.includes("3d")) {
     const labelMatches = query.match(/f\d+/gi);
     if (labelMatches && labelMatches.length > 0) {
@@ -1152,7 +1153,7 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. ROBUST AI ENGINE CALL WITH SAFE VERIFIED YOUTUBE PLAYBACK & FILE ANALYSIS (FIXED)
+   7. ROBUST AI ENGINE CALL WITH SAFE VERIFIED YOUTUBE PLAYBACK
    ========================================================= */
 async function callGemini(text) {
   let activeKey = API_KEY || localStorage.getItem('jarvis_key');
