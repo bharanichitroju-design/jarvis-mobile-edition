@@ -845,7 +845,7 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (DYNAMIC AUTO-FIT)
+   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECT CENTER FIT)
    ========================================================= */
 let scene, camera, renderer, faceModel3D;
 
@@ -873,23 +873,34 @@ function init3DFace() {
   backLight.position.set(-5, -5, -5);
   scene.add(backLight);
 
-  // Loading the actual GLTF/GLB 3D humanoid face model with dynamic bounding-box scaling
+  // Loading GLTF 3D Face Model and centering it perfectly inside the circle
   if (typeof THREE.GLTFLoader !== 'undefined') {
     const loader = new THREE.GLTFLoader();
     loader.load(
       './humanoid_robot_face (1).glb',
       (gltf) => {
         faceModel3D = gltf.scene;
-        
-        // Dynamically compute bounding box to scale model perfectly to fit the container circle boundary
+
+        // Compute bounding box and center offset so it stays precisely in the middle
         const box = new THREE.Box3().setFromObject(faceModel3D);
+        const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
+
+        // Shift model geometry to its exact geometric center
+        faceModel3D.position.sub(center);
+
         const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 2.4; // Perfect diameter to fill circle boundary with slight margin
+        const targetSize = 2.4; 
         const scaleFactor = targetSize / (maxDim > 0 ? maxDim : 1);
 
-        faceModel3D.scale.set(scaleFactor * 1.5, scaleFactor * 1.5, scaleFactor * 1.5);
-        faceModel3D.position.set(0, -0.2, 0);
+        faceModel3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        
+        // Wrap in a parent group to center and rotate seamlessly
+        const wrapperGroup = new THREE.Group();
+        wrapperGroup.add(faceModel3D);
+        wrapperGroup.position.set(0, 0, 0); // Exact center of the container circle
+        
+        faceModel3D = wrapperGroup; // assign wrapper to rotation target
         scene.add(faceModel3D);
       },
       undefined,
@@ -906,10 +917,10 @@ function init3DFace() {
 }
 
 function createFallback3DFace() {
-  // Fallback 3D Sphere/Head model sized to match the circular container perfectly
-  const geometry = new THREE.SphereGeometry(1.4, 32, 32);
+  const geometry = new THREE.SphereGeometry(1.2, 32, 32);
   const material = new THREE.MeshStandardMaterial({ color: 0x00f3ff, roughness: 0.3, metalness: 0.8 });
   faceModel3D = new THREE.Mesh(geometry, material);
+  faceModel3D.position.set(0, 0, 0);
   scene.add(faceModel3D);
 }
 
@@ -917,7 +928,6 @@ function animateFace() {
   requestAnimationFrame(animateFace);
   
   if (faceModel3D) {
-    // Gentle continuous 3D rotation so it looks fully three-dimensional from all angles
     faceModel3D.rotation.y += 0.008;
   }
 
