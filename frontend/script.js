@@ -845,7 +845,7 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECTLY CENTERED IN VIEWPORT)
+   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (EXACTLY CENTERED)
    ========================================================= */
 let scene, camera, renderer, faceModel3D;
 
@@ -859,7 +859,7 @@ function init3DFace() {
   camera.position.set(0, 0, 3.8);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(240, 240); // కంటైనర్ సైజ్ కి సరిగ్గా సెట్ చేయబడింది
+  renderer.setSize(240, 240);
   renderer.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer.domElement);
 
@@ -881,21 +881,20 @@ function init3DFace() {
       (gltf) => {
         faceModel3D = gltf.scene;
 
-        // బౌండింగ్ బాక్స్ లెక్కించి పర్ఫెక్ట్ సెంటర్ చేయడం
         const box = new THREE.Box3().setFromObject(faceModel3D);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
-        faceModel3D.position.sub(center); // మోడల్ ఒరిజిన్ ని కరెక్ట్ సెంటర్ కి మార్చడం
+        faceModel3D.position.sub(center);
 
         const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 2.2; 
+        const targetSize = 2.1; 
         const scaleFactor = targetSize / (maxDim > 0 ? maxDim : 1);
 
         faceModel3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
         const wrapperGroup = new THREE.Group();
-        faceModel3D.position.y = 0.0; // ఎక్సాక్ట్ వర్టికల్ సెంటర్ అలైన్‌మెంట్
+        faceModel3D.position.set(0, 0, 0); 
         
         wrapperGroup.add(faceModel3D);
         wrapperGroup.position.set(0, 0, 0); 
@@ -1049,7 +1048,7 @@ if (saveCustomMemory) {
 }
 
 /* =========================================================
-   6. HARDCODED COMMANDS & VOICE BUTTON ROUTING (FIXED)
+   6. HARDCODED COMMANDS & VOICE BUTTON ROUTING
    ========================================================= */
 function handleHardcoded(text) {
   if (!text) return null;
@@ -1567,7 +1566,7 @@ if (micBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in win
 
   startJarvisListening = function() {
     if (!isListeningActive) {
-      isListeningActive `true`;
+      isListeningActive = true;
       try { recognition.start(); } catch (err) { console.log(err); }
     }
   };
