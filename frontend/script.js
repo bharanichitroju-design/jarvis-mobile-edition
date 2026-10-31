@@ -895,12 +895,13 @@ function init3DFace() {
 
         faceModel3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
-        // Wrap in a parent group to center and rotate seamlessly
+        // Wrap in a parent group to center and rotate seamlessly, shifted slightly down for exact visual alignment
         const wrapperGroup = new THREE.Group();
+        faceModel3D.position.y -= 0.15; // Fine-tune vertical offset to prevent moving up
         wrapperGroup.add(faceModel3D);
-        wrapperGroup.position.set(0, 0, 0); // Exact center of the container circle
+        wrapperGroup.position.set(0, 0, 0); 
         
-        faceModel3D = wrapperGroup; // assign wrapper to rotation target
+        faceModel3D = wrapperGroup;
         scene.add(faceModel3D);
       },
       undefined,
