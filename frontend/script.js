@@ -895,81 +895,9 @@ function init3DFace() {
 
         faceModel3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
         
-        // Wrap in a parent group to center and rotate seamlessly, shifted slightly down for exact visual alignment
+        // Wrap in a parent group to center and rotate seamlessly, aligned above System Online
         const wrapperGroup = new THREE.Group();
-        faceModel3D.position.y -= 0.15; // Fine-tune vertical offset to prevent moving up
-        wrapperGroup.add(faceModel3D);
-        wrapperGroup.position.set(0, 0, 0); 
-        
-        faceModel3D = wrapperGroup;
-        scene.add(faceModel3D);
-      },
-      undefined,
-      (error) => {
-        console.warn("GLTF load error, falling back to 3D shape:", error);
-        createFallback3DFace();
-      }
-    );
-  } else {
-    createFallback3DFace();
-  }
-
-  animateFace();
-
-/* =========================================================
-   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECT CENTER FIT)
-   ========================================================= */
-let scene, camera, renderer, faceModel3D;
-
-function init3DFace() {
-  const container = document.getElementById('face-container');
-  if (!container) return;
-
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-  camera.position.set(0, 0, 4.5);
-
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(290, 290);
-  renderer.setPixelRatio(window.devicePixelRatio);
-  container.appendChild(renderer.domElement);
-
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
-  scene.add(ambientLight);
-
-  const dirLight = new THREE.DirectionalLight(0x00f3ff, 3);
-  dirLight.position.set(5, 5, 5);
-  scene.add(dirLight);
-
-  const backLight = new THREE.DirectionalLight(0xffffff, 1);
-  backLight.position.set(-5, -5, -5);
-  scene.add(backLight);
-
-  // Loading GLTF 3D Face Model and centering it perfectly inside the circle
-  if (typeof THREE.GLTFLoader !== 'undefined') {
-    const loader = new THREE.GLTFLoader();
-    loader.load(
-      './humanoid_robot_face (1).glb',
-      (gltf) => {
-        faceModel3D = gltf.scene;
-
-        // Compute bounding box and center offset so it stays precisely in the middle
-        const box = new THREE.Box3().setFromObject(faceModel3D);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-
-        // Shift model geometry to its exact geometric center
-        faceModel3D.position.sub(center);
-
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 2.4; 
-        const scaleFactor = targetSize / (maxDim > 0 ? maxDim : 1);
-
-        faceModel3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        
-        // Wrap in a parent group to center and rotate seamlessly, shifted down to -0.35
-        const wrapperGroup = new THREE.Group();
-        faceModel3D.position.y -= 0.35; // Moved further down as requested, Boss
+        faceModel3D.position.y -= -0.10; // Adjusted offset to align precisely above System Online
         wrapperGroup.add(faceModel3D);
         wrapperGroup.position.set(0, 0, 0); 
         
