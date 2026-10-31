@@ -845,100 +845,63 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. THREE.JS GLTF 3D FACE MODEL & ROTATION ENGINE (PERFECT CIRCLE BOUNDARY FIT)
+   2. THREE.JS 3D FACE IMAGE & LIP-SYNC ANIMATION
    ========================================================= */
-let scene, camera, renderer, faceModel3D;
+let scene, camera, renderer, faceMesh;
 
 function init3DFace() {
   const container = document.getElementById('face-container');
   if (!container) return;
 
   scene = new THREE.Scene();
-
-  // Camera z-positioning for optimal 290px circular viewport containment
   camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-  camera.position.set(0, 0, 3.8);
+  camera.position.z = 4.2;
 
   renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   renderer.setSize(290, 290);
-  renderer.setPixelRatio(window.devicePixelRatio);
   container.appendChild(renderer.domElement);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 1.6);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
   scene.add(ambientLight);
 
-  const dirLight = new THREE.DirectionalLight(0x00f3ff, 3);
-  dirLight.position.set(5, 5, 5);
-  scene.add(dirLight);
+  const pointLight = new THREE.PointLight(0x00f3ff, 2.5, 50);
+  pointLight.position.set(2, 3, 4);
+  scene.add(pointLight);
 
-  const backLight = new THREE.DirectionalLight(0xffffff, 1);
-  backLight.position.set(-5, -5, -5);
-  scene.add(backLight);
-
-  if (typeof THREE.GLTFLoader !== 'undefined') {
-    const loader = new THREE.GLTFLoader();
-    loader.load(
-      './humanoid_robot_face (1).glb',
-      (gltf) => {
-        faceModel3D = gltf.scene;
-
-        // Compute exact bounding box and geometry center
-        const box = new THREE.Box3().setFromObject(faceModel3D);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
-
-        // Center origin point of GLTF mesh
-        faceModel3D.position.sub(center);
-
-        // Scale factor optimized so model spans from top edge to bottom edge of circle
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const targetSize = 2.50; 
-        const scaleFactor = targetSize / (maxDim > 0 ? maxDim : 1);
-
-        faceModel3D.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        
-        const wrapperGroup = new THREE.Group();
-        
-        // Exact vertical alignment offset to match circle top and bottom edges precisely
-        faceModel3D.position.y = -0.15; 
-        
-        wrapperGroup.add(faceModel3D);
-        wrapperGroup.position.set(0, 0, 0); 
-        
-        faceModel3D = wrapperGroup;
-        scene.add(faceModel3D);
-      },
-      undefined,
-      (error) => {
-        console.warn("GLTF load error, falling back to 3D shape:", error);
-        createFallback3DFace();
-      }
-    );
-  } else {
-    createFallback3DFace();
-  }
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.load(
+    'Screenshot_20261025-163011_YouTube.png',
+    (texture) => {
+      const geometry = new THREE.PlaneGeometry(2.6, 2.6);
+      const material = new THREE.MeshBasicMaterial({
+        map: texture,
+        transparent: true,
+        side: THREE.DoubleSide
+      });
+      faceMesh = new THREE.Mesh(geometry, material);
+      scene.add(faceMesh);
+    },
+    undefined,
+    (err) => { console.error("Error loading texture:", err); }
+  );
 
   animateFace();
 }
 
-function createFallback3DFace() {
-  const geometry = new THREE.SphereGeometry(1.2, 32, 32);
-  const material = new THREE.MeshStandardMaterial({ color: 0x00f3ff, roughness: 0.3, metalness: 0.8 });
-  faceModel3D = new THREE.Mesh(geometry, material);
-  faceModel3D.position.set(0, 0, 0);
-  scene.add(faceModel3D);
-}
-
 function animateFace() {
   requestAnimationFrame(animateFace);
-  
-  if (faceModel3D) {
-    faceModel3D.rotation.y += 0.008;
+  if (faceMesh) {
+    faceMesh.position.y = Math.sin(Date.now() * 0.003) * 0.04;
+    if (isJarvisSpeaking) {
+      const time = Date.now() * 0.025;
+      faceMesh.scale.y = 1 + Math.sin(time) * 0.12;
+      faceMesh.scale.x = 1 + Math.cos(time * 0.7) * 0.02;
+    } else {
+      faceMesh.scale.y += (1 - faceMesh.scale.y) * 0.1;
+      faceMesh.scale.x += (1 - faceMesh.scale.x) * 0.1;
+    }
   }
-
-  if (renderer && scene && camera) {
-    renderer.render(scene, camera);
-  }
+  if (renderer && scene && camera) renderer.render(scene, camera);
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -1060,6 +1023,7 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
+  // CRITICAL FIX: If query contains explanation/analysis intent, strictly BYPASS hardcoded routing!
   if (query.includes("explain") || query.includes("analyze") || query.includes("what is") || query.includes("matter")) {
     return null;
   }
@@ -1167,6 +1131,7 @@ function handleHardcoded(text) {
     }
   }
 
+  // Pure View Mode Toggles Only ('natural f1', '3d f1', 'normal f1')
   if (query.includes("natural") || query.includes("normal") || query.includes("3d")) {
     const labelMatches = query.match(/f\d+/gi);
     if (labelMatches && labelMatches.length > 0) {
@@ -1187,7 +1152,7 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. ROBUST AI ENGINE CALL WITH SAFE VERIFIED YOUTUBE PLAYBACK
+   7. ROBUST AI ENGINE CALL WITH SAFE VERIFIED YOUTUBE PLAYBACK & FILE ANALYSIS (FIXED)
    ========================================================= */
 async function callGemini(text) {
   let activeKey = API_KEY || localStorage.getItem('jarvis_key');
