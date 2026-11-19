@@ -119,7 +119,347 @@ function updateTelemetryCounters() {
 }
 
 /* =========================================================
-   1.2. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL
+   1.2. IRON MAN 2 STYLE RED HACKING WHEEL (3 SPINS -> DRAG -> FULLSCREEN)
+   ========================================================= */
+const hackingWheelEl = document.getElementById('hackingWheel');
+const hackingWheelCanvas = document.getElementById('hackingWheelCanvas');
+const wheelReadoutEl = document.getElementById('wheelReadout');
+const wheelLockStateEl = document.getElementById('wheelLockState');
+const hackWheelDockEl = document.getElementById('hackWheelDock');
+
+let wheelState = {
+  cumulativeAngle: 0,      // Degrees rotated (360 * 3 = 1080 unlocks)
+  visualAngle: 0,
+  lastPointerAngle: null,
+  isRotating: false,
+  isUnlocked: false,
+  isDraggingWheel: false,
+  dragMovedDistance: 0,
+  pointerStartX: 0,
+  pointerStartY: 0,
+  wheelStartLeft: 0,
+  wheelStartTop: 0,
+  hoveredBox: null,
+  expandedBox: null
+};
+
+const REQUIRED_DEGREES = 360 * 3; // 3 full rotations
+
+function drawHackingWheel() {
+  if (!hackingWheelCanvas) return;
+  const ctx = hackingWheelCanvas.getContext('2d');
+  const w = hackingWheelCanvas.width;
+  const h = hackingWheelCanvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const maxR = Math.min(cx, cy) - 4;
+  const progress = Math.min(1, Math.abs(wheelState.cumulativeAngle) / REQUIRED_DEGREES);
+  const rotRad = (wheelState.visualAngle * Math.PI) / 180;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Subtle crimson backing glow
+  const grad = ctx.createRadialGradient(cx, cy, maxR * 0.15, cx, cy, maxR);
+  grad.addColorStop(0, wheelState.isUnlocked ? 'rgba(255, 30, 39, 0.34)' : 'rgba(255, 30, 39, 0.14)');
+  grad.addColorStop(1, 'rgba(20, 2, 4, 0.05)');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Outer Iron Man 2 style segmented arc ring
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rotRad);
+
+  const segCount = 6;
+  for (let i = 0; i < segCount; i++) {
+    const startA = (i * Math.PI * 2) / segCount + 0.08;
+    const endA = ((i + 1) * Math.PI * 2) / segCount - 0.08;
+    ctx.beginPath();
+    ctx.arc(0, 0, maxR - 3, startA, endA);
+    ctx.strokeStyle = wheelState.isUnlocked ? '#ff474e' : 'rgba(255, 30, 39, 0.65)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // Precision tick marks on middle ring
+  const tickCount = 24;
+  for (let t = 0; t < tickCount; t++) {
+    const a = (t * Math.PI * 2) / tickCount;
+    const inner = t % 4 === 0 ? maxR - 15 : maxR - 11;
+    const outer = maxR - 7;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+    ctx.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
+    ctx.strokeStyle = t % 4 === 0 ? '#ff474e' : 'rgba(255, 30, 39, 0.45)';
+    ctx.lineWidth = t % 4 === 0 ? 1.8 : 1;
+    ctx.stroke();
+  }
+
+  // Inner directional reticle / pointer notch
+  ctx.beginPath();
+  ctx.arc(0, 0, maxR * 0.56, -Math.PI * 0.75, Math.PI * 0.75);
+  ctx.strokeStyle = 'rgba(255, 30, 39, 0.75)';
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(maxR * 0.52, 0);
+  ctx.lineTo(maxR * 0.76, 0);
+  ctx.strokeStyle = '#ff474e';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  ctx.restore();
+
+  // 3-Rotation Unlock Progress Ring
+  ctx.beginPath();
+  ctx.arc(cx, cy, maxR * 0.42, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+  ctx.strokeStyle = wheelState.isUnlocked ? '#ff474e' : '#ff1e27';
+  ctx.lineWidth = 3.2;
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = '#ff1e27';
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+}
+
+function updateWheelUI() {
+  const spinsDone = Math.min(3, Math.floor(Math.abs(wheelState.cumulativeAngle) / 360));
+  if (wheelReadoutEl) {
+    if (wheelState.expandedBox) {
+      wheelReadoutEl.innerHTML = "EXIT<br>VIEW";
+    } else if (wheelState.isUnlocked) {
+      wheelReadoutEl.innerHTML = "DRAG<br>BOX";
+    } else {
+      wheelReadoutEl.innerHTML = `${spinsDone}/3`;
+    }
+  }
+
+  if (wheelLockStateEl) {
+    if (wheelState.expandedBox) {
+      wheelLockStateEl.innerText = "FULLSCREEN";
+    } else if (wheelState.isUnlocked) {
+      wheelLockStateEl.innerText = "UNLOCKED";
+    } else {
+      wheelLockStateEl.innerText = "3x SPIN LOCK";
+    }
+  }
+
+  if (hackingWheelEl) {
+    hackingWheelEl.classList.toggle('unlocked', wheelState.isUnlocked);
+  }
+
+  drawHackingWheel();
+}
+
+function getPointerAngleFromWheel(clientX, clientY) {
+  if (!hackingWheelEl) return 0;
+  const rect = hackingWheelEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  return (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
+}
+
+function findExpandableBoxAtPoint(clientX, clientY) {
+  const boxes = Array.from(document.querySelectorAll('[data-expandable="true"]'));
+  for (let i = boxes.length - 1; i >= 0; i--) {
+    const box = boxes[i];
+    if (box === wheelState.expandedBox) continue;
+    const rect = box.getBoundingClientRect();
+    if (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    ) {
+      return box;
+    }
+  }
+  return null;
+}
+
+function clearDropHighlight() {
+  if (wheelState.hoveredBox) {
+    wheelState.hoveredBox.classList.remove('drop-target-hover');
+    wheelState.hoveredBox = null;
+  }
+}
+
+function expandBoxToFullscreen(box) {
+  if (!box) return;
+  if (wheelState.expandedBox && wheelState.expandedBox !== box) {
+    wheelState.expandedBox.classList.remove('expanded-fullscreen');
+  }
+
+  box.classList.add('expanded-fullscreen');
+  wheelState.expandedBox = box;
+  wheelState.isDraggingWheel = false;
+
+  if (hackingWheelEl) {
+    hackingWheelEl.classList.remove('floating-wheel', 'dragging');
+    hackingWheelEl.style.left = '';
+    hackingWheelEl.style.top = '';
+    hackingWheelEl.classList.add('docked-return');
+    if (hackingWheelEl.parentElement !== document.body) {
+      document.body.appendChild(hackingWheelEl);
+    }
+  }
+
+  const label = box.getAttribute('data-box-id') || 'PANEL';
+  pushSystemLog("Wheel", `FULLSCREEN_${label.toUpperCase()}`);
+  updateWheelUI();
+}
+
+function restoreFullscreenBoxAndResetWheel() {
+  if (wheelState.expandedBox) {
+    wheelState.expandedBox.classList.remove('expanded-fullscreen');
+    wheelState.expandedBox = null;
+  }
+
+  wheelState.isUnlocked = false;
+  wheelState.isDraggingWheel = false;
+  wheelState.cumulativeAngle = 0;
+  wheelState.visualAngle = 0;
+  wheelState.lastPointerAngle = null;
+  clearDropHighlight();
+
+  if (hackingWheelEl) {
+    hackingWheelEl.classList.remove('docked-return', 'floating-wheel', 'dragging', 'unlocked');
+    hackingWheelEl.style.left = '';
+    hackingWheelEl.style.top = '';
+    if (hackWheelDockEl && hackingWheelEl.parentElement !== hackWheelDockEl) {
+      hackWheelDockEl.appendChild(hackingWheelEl);
+    }
+  }
+
+  pushSystemLog("Wheel", "LOCKED_RESET");
+  updateWheelUI();
+}
+
+function initHackingWheelInteractions() {
+  if (!hackingWheelEl) return;
+
+  hackingWheelEl.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // If docked in bottom-right during fullscreen mode, tapping/clicking returns to home layout
+    if (wheelState.expandedBox) {
+      restoreFullscreenBoxAndResetWheel();
+      return;
+    }
+
+    wheelState.pointerStartX = e.clientX;
+    wheelState.pointerStartY = e.clientY;
+    wheelState.dragMovedDistance = 0;
+
+    if (wheelState.isUnlocked) {
+      wheelState.isDraggingWheel = true;
+      hackingWheelEl.classList.add('dragging', 'floating-wheel');
+      const rect = hackingWheelEl.getBoundingClientRect();
+      if (hackingWheelEl.parentElement !== document.body) {
+        document.body.appendChild(hackingWheelEl);
+      }
+      wheelState.wheelStartLeft = rect.left;
+      wheelState.wheelStartTop = rect.top;
+      hackingWheelEl.style.left = `${rect.left}px`;
+      hackingWheelEl.style.top = `${rect.top}px`;
+      hackingWheelEl.style.right = 'auto';
+      hackingWheelEl.style.bottom = 'auto';
+    } else {
+      wheelState.isRotating = true;
+      wheelState.lastPointerAngle = getPointerAngleFromWheel(e.clientX, e.clientY);
+    }
+
+    hackingWheelEl.setPointerCapture(e.pointerId);
+  });
+
+  hackingWheelEl.addEventListener('pointermove', (e) => {
+    if (wheelState.expandedBox) return;
+
+    const dxMove = e.clientX - wheelState.pointerStartX;
+    const dyMove = e.clientY - wheelState.pointerStartY;
+    wheelState.dragMovedDistance = Math.hypot(dxMove, dyMove);
+
+    if (wheelState.isDraggingWheel && wheelState.isUnlocked) {
+      const nextLeft = wheelState.wheelStartLeft + dxMove;
+      const nextTop = wheelState.wheelStartTop + dyMove;
+      hackingWheelEl.style.left = `${nextLeft}px`;
+      hackingWheelEl.style.top = `${nextTop}px`;
+
+      const targetBox = findExpandableBoxAtPoint(e.clientX, e.clientY);
+      if (targetBox !== wheelState.hoveredBox) {
+        clearDropHighlight();
+        if (targetBox) {
+          targetBox.classList.add('drop-target-hover');
+          wheelState.hoveredBox = targetBox;
+        }
+      }
+      return;
+    }
+
+    if (wheelState.isRotating && !wheelState.isUnlocked) {
+      const currentAngle = getPointerAngleFromWheel(e.clientX, e.clientY);
+      if (wheelState.lastPointerAngle !== null) {
+        let delta = currentAngle - wheelState.lastPointerAngle;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+
+        wheelState.cumulativeAngle += delta;
+        wheelState.visualAngle += delta;
+
+        if (Math.abs(wheelState.cumulativeAngle) >= REQUIRED_DEGREES) {
+          wheelState.cumulativeAngle = Math.sign(wheelState.cumulativeAngle || 1) * REQUIRED_DEGREES;
+          wheelState.isUnlocked = true;
+          wheelState.isRotating = false;
+          pushSystemLog("Wheel", "UNLOCKED_3X");
+          if (navigator.vibrate) navigator.vibrate([70, 40, 70]);
+        }
+      }
+      wheelState.lastPointerAngle = currentAngle;
+      updateWheelUI();
+    }
+  });
+
+  const handlePointerFinish = (e) => {
+    if (hackingWheelEl.hasPointerCapture(e.pointerId)) {
+      try { hackingWheelEl.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+
+    if (wheelState.isDraggingWheel) {
+      wheelState.isDraggingWheel = false;
+      hackingWheelEl.classList.remove('dragging');
+
+      const dropBox = findExpandableBoxAtPoint(e.clientX, e.clientY) || wheelState.hoveredBox;
+      clearDropHighlight();
+
+      if (dropBox) {
+        expandBoxToFullscreen(dropBox);
+      } else {
+        // Dropped outside any box -> snap back to dock while staying unlocked
+        hackingWheelEl.classList.remove('floating-wheel');
+        hackingWheelEl.style.left = '';
+        hackingWheelEl.style.top = '';
+        if (hackWheelDockEl && hackingWheelEl.parentElement !== hackWheelDockEl) {
+          hackWheelDockEl.appendChild(hackingWheelEl);
+        }
+        updateWheelUI();
+      }
+    }
+
+    wheelState.isRotating = false;
+    wheelState.lastPointerAngle = null;
+  };
+
+  hackingWheelEl.addEventListener('pointerup', handlePointerFinish);
+  hackingWheelEl.addEventListener('pointercancel', handlePointerFinish);
+
+  updateWheelUI();
+}
+
+/* =========================================================
+   1.3. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL
    ========================================================= */
 function ensureYouTubeModalExists() {
   let modal = document.getElementById('youtube-workspace-modal');
@@ -210,7 +550,7 @@ function loadYouTubeSearch(query) {
 }
 
 /* =========================================================
-   1.3. MAP POINTING PIN & BLUE HOLOGRAPHIC BLUEPRINT GENERATOR
+   1.4. MAP POINTING PIN & BLUE HOLOGRAPHIC BLUEPRINT GENERATOR
    ========================================================= */
 function createMapPinCanvas(fileLabel) {
   const canvas = document.createElement('canvas');
@@ -942,6 +1282,7 @@ function initCircularVibrationGraph() {
 
 window.addEventListener('DOMContentLoaded', () => {
   initCircularVibrationGraph();
+  initHackingWheelInteractions();
   updateTelemetryCounters();
 
   setTimeout(() => {
@@ -1185,6 +1526,11 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("go back") || query.includes("back")) {
+    if (wheelState.expandedBox) {
+      restoreFullscreenBoxAndResetWheel();
+      return "Exited fullscreen box view, Boss.";
+    }
+
     const projLayer = document.getElementById('fullscreen-projection-layer');
     const tdModal = document.getElementById('td-workspace-modal');
     const ytModal = document.getElementById('youtube-workspace-modal');
@@ -1209,6 +1555,7 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("go to home") || query.includes("go home") || query.includes("home")) {
+    restoreFullscreenBoxAndResetWheel();
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
     close3DWorkspaceModal();
@@ -1832,41 +2179,6 @@ setInterval(() => {
   const binEl = document.getElementById('binaryStream');
   if (binEl) binEl.innerHTML = `${randBin()} ${randBin()}<br>${randBin()} ${randBin()}`;
 }, 350);
-
-// Keyframe FX Controller (Rings & HUD Effects, Skull Stays Steady)
-function triggerEffect(mode, btnElement) {
-  document.querySelectorAll('.keyframe-btn').forEach(b => b.classList.remove('active'));
-  if (btnElement) btnElement.classList.add('active');
-
-  const r1 = document.querySelector('.ring-1');
-  const r2 = document.querySelector('.ring-2');
-  const r3 = document.querySelector('.ring-3');
-  const grid = document.getElementById('mainGrid');
-
-  if (grid) grid.classList.remove('glitch-active');
-
-  if (mode === 'rotate') {
-    if (r1) r1.style.animationDuration = '16s';
-    if (r2) r2.style.animationDuration = '10s';
-    if (r3) r3.style.animationDuration = '7s';
-    pushSystemLog("FX", "RINGS_ROTATE");
-  } else if (mode === 'pulse') {
-    waveBoostLevel = 1.0;
-    if (r1) r1.style.animationDuration = '8s';
-    pushSystemLog("FX", "WAVE_BOOST");
-  } else if (mode === 'glitch') {
-    if (grid) {
-      grid.classList.add('glitch-active');
-      setTimeout(() => grid.classList.remove('glitch-active'), 700);
-    }
-    pushSystemLog("FX", "HUD_GLITCH");
-  } else if (mode === 'scan') {
-    if (r1) r1.style.animationDuration = '3.5s';
-    if (r2) r2.style.animationDuration = '2.5s';
-    if (r3) r3.style.animationDuration = '1.8s';
-    pushSystemLog("FX", "RAPID_SWEEP");
-  }
-}
 
 // Signal Waveform Canvas
 const netCanvas = document.getElementById('networkCanvas');
