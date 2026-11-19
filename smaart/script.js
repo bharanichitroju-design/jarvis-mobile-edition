@@ -63,6 +63,8 @@ let currentSession = {
 let pendingImageData = null;
 let isJarvisSpeaking = false;
 let isListeningActive = false;
+let isRecognitionRunning = false;
+let pausedForTTS = false;
 let strictJarvisKeywordMode = false;
 let workspaceFiles3D = [];
 let totalAccessLogs = 23258;
@@ -955,45 +957,53 @@ window.addEventListener('DOMContentLoaded', () => {
     addMessage(`Jarvis: ${welcomeText}`, 'ai');
     currentSession.messages.push({ role: 'model', text: welcomeText, time: format12HourTime(new Date()) });
     updateTelemetryCounters();
-    speak(welcomeText);
-    if (typeof startJarvisListening === 'function') startJarvisListening();
+    speak(welcomeText, () => {
+      if (typeof startJarvisListening === 'function') startJarvisListening();
+    });
   }, 1000);
 });
 
 /* =========================================================
-   3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT
+   3. TEXT-TO-SPEECH (TTS) WITH SAFE MIC HANDOFF
    ========================================================= */
-function speak(text) {
+let pauseRecognitionForTTS = function() {};
+let resumeRecognitionAfterTTS = function() {};
+
+function speak(text, onDoneCallback = null) {
+  const finishSpeaking = () => {
+    isJarvisSpeaking = false;
+    if (statusText) statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
+    if (speechIndicator) speechIndicator.innerText = "IDLE";
+    resumeRecognitionAfterTTS();
+    if (typeof onDoneCallback === 'function') onDoneCallback();
+  };
+
   if ('speechSynthesis' in window) {
+    pauseRecognitionForTTS();
     window.speechSynthesis.cancel();
     const cleanText = text.replace(/[\*\#\`\_]/g, '');
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = /[\u0C00-\u0C7F]/.test(cleanText) ? 'te-IN' : 'en-US';
+    utterance.lang = 'en-US';
     utterance.rate = 1.0;
     utterance.pitch = 0.95;
 
     utterance.onstart = () => {
       isJarvisSpeaking = true;
-      if (typeof pauseRecognitionForSpeech === 'function') pauseRecognitionForSpeech();
       if (statusText) statusText.innerText = "SPEAKING";
       if (speechIndicator) speechIndicator.innerText = "ACTIVE";
     };
 
     utterance.onend = () => {
-      isJarvisSpeaking = false;
-      if (statusText) statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
-      if (speechIndicator) speechIndicator.innerText = "IDLE";
-      if (typeof resumeRecognitionAfterSpeech === 'function') resumeRecognitionAfterSpeech();
+      setTimeout(finishSpeaking, 250);
     };
 
     utterance.onerror = () => {
-      isJarvisSpeaking = false;
-      if (statusText) statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
-      if (speechIndicator) speechIndicator.innerText = "IDLE";
-      if (typeof resumeRecognitionAfterSpeech === 'function') resumeRecognitionAfterSpeech();
+      setTimeout(finishSpeaking, 250);
     };
 
     window.speechSynthesis.speak(utterance);
+  } else {
+    finishSpeaking();
   }
 }
 
@@ -1640,7 +1650,7 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. VOICE EQUALIZER & RELIABLE SPEECH RECOGNITION (VOICE ONLY)
+   11. REAL-TIME USER VOICE EQUALIZER + SPEECH RECOGNITION
    ========================================================= */
 const eqContainer = document.getElementById('equalizer');
 const barCount = 36;
@@ -1654,24 +1664,68 @@ if (eqContainer) {
   }
 }
 
-let isRecognitionRunning = false;
-let isPausedForSpeech = false;
+let userMicAudioCtx = null;
+let userMicAnalyser = null;
+let userMicDataArray = null;
+let userMicStream = null;
+let micInitInProgress = false;
+
+async function enableUserVoiceMeter() {
+  if (userMicAnalyser || micInitInProgress) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  micInitInProgress = true;
+  try {
+    userMicStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    userMicAudioCtx = new AudioContextClass();
+    if (userMicAudioCtx.state === 'suspended') {
+      await userMicAudioCtx.resume();
+    }
+    const source = userMicAudioCtx.createMediaStreamSource(userMicStream);
+    userMicAnalyser = userMicAudioCtx.createAnalyser();
+    userMicAnalyser.fftSize = 128;
+    userMicAnalyser.smoothingTimeConstant = 0.72;
+    source.connect(userMicAnalyser);
+    userMicDataArray = new Uint8Array(userMicAnalyser.frequencyBinCount);
+  } catch (err) {
+    // Mic permission denied or unavailable; keep quiet floor
+  } finally {
+    micInitInProgress = false;
+  }
+}
 
 function initUserVoiceEqualizer() {
   if (!bars.length) return;
-  const half = Math.floor(barCount / 2);
 
   function renderUserVoiceBars() {
-    const now = performance.now() * 0.008;
-    const activeVoice = isListeningActive || isJarvisSpeaking;
+    let freqData = null;
+    if (userMicAnalyser && userMicDataArray) {
+      if (userMicAudioCtx && userMicAudioCtx.state === 'suspended') {
+        userMicAudioCtx.resume().catch(() => {});
+      }
+      userMicAnalyser.getByteFrequencyData(userMicDataArray);
+      freqData = userMicDataArray;
+    }
+
+    const half = Math.floor(barCount / 2);
 
     for (let i = 0; i < barCount; i++) {
       let normAmp = 0;
-      if (activeVoice) {
+      if (freqData && freqData.length > 0) {
         const distFromCenter = Math.abs(i - half) / Math.max(1, half);
-        const envelope = Math.max(0.15, 1 - distFromCenter * 0.75);
-        const wave = 0.5 + 0.5 * Math.sin(now * (isJarvisSpeaking ? 2.4 : 1.4) + i * 0.45);
-        normAmp = envelope * wave * (isJarvisSpeaking ? 0.9 : 0.65);
+        const binIndex = Math.min(
+          freqData.length - 1,
+          Math.floor((1 - distFromCenter) * (freqData.length * 0.65))
+        );
+        const rawVal = freqData[binIndex] / 255;
+        const gated = Math.max(0, (rawVal - 0.06) / 0.94);
+        normAmp = Math.pow(gated, 1.15);
       }
 
       const heightPct = 10 + normAmp * 88;
@@ -1685,50 +1739,59 @@ function initUserVoiceEqualizer() {
 }
 
 let startJarvisListening = function() {};
-let stopJarvisListening = function() {};
-let pauseRecognitionForSpeech = function() {};
-let resumeRecognitionAfterSpeech = function() {};
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let restartTimer = null;
-  let preferredLang = 'te-IN';
-
-  function clearRestartTimer() {
-    if (restartTimer) {
-      clearTimeout(restartTimer);
-      restartTimer = null;
-    }
-  }
 
   function safeStartRecognition() {
-    if (!recognition || isRecognitionRunning || isPausedForSpeech) return;
-    if (document.visibilityState !== 'visible') return;
+    if (!recognition || !isListeningActive || pausedForTTS || isRecognitionRunning) return;
     try {
-      recognition.lang = preferredLang;
       recognition.start();
     } catch (err) {
       if (err && err.name === 'InvalidStateError') {
         isRecognitionRunning = true;
+      } else {
+        console.warn("Recognition start error:", err);
       }
     }
   }
 
   function safeStopRecognition() {
-    if (!recognition) return;
-    try {
-      recognition.stop();
-    } catch (err) {}
-    isRecognitionRunning = false;
+    if (restartTimer) {
+      clearTimeout(restartTimer);
+      restartTimer = null;
+    }
+    if (recognition && isRecognitionRunning) {
+      try {
+        recognition.stop();
+      } catch (err) {}
+    }
   }
+
+  pauseRecognitionForTTS = function() {
+    if (isListeningActive) {
+      pausedForTTS = true;
+      safeStopRecognition();
+    }
+  };
+
+  resumeRecognitionAfterTTS = function() {
+    pausedForTTS = false;
+    if (isListeningActive && !isRecognitionRunning) {
+      clearTimeout(restartTimer);
+      restartTimer = setTimeout(() => {
+        safeStartRecognition();
+      }, 220);
+    }
+  };
 
   function initRecognition() {
     recognition = new SpeechRecognition();
-    recognition.lang = preferredLang;
-    recognition.continuous = false;
+    recognition.lang = 'en-US';
+    recognition.continuous = true;
     recognition.interimResults = false;
-    recognition.maxAlternatives = 3;
 
     recognition.onstart = () => {
       isRecognitionRunning = true;
@@ -1740,12 +1803,13 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         micBtn.style.background = "#00f3ff";
         micBtn.style.color = "#000";
       }
+      enableUserVoiceMeter();
     };
 
     recognition.onresult = (event) => {
       let finalTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal && event.results[i][0]) {
+        if (event.results[i].isFinal) {
           finalTranscript += event.results[i][0].transcript;
         }
       }
@@ -1755,14 +1819,6 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
       const lowerTranscript = rawTranscript.toLowerCase();
 
-      if (isJarvisSpeaking) {
-        if ('speechSynthesis' in window) {
-          window.speechSynthesis.cancel();
-        }
-        isJarvisSpeaking = false;
-        isPausedForSpeech = false;
-      }
-
       if (input) input.value = rawTranscript;
 
       if (strictJarvisKeywordMode && !lowerTranscript.includes("jarvis")) {
@@ -1770,12 +1826,10 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         return;
       }
 
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-
       if (lowerTranscript.includes("smart stop listening") || lowerTranscript.includes("stop listening")) {
-        stopJarvisListening();
+        isListeningActive = false;
+        pausedForTTS = false;
+        safeStopRecognition();
         addMessage(`You: ${rawTranscript}`, 'user');
         addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
         speak('Stopped Listening, Boss.');
@@ -1786,40 +1840,32 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     recognition.onerror = (event) => {
-      isRecognitionRunning = false;
       console.warn("Speech recognition error:", event.error);
-
-      if (event.error === 'language-not-supported' && preferredLang !== 'en-US') {
-        preferredLang = 'en-US';
-      }
+      isRecognitionRunning = false;
 
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         isListeningActive = false;
-        clearRestartTimer();
+        pausedForTTS = false;
+        pushSystemLog("Mic", "BLOCKED");
         if (statusText) statusText.innerText = "MIC BLOCKED";
         if (voiceStatus) voiceStatus.innerText = "DENIED";
         return;
       }
 
-      if (isListeningActive && !isPausedForSpeech && document.visibilityState === 'visible') {
-        clearRestartTimer();
-        restartTimer = setTimeout(() => {
-          safeStartRecognition();
-        }, 300);
-      } else if (!isJarvisSpeaking && statusText) {
+      if (!isJarvisSpeaking && statusText) {
         statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
       }
     };
 
     recognition.onend = () => {
       isRecognitionRunning = false;
-      if (isListeningActive && !isPausedForSpeech && document.visibilityState === 'visible') {
-        clearRestartTimer();
+
+      if (isListeningActive && !pausedForTTS) {
+        clearTimeout(restartTimer);
         restartTimer = setTimeout(() => {
           safeStartRecognition();
-        }, 200);
-      } else if (!isListeningActive) {
-        clearRestartTimer();
+        }, 280);
+      } else if (!pausedForTTS) {
         if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
         if (voiceStatus) voiceStatus.innerText = "STANDBY";
         if (statusBadge) statusBadge.innerText = "[ONLINE]";
@@ -1834,81 +1880,26 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
   initRecognition();
 
-  pauseRecognitionForSpeech = function() {
-    isPausedForSpeech = true;
-    clearRestartTimer();
-    safeStopRecognition();
-  };
-
-  resumeRecognitionAfterSpeech = function() {
-    isPausedForSpeech = false;
-    if (isListeningActive && document.visibilityState === 'visible') {
-      clearRestartTimer();
-      restartTimer = setTimeout(() => {
-        safeStartRecognition();
-      }, 220);
-    }
-  };
-
   startJarvisListening = function() {
     isListeningActive = true;
-    isPausedForSpeech = false;
-    clearRestartTimer();
-    safeStartRecognition();
-  };
-
-  stopJarvisListening = function() {
-    isListeningActive = false;
-    isPausedForSpeech = false;
-    clearRestartTimer();
-    safeStopRecognition();
-    if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
-    if (voiceStatus) voiceStatus.innerText = "STANDBY";
-    if (statusBadge) statusBadge.innerText = "[ONLINE]";
-    if (micBtn) {
-      micBtn.classList.remove('active-mic');
-      micBtn.style.background = "";
-      micBtn.style.color = "";
-    }
-  };
-
-  // Auto-arm on first user gesture if browser blocked initial auto-start
-  document.addEventListener('pointerdown', () => {
-    if (isListeningActive && !isRecognitionRunning && !isPausedForSpeech && document.visibilityState === 'visible') {
+    if (!pausedForTTS) {
       safeStartRecognition();
     }
-  }, { passive: true });
-
-  // Release mic cleanly when switching/hiding tab so other tabs or Live mic can use it
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      clearRestartTimer();
-      safeStopRecognition();
-    } else if (isListeningActive && !isPausedForSpeech) {
-      clearRestartTimer();
-      restartTimer = setTimeout(() => {
-        safeStartRecognition();
-      }, 250);
-    }
-  });
-
-  window.addEventListener('pagehide', () => {
-    clearRestartTimer();
-    safeStopRecognition();
-  });
+  };
 
   if (micBtn) {
-    micBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
+    micBtn.addEventListener('click', () => {
       if (!isListeningActive) {
         isListeningActive = true;
-        isPausedForSpeech = false;
-        clearRestartTimer();
-        safeStartRecognition();
-        addMessage(`Jarvis: Active and listening, Boss...`, 'ai');
-        speak('Listening, Boss.');
+        pausedForTTS = false;
+        addMessage(`Jarvis: Active and listening continuously, Boss...`, 'ai');
+        speak('Listening continuously, Boss.', () => {
+          safeStartRecognition();
+        });
       } else {
-        stopJarvisListening();
+        isListeningActive = false;
+        pausedForTTS = false;
+        safeStopRecognition();
         addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
         speak('Stopped Listening, Boss.');
       }
