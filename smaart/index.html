@@ -6,7 +6,6 @@
 <title>J.A.R.V.I.S - Sector Delta Core</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<!-- Three.js for 3D Workspace & Hologram Table -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
@@ -26,7 +25,7 @@
     </div>
   </header>
 
-  <!-- MAIN 3-COLUMN WORKSPACE: LEFT BAR | SKULL + 3 RINGS + VIBRATING CIRCLE | RIGHT BAR -->
+  <!-- MAIN 3-COLUMN WORKSPACE -->
   <main class="dashboard-container" id="mainGrid">
 
     <!-- LEFT SIDEBAR -->
@@ -95,7 +94,7 @@
       </section>
     </aside>
 
-    <!-- CENTER STAGE: SKULL + 3 ROTATING RINGS + VIBRATING GRAPH CIRCLE -->
+    <!-- CENTER STAGE: SKULL + 3 RINGS + CIRCULAR WAVE + CHAT STREAM -->
     <section class="column center-col">
       <div class="panel skull-stage" id="skullContainer" data-expandable="true" data-box-id="skull-stage">
         <div class="stage-top-bar">
@@ -103,17 +102,13 @@
           <span class="boss-tag">BOSS BHARANI</span>
         </div>
 
-        <!-- Center Visual Assembly -->
         <div class="skull-assembly">
-          <!-- Circular Graph Ring over the 3 Rings (Jarvis Voice Reactive) -->
           <canvas id="circularVibrationCanvas" class="vibration-circle-canvas" width="320" height="320"></canvas>
 
-          <!-- Three Rotating Rings Around the Skull -->
           <div class="orbit-ring ring-1"></div>
           <div class="orbit-ring ring-2"></div>
           <div class="orbit-ring ring-3"></div>
 
-          <!-- Cyber Skull SVG (Static / Non-Vibrating Core as Requested) -->
           <svg class="skull-svg" id="jarvisSkull" viewBox="0 0 240 260" xmlns="http://www.w3.org/2000/svg">
             <g stroke="#ff1e27" stroke-width="3" fill="#1f0507">
               <path d="M35,165 L205,235 M205,165 L35,235" stroke-width="14" stroke-linecap="round" stroke="#3d080c"/>
@@ -156,19 +151,30 @@
       </section>
     </section>
 
-    <!-- RIGHT SIDEBAR -->
+    <!-- RIGHT SIDEBAR: KEYFRAME_FX + SIGNAL_WAVE (WITH WAVE AT BOTTOM) + VOICE_LINK -->
     <aside class="column right-col">
-      <!-- REPLACED TOP-RIGHT BOX: IRON MAN 2 STYLE RED HACKING WHEEL -->
-      <section class="panel hack-wheel-panel" id="hackWheelSlot">
+      <section class="panel fx-panel" data-expandable="true" data-box-id="fx-panel">
         <div class="panel-header">
-          <span>HACK_DIAL</span>
-          <span id="wheelLockState">3x SPIN LOCK</span>
+          <span>KEYFRAME_FX</span>
+          <span>CORE</span>
         </div>
-        <div class="hack-wheel-stage" id="hackWheelDock">
-          <div class="hacking-wheel" id="hackingWheel" title="Rotate 3 times to unlock drag">
-            <canvas id="hackingWheelCanvas" width="140" height="140"></canvas>
-            <div class="wheel-center-readout" id="wheelReadout">0/3</div>
-          </div>
+        <div class="fx-list">
+          <button class="fx-btn" data-fx="rings" type="button">
+            <span>Rings_Rotate</span>
+            <span class="fx-arrow">▸</span>
+          </button>
+          <button class="fx-btn" data-fx="wave" type="button">
+            <span>Ring_Wave_Boost</span>
+            <span class="fx-arrow">▸</span>
+          </button>
+          <button class="fx-btn" data-fx="glitch" type="button">
+            <span>HUD_Glitch</span>
+            <span class="fx-arrow">▸</span>
+          </button>
+          <button class="fx-btn" data-fx="sweep" type="button">
+            <span>Rapid_Sweep</span>
+            <span class="fx-arrow">▸</span>
+          </button>
         </div>
       </section>
 
@@ -181,7 +187,7 @@
           <div>IN: <span id="netIn" class="highlight">15.4M/s</span></div>
           <div>OUT: <span id="netOut" class="highlight">8.2M/s</span></div>
         </div>
-        <canvas id="networkCanvas" width="220" height="44"></canvas>
+        <canvas id="networkCanvas" width="240" height="64"></canvas>
       </section>
 
       <section class="panel voice-trigger-panel" data-expandable="true" data-box-id="voice-trigger-panel">
@@ -203,7 +209,7 @@
 
   </main>
 
-  <!-- BOTTOM FOOTER BAR: LEFT GALLERY ORB | USER VOICE EQUALIZER | RIGHT JARVIS MODE ORB -->
+  <!-- BOTTOM FOOTER BAR -->
   <footer class="panel voice-footer" id="voicePanel" data-expandable="true" data-box-id="voice-panel">
     <div class="voice-controls">
       <div class="voice-orb footer-orb" id="leftOrb" onclick="document.getElementById('img-input').click()" title="Open Gallery">
@@ -216,7 +222,7 @@
     </div>
   </footer>
 
-  <!-- MODAL 1: HISTORY LOG POPUP (Opened via Voice: "open history") -->
+  <!-- MODAL 1: HISTORY LOG POPUP -->
   <div id="history-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -228,7 +234,7 @@
     </div>
   </div>
 
-  <!-- MODAL 2: MEMORY & FILES BOX (Opened via Voice: "open memory") -->
+  <!-- MODAL 2: MEMORY & FILES BOX -->
   <div id="memory-modal" class="modal">
     <div class="modal-content neon-flame-box">
       <div class="modal-header">
@@ -244,7 +250,6 @@
     </div>
   </div>
 
-  <!-- Hidden file input used by gallery button & voice command "open gallery" -->
   <input id="img-input" type="file" accept="image/*" multiple style="display:none">
 
   <script src="script.js"></script>
