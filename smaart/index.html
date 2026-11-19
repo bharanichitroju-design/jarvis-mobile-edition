@@ -12,7 +12,7 @@
 <body>
 
   <!-- TOP HEADER BAR -->
-  <header class="navbar">
+  <header class="navbar" data-expandable="true" data-box-id="navbar">
     <div class="brand">
       <span class="brand-icon">☠</span>
       <span>J.A.R.V.I.S // DELTA</span>
@@ -31,7 +31,7 @@
 
     <!-- LEFT SIDEBAR -->
     <aside class="column left-col">
-      <section class="panel status-panel">
+      <section class="panel status-panel" data-expandable="true" data-box-id="status-panel">
         <div class="panel-header">
           <span>SYSTEM_STATUS</span>
           <span id="status-badge">[ONLINE]</span>
@@ -44,7 +44,7 @@
         </ul>
       </section>
 
-      <section class="panel telemetry-panel">
+      <section class="panel telemetry-panel" data-expandable="true" data-box-id="telemetry-panel">
         <div class="panel-header">
           <span>CORE_METRICS</span>
           <span>V4.0</span>
@@ -77,7 +77,7 @@
         </div>
       </section>
 
-      <section class="panel decrypt-panel">
+      <section class="panel decrypt-panel" data-expandable="true" data-box-id="decrypt-panel">
         <div class="panel-header">
           <span>PROC_RING</span>
           <span id="procMode">AES-256</span>
@@ -97,7 +97,7 @@
 
     <!-- CENTER STAGE: SKULL + 3 ROTATING RINGS + VIBRATING GRAPH CIRCLE -->
     <section class="column center-col">
-      <div class="panel skull-stage" id="skullContainer">
+      <div class="panel skull-stage" id="skullContainer" data-expandable="true" data-box-id="skull-stage">
         <div class="stage-top-bar">
           <span id="status-text">SYSTEM ONLINE</span>
           <span class="boss-tag">BOSS BHARANI</span>
@@ -147,7 +147,7 @@
       </div>
 
       <!-- Live AI Conversation Stream -->
-      <section class="panel chat-panel">
+      <section class="panel chat-panel" data-expandable="true" data-box-id="chat-panel">
         <div class="panel-header">
           <span>NEURAL_CHAT_STREAM</span>
           <span id="voiceCommandHint">VOICE: "OPEN MEMORY / 3D / HISTORY / YOUTUBE"</span>
@@ -158,26 +158,21 @@
 
     <!-- RIGHT SIDEBAR -->
     <aside class="column right-col">
-      <section class="panel fx-panel">
+      <!-- REPLACED TOP-RIGHT BOX: IRON MAN 2 STYLE RED HACKING WHEEL -->
+      <section class="panel hack-wheel-panel" id="hackWheelSlot">
         <div class="panel-header">
-          <span>KEYFRAME_FX</span>
-          <span>CTRL</span>
+          <span>HACK_DIAL</span>
+          <span id="wheelLockState">3x SPIN LOCK</span>
         </div>
-        <button class="keyframe-btn active" onclick="triggerEffect('rotate', this)">
-          <span>Rings_Rotate</span><span>▶</span>
-        </button>
-        <button class="keyframe-btn" onclick="triggerEffect('pulse', this)">
-          <span>Ring_Wave_Boost</span><span>▶</span>
-        </button>
-        <button class="keyframe-btn" onclick="triggerEffect('glitch', this)">
-          <span>HUD_Glitch</span><span>▶</span>
-        </button>
-        <button class="keyframe-btn" onclick="triggerEffect('scan', this)">
-          <span>Rapid_Sweep</span><span>▶</span>
-        </button>
+        <div class="hack-wheel-stage" id="hackWheelDock">
+          <div class="hacking-wheel" id="hackingWheel" title="Rotate 3 times to unlock drag">
+            <canvas id="hackingWheelCanvas" width="140" height="140"></canvas>
+            <div class="wheel-center-readout" id="wheelReadout">0/3</div>
+          </div>
+        </div>
       </section>
 
-      <section class="panel net-panel">
+      <section class="panel net-panel" data-expandable="true" data-box-id="net-panel">
         <div class="panel-header">
           <span>SIGNAL_WAVE</span>
           <span>LINK</span>
@@ -189,7 +184,7 @@
         <canvas id="networkCanvas" width="220" height="44"></canvas>
       </section>
 
-      <section class="panel voice-trigger-panel">
+      <section class="panel voice-trigger-panel" data-expandable="true" data-box-id="voice-trigger-panel">
         <div class="panel-header">
           <span>VOICE_LINK</span>
           <span id="voiceStatus">STANDBY</span>
@@ -209,7 +204,7 @@
   </main>
 
   <!-- BOTTOM FOOTER BAR: LEFT GALLERY ORB | USER VOICE EQUALIZER | RIGHT JARVIS MODE ORB -->
-  <footer class="panel voice-footer" id="voicePanel">
+  <footer class="panel voice-footer" id="voicePanel" data-expandable="true" data-box-id="voice-panel">
     <div class="voice-controls">
       <div class="voice-orb footer-orb" id="leftOrb" onclick="document.getElementById('img-input').click()" title="Open Gallery">
         GALLERY
