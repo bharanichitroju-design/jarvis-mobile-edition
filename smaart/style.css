@@ -330,7 +330,7 @@ body::after {
 }
 
 /* =========================================================
-   5. CENTER STAGE: STATIC SKULL + 3 RINGS + VIBRATING CIRCLE
+   5. CENTER STAGE: STATIC SKULL + 3 RINGS + OUTER RING VIBRATION
    ========================================================= */
 .center-col {
   gap: 5px;
@@ -367,15 +367,16 @@ body::after {
   min-height: 0;
 }
 
-/* Continuous Vibrating Circular Graph Canvas over the 3 Rings */
+/* Outer Ring Vibration Canvas over the 3 Rings (Jarvis Voice Reactive) */
 .vibration-circle-canvas {
   position: absolute;
-  width: 186px;
-  height: 186px;
-  max-width: 96%;
-  max-height: 96%;
+  width: 192px;
+  height: 192px;
+  max-width: 98%;
+  max-height: 98%;
   z-index: 4;
   pointer-events: none;
+  filter: drop-shadow(0 0 6px var(--glow-red));
 }
 
 /* Three Rotating Rings Around the Skull */
@@ -418,7 +419,7 @@ body::after {
   animation: spinClockwise 7s linear infinite;
 }
 
-/* Skull stays steady / non-vibrating as requested */
+/* Skull stays completely steady / non-vibrating */
 .skull-svg {
   width: 74px;
   max-width: 42%;
@@ -567,7 +568,7 @@ canvas#networkCanvas {
   color: var(--neon-red);
   box-shadow: 0 0 10px var(--glow-red), inset 0 0 7px var(--glow-red);
   cursor: pointer;
-  transition: transform 0.2s, background 0.2s;
+  transition: transform 0.12s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 #mic-btn.voice-orb {
@@ -585,6 +586,12 @@ canvas#networkCanvas {
   color: #ffffff;
 }
 
+.voice-orb.jarvis-mode-active {
+  background: rgba(255, 30, 39, 0.32);
+  color: #ffffff;
+  box-shadow: 0 0 16px var(--neon-red), inset 0 0 10px var(--neon-red);
+}
+
 .voice-meta {
   font-size: 0.46rem;
   line-height: 1.35;
@@ -592,7 +599,7 @@ canvas#networkCanvas {
 }
 
 /* =========================================================
-   7. BOTTOM FOOTER BAR: LEFT ORB | EQUALIZER | RIGHT ORB
+   7. BOTTOM FOOTER BAR: GALLERY ORB | USER VOICE EQUALIZER | JARVIS MODE ORB
    ========================================================= */
 .voice-footer {
   height: 76px;
@@ -612,8 +619,9 @@ canvas#networkCanvas {
   width: 48px;
   height: 48px;
   margin: 0 auto;
-  font-size: 0.44rem;
+  font-size: 0.43rem;
   line-height: 1.1;
+  letter-spacing: 0.3px;
 }
 
 .equalizer-bars {
@@ -626,18 +634,22 @@ canvas#networkCanvas {
   padding: 4px 5px;
   gap: 2px;
   border-radius: 2px;
+  overflow: hidden;
 }
 
+/* Driven directly by real-time user voice amplitude */
 .eq-bar {
   flex: 1;
   background: linear-gradient(to top, var(--dark-red), var(--neon-red));
-  height: 18%;
-  transition: height 0.08s ease;
+  height: 10%;
+  min-height: 4%;
+  max-height: 100%;
+  transition: height 0.04s linear;
   box-shadow: 0 0 3px var(--neon-red);
 }
 
 /* =========================================================
-   8. MODALS (OPENED ONLY VIA VOICE COMMANDS)
+   8. MODALS (OPENED VIA VOICE OR CONTROLS)
    ========================================================= */
 .modal {
   display: none;
@@ -805,7 +817,7 @@ canvas#networkCanvas {
 @media (min-width: 768px) {
   html, body { padding: 10px; gap: 8px; }
   .dashboard-container { grid-template-columns: 260px 1fr 260px; gap: 10px; }
-  .vibration-circle-canvas { width: 270px; height: 270px; }
+  .vibration-circle-canvas { width: 276px; height: 276px; }
   .ring-1 { width: 225px; height: 225px; }
   .ring-2 { width: 190px; height: 190px; }
   .ring-3 { width: 155px; height: 155px; }
@@ -815,6 +827,6 @@ canvas#networkCanvas {
   .metric-value { font-size: 0.82rem; }
   .voice-footer { height: 96px; }
   .voice-controls { grid-template-columns: 84px 1fr 84px; }
-  .footer-orb { width: 64px; height: 64px; font-size: 0.58rem; }
+  .footer-orb { width: 64px; height: 64px; font-size: 0.56rem; }
   .equalizer-bars { height: 60px; }
 }
