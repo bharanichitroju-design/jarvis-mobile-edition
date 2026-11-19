@@ -10,8 +10,7 @@ function checkApiKey() {
   }
 }
 
-// Preserved original text models from your earlier configuration
-const TEXT_MODELS = [
+const MODELS = [
   "gemini-2.5-flash",
   "gemini-2.0-flash",
   "gemini-1.5-flash",
@@ -20,18 +19,12 @@ const TEXT_MODELS = [
   "gemini-flash-latest"
 ];
 
-// Dedicated models used specifically when generating images
-const IMAGE_MODELS = [
-  "gemini-2.5-flash-image",
-  "gemini-2.0-flash-preview-image-generation"
-];
-
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir).
 Behavior Guidelines:
 1. Always address Bharani as "Boss" or "Sir".
 2. If asked "What is your name?" or "Who are you?", respond with: "My name is Jarvis, created by Bharani (Sir)."
 3. Keep answers concise, direct, and helpful. Utilize the user's saved memory files and offline notes when requested.
-4. [Projection & File Control Commands]: Support commands like 'full screen f1', 'natural f1', '3d f1', 'natural all files', '3d all files', 'explain f1', 'analyze f1', 'go back', 'go home', and 'clear memory'.`;
+4. [Projection & File Control Commands]: Support commands like 'full screen f1', 'natural f1', '3d f1', 'natural all files', '3d all files', 'explain f1', 'analyze f1', 'go back', and 'go home'.`;
 
 let SESSIONS = [];
 try {
@@ -63,8 +56,6 @@ let currentSession = {
 let pendingImageData = null;
 let isJarvisSpeaking = false;
 let isListeningActive = false;
-let isRecognitionRunning = false;
-let pausedForTTS = false;
 let strictJarvisKeywordMode = false;
 let workspaceFiles3D = [];
 let totalAccessLogs = 23258;
@@ -422,87 +413,6 @@ function init3DBoxScene() {
   animateBoxScene();
 }
 
-function addBase64ImageTo3DWorkspace(base64FullData, mimeType = 'image/png', fileName = 'generated.png') {
-  if (typeof THREE === 'undefined') return null;
-  if (!desktopGroup3D) {
-    open3DWorkspaceModal();
-  }
-  if (!desktopGroup3D) return null;
-
-  const fileLabel = `f${workspaceFiles3D.length + 1}`;
-  const base64DataOnly = base64FullData.includes(',') ? base64FullData.split(',')[1] : base64FullData;
-
-  const img = new Image();
-  img.src = base64FullData;
-  img.onload = () => {
-    const origTexture = new THREE.TextureLoader().load(base64FullData);
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = img.width || 512;
-    canvas.height = img.height || 512;
-
-    ctx.drawImage(img, 0, 0);
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const data = imgData.data;
-
-    for (let i = 0; i < data.length; i += 4) {
-      const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-      data[i] = 0;
-      data[i + 1] = avg * 0.9;
-      data[i + 2] = avg * 1.2;
-    }
-    ctx.putImageData(imgData, 0, 0);
-
-    const threeDTexture = new THREE.CanvasTexture(canvas);
-    const aspect = canvas.width / canvas.height;
-    const geometry = new THREE.PlaneGeometry(14 * aspect, 14);
-    const material = new THREE.MeshBasicMaterial({
-      map: threeDTexture,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.95
-    });
-
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(0, 10, 0);
-
-    const edges = new THREE.EdgesGeometry(geometry);
-    const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
-    const wireframe = new THREE.LineSegments(edges, lineMat);
-    wireframe.name = "outline";
-    wireframe.visible = false;
-    mesh.add(wireframe);
-
-    attachMapPinToMesh(mesh, fileLabel);
-
-    desktopGroup3D.add(mesh);
-    loadedObjects3D.push(mesh);
-
-    workspaceFiles3D.push({
-      label: fileLabel,
-      mesh: mesh,
-      type: 'image',
-      mode: '3d',
-      originalTexture: origTexture,
-      threeDTexture: threeDTexture,
-      mimeType: mimeType,
-      data: base64DataOnly,
-      fileName: fileName,
-      isNatural: false,
-      isDeleted: false,
-      originalPosition: mesh.position.clone(),
-      originalScale: mesh.scale.clone()
-    });
-
-    updateTelemetryCounters();
-    const hud = document.getElementById('td-hud-status');
-    if (hud) hud.innerText = `IMAGE LOADED AS ${fileLabel.toUpperCase()} WITH BLUE HOLOGRAPHIC TINT.`;
-  };
-
-  return fileLabel;
-}
-
 function spawn3DTextFromInput() {
   const textInput = document.getElementById('td-box-input');
   const hud = document.getElementById('td-hud-status');
@@ -568,11 +478,82 @@ function spawn3DTextFromInput() {
 
 function handle3DBlueprintUpload(e) {
   const file = e.target.files[0];
+  const hud = document.getElementById('td-hud-status');
   if (!file || typeof THREE === 'undefined') return;
+
+  const fileLabel = `f${workspaceFiles3D.length + 1}`;
 
   const reader = new FileReader();
   reader.onload = function(evt) {
-    addBase64ImageTo3DWorkspace(evt.target.result, file.type, file.name);
+    const base64FullData = evt.target.result;
+    const base64DataOnly = base64FullData.split(',')[1];
+
+    const img = new Image();
+    img.src = base64FullData;
+    img.onload = () => {
+      const origTexture = new THREE.TextureLoader().load(base64FullData);
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.width;
+      canvas.height = img.height;
+
+      ctx.drawImage(img, 0, 0);
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        data[i] = 0;
+        data[i + 1] = avg * 0.9;
+        data[i + 2] = avg * 1.2;
+      }
+      ctx.putImageData(imgData, 0, 0);
+
+      const threeDTexture = new THREE.CanvasTexture(canvas);
+      const aspect = img.width / img.height;
+      const geometry = new THREE.PlaneGeometry(14 * aspect, 14);
+      const material = new THREE.MeshBasicMaterial({
+        map: threeDTexture,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.95
+      });
+
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(0, 10, 0);
+
+      const edges = new THREE.EdgesGeometry(geometry);
+      const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+      const wireframe = new THREE.LineSegments(edges, lineMat);
+      wireframe.name = "outline";
+      wireframe.visible = false;
+      mesh.add(wireframe);
+
+      attachMapPinToMesh(mesh, fileLabel);
+
+      desktopGroup3D.add(mesh);
+      loadedObjects3D.push(mesh);
+
+      workspaceFiles3D.push({
+        label: fileLabel,
+        mesh: mesh,
+        type: 'image',
+        mode: '3d',
+        originalTexture: origTexture,
+        threeDTexture: threeDTexture,
+        mimeType: file.type,
+        data: base64DataOnly,
+        fileName: file.name,
+        isNatural: false,
+        isDeleted: false,
+        originalPosition: mesh.position.clone(),
+        originalScale: mesh.scale.clone()
+      });
+
+      updateTelemetryCounters();
+      if (hud) hud.innerText = `IMAGE UPLOADED AS ${fileLabel.toUpperCase()} WITH BLUE HOLOGRAPHIC TINT.`;
+    };
   };
   reader.readAsDataURL(file);
   this.value = '';
@@ -878,9 +859,9 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. OUTER RING WAVEFORM OVER THE 3 RINGS (JARVIS SPEECH REACTIVE)
+   2. CONTINUOUS VIBRATING CIRCULAR WAVEFORM OVER THE 3 RINGS
    ========================================================= */
-let skullRingVibrationLevel = 0.08;
+let waveBoostLevel = 0.25;
 
 function initCircularVibrationGraph() {
   const canvas = document.getElementById('circularVibrationCanvas');
@@ -893,24 +874,22 @@ function initCircularVibrationGraph() {
     const cx = w / 2;
     const cy = h / 2;
     const baseRadius = Math.min(w, h) * 0.37;
-    const segments = 108;
-    const now = Date.now() * 0.009;
+    const segments = 96;
+    const now = Date.now() * 0.008;
 
-    const targetLevel = isJarvisSpeaking ? 1.0 : 0.08;
-    skullRingVibrationLevel += (targetLevel - skullRingVibrationLevel) * 0.16;
+    const targetBoost = isJarvisSpeaking ? 1.0 : (isListeningActive ? 0.72 : 0.28);
+    waveBoostLevel += (targetBoost - waveBoostLevel) * 0.12;
 
     ctx.clearRect(0, 0, w, h);
 
     ctx.beginPath();
     for (let i = 0; i <= segments; i++) {
       const angle = (i / segments) * Math.PI * 2;
-      const slowSpin = now * (isJarvisSpeaking ? 2.6 : 0.65);
-      const waveA = Math.sin(angle * 10 + slowSpin);
-      const waveB = Math.cos(angle * 6 - slowSpin * 0.8);
-      const speechBurst = isJarvisSpeaking
-        ? (0.5 + 0.5 * Math.sin(now * 4.5 + i * 0.55)) * 15
-        : 2.2;
-      const r = baseRadius + waveA * speechBurst * skullRingVibrationLevel + waveB * (isJarvisSpeaking ? 4.5 : 1.0);
+      const harmonic1 = Math.sin(angle * 8 + now * 1.6);
+      const harmonic2 = Math.cos(angle * 5 - now * 1.2);
+      const jitter = Math.sin(now * 3.1 + i * 0.7) * 0.35;
+      const amplitude = (5 + waveBoostLevel * 14) * (0.55 + 0.45 * harmonic2 + jitter * 0.25);
+      const r = baseRadius + harmonic1 * amplitude;
 
       const x = cx + Math.cos(angle) * r;
       const y = cy + Math.sin(angle) * r;
@@ -919,26 +898,25 @@ function initCircularVibrationGraph() {
     }
     ctx.closePath();
     ctx.strokeStyle = '#ff1e27';
-    ctx.lineWidth = isJarvisSpeaking ? 2.5 : 1.5;
-    ctx.shadowBlur = isJarvisSpeaking ? 14 : 5;
+    ctx.lineWidth = 2.2;
+    ctx.shadowBlur = 10;
     ctx.shadowColor = '#ff1e27';
     ctx.stroke();
 
     ctx.beginPath();
     for (let i = 0; i <= segments; i++) {
       const angle = (i / segments) * Math.PI * 2;
-      const spin2 = now * (isJarvisSpeaking ? -2.2 : 0.45);
-      const pulse = Math.cos(angle * 14 + spin2) * (isJarvisSpeaking ? 7.5 : 1.2) * skullRingVibrationLevel;
-      const r = baseRadius * 0.88 + pulse;
+      const pulse = Math.cos(angle * 12 - now * 2.1) * (2.5 + waveBoostLevel * 7);
+      const r = baseRadius * 0.84 + pulse;
       const x = cx + Math.cos(angle) * r;
       const y = cy + Math.sin(angle) * r;
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.closePath();
-    ctx.strokeStyle = isJarvisSpeaking ? 'rgba(255, 71, 78, 0.75)' : 'rgba(255, 71, 78, 0.35)';
+    ctx.strokeStyle = 'rgba(255, 71, 78, 0.55)';
     ctx.lineWidth = 1.2;
-    ctx.shadowBlur = isJarvisSpeaking ? 8 : 2;
+    ctx.shadowBlur = 4;
     ctx.stroke();
 
     requestAnimationFrame(renderCircleWave);
@@ -949,7 +927,6 @@ function initCircularVibrationGraph() {
 
 window.addEventListener('DOMContentLoaded', () => {
   initCircularVibrationGraph();
-  initUserVoiceEqualizer();
   updateTelemetryCounters();
 
   setTimeout(() => {
@@ -957,29 +934,16 @@ window.addEventListener('DOMContentLoaded', () => {
     addMessage(`Jarvis: ${welcomeText}`, 'ai');
     currentSession.messages.push({ role: 'model', text: welcomeText, time: format12HourTime(new Date()) });
     updateTelemetryCounters();
-    speak(welcomeText, () => {
-      if (typeof startJarvisListening === 'function') startJarvisListening();
-    });
-  }, 1000);
+    speak(welcomeText);
+    if (typeof startJarvisListening === 'function') startJarvisListening();
+  }, 800);
 });
 
 /* =========================================================
-   3. TEXT-TO-SPEECH (TTS) WITH SAFE MIC HANDOFF
+   3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT (ORIGINAL)
    ========================================================= */
-let pauseRecognitionForTTS = function() {};
-let resumeRecognitionAfterTTS = function() {};
-
-function speak(text, onDoneCallback = null) {
-  const finishSpeaking = () => {
-    isJarvisSpeaking = false;
-    if (statusText) statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
-    if (speechIndicator) speechIndicator.innerText = "IDLE";
-    resumeRecognitionAfterTTS();
-    if (typeof onDoneCallback === 'function') onDoneCallback();
-  };
-
+function speak(text) {
   if ('speechSynthesis' in window) {
-    pauseRecognitionForTTS();
     window.speechSynthesis.cancel();
     const cleanText = text.replace(/[\*\#\`\_]/g, '');
     const utterance = new SpeechSynthesisUtterance(cleanText);
@@ -994,16 +958,18 @@ function speak(text, onDoneCallback = null) {
     };
 
     utterance.onend = () => {
-      setTimeout(finishSpeaking, 250);
+      isJarvisSpeaking = false;
+      if (statusText) statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
+      if (speechIndicator) speechIndicator.innerText = "IDLE";
     };
 
     utterance.onerror = () => {
-      setTimeout(finishSpeaking, 250);
+      isJarvisSpeaking = false;
+      if (statusText) statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
+      if (speechIndicator) speechIndicator.innerText = "IDLE";
     };
 
     window.speechSynthesis.speak(utterance);
-  } else {
-    finishSpeaking();
   }
 }
 
@@ -1014,66 +980,14 @@ function saveSessions() {
   localStorage.setItem('jarvis_sessions', JSON.stringify(SESSIONS));
 }
 
-function addMessage(text, sender, imageDataUrl = null) {
+function addMessage(text, sender) {
   if (!chat) return;
   const msgDiv = document.createElement('div');
   msgDiv.className = `message ${sender}`;
-
-  if (imageDataUrl) {
-    const textSpan = document.createElement('div');
-    textSpan.innerText = text;
-    msgDiv.appendChild(textSpan);
-
-    const imgEl = document.createElement('img');
-    imgEl.src = imageDataUrl;
-    imgEl.alt = 'Generated Image';
-    imgEl.style.cssText = "max-width:100%; max-height:240px; border-radius:6px; margin-top:6px; border:1px solid #00ffff; display:block;";
-    msgDiv.appendChild(imgEl);
-
-    const load3DBtn = document.createElement('button');
-    load3DBtn.innerText = "SEND TO 3D WORKSPACE";
-    load3DBtn.style.cssText = "margin-top:6px; background:rgba(0,30,60,0.9); border:1px solid #00ffff; color:#00ffff; padding:4px 8px; font-size:10px; font-family:monospace; cursor:pointer; border-radius:4px;";
-    load3DBtn.addEventListener('click', () => {
-      const mimeMatch = imageDataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
-      const mime = mimeMatch ? mimeMatch[1] : 'image/png';
-      addBase64ImageTo3DWorkspace(imageDataUrl, mime, 'jarvis-generated.png');
-    });
-    msgDiv.appendChild(load3DBtn);
-  } else {
-    msgDiv.innerText = text;
-  }
-
+  msgDiv.innerText = text;
   chat.appendChild(msgDiv);
   chat.scrollTop = chat.scrollHeight;
   updateTelemetryCounters();
-}
-
-/* =========================================================
-   4.5. CLEAR MEMORY -> SAVE TO HISTORY & CLEAR CHAT
-   ========================================================= */
-function archiveCurrentChatToHistoryAndClear() {
-  if (currentSession.messages.length > 0) {
-    const snapshot = {
-      id: Date.now(),
-      title: currentSession.title !== "New Conversation" ? currentSession.title : `Session (${currentSession.messages.length} msgs)`,
-      date: format12HourTime(new Date()),
-      messages: [...currentSession.messages]
-    };
-    SESSIONS.unshift(snapshot);
-    saveSessions();
-  }
-
-  currentSession = {
-    id: Date.now() + 1,
-    title: "New Conversation",
-    date: format12HourTime(new Date()),
-    messages: []
-  };
-
-  if (chat) chat.innerHTML = '';
-  if (input) input.value = '';
-  updateTelemetryCounters();
-  pushSystemLog("Memory", "SAVED_TO_HISTORY");
 }
 
 /* =========================================================
@@ -1136,66 +1050,40 @@ if (saveCustomMemory) {
 }
 
 /* =========================================================
-   5.5. JARVIS MODE TOGGLE CONTROLLER
-   ========================================================= */
-function setJarvisModeState(enabled, announce = true) {
-  strictJarvisKeywordMode = Boolean(enabled);
-  const rightOrb = document.getElementById('rightOrb');
-
-  if (modeIndicator) {
-    modeIndicator.innerText = strictJarvisKeywordMode ? "STRICT" : "STANDARD";
-  }
-  if (rightOrb) {
-    if (strictJarvisKeywordMode) rightOrb.classList.add('jarvis-mode-active');
-    else rightOrb.classList.remove('jarvis-mode-active');
-  }
-
-  pushSystemLog("Mode", strictJarvisKeywordMode ? "JARVIS_ON" : "STANDARD");
-
-  if (announce) {
-    const msg = strictJarvisKeywordMode
-      ? "Jarvis Mode activated, Boss. Only 'Jarvis' commands will trigger."
-      : "Jarvis Mode deactivated, Boss. Standard voice mode active.";
-    addMessage(`Jarvis: ${msg}`, 'ai');
-    currentSession.messages.push({ role: 'model', text: msg, time: format12HourTime(new Date()) });
-    saveSessions();
-    speak(msg);
-  }
-}
-
-function toggleJarvisMode() {
-  setJarvisModeState(!strictJarvisKeywordMode, true);
-}
-
-/* =========================================================
-   6. VOICE / TEXT COMMAND ROUTING
+   6. VOICE / TEXT COMMAND ROUTING (ORIGINAL COMMANDS)
    ========================================================= */
 function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
-
-  if (query.includes("clear memory") || query === "clear memory") {
-    archiveCurrentChatToHistoryAndClear();
-    return "Previous conversation saved to History and cleared, Boss.";
-  }
 
   if (query.includes("explain") || query.includes("analyze") || query.includes("what is") || query.includes("matter")) {
     return null;
   }
 
   if (query.includes("jarvis mode activate") || query === "jarvis mode" || query === "jarvis on" || query === "jarvis activate") {
-    setJarvisModeState(true, false);
+    strictJarvisKeywordMode = true;
+    if (modeIndicator) modeIndicator.innerText = "STRICT";
+    pushSystemLog("Mode", "JARVIS_ON");
     return "Jarvis Mode activated, Boss.";
   }
 
   if (query.includes("jarvis mode off") || query.includes("jarvis off") || query.includes("close jarvis") || query === "normal mode") {
-    setJarvisModeState(false, false);
+    strictJarvisKeywordMode = false;
+    if (modeIndicator) modeIndicator.innerText = "STANDARD";
+    pushSystemLog("Mode", "STANDARD");
     return "Jarvis Mode deactivated, Boss.";
   }
 
   if (query === "clear jarvis" || query.includes("clear jarvis")) {
-    archiveCurrentChatToHistoryAndClear();
-    return "Chat display saved to History and cleared, Boss.";
+    if (currentSession.messages.length > 0) {
+      SESSIONS.unshift(currentSession);
+      saveSessions();
+    }
+    currentSession = { id: Date.now(), title: "New Conversation", date: format12HourTime(new Date()), messages: [] };
+    if (chat) chat.innerHTML = '';
+    updateTelemetryCounters();
+    pushSystemLog("Chat", "CLEARED");
+    return "Chat display cleared, Boss.";
   }
 
   if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("open 3d") || query.includes("3d workspace")) {
@@ -1309,93 +1197,14 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. GEMINI AI ENGINE (TEXT + IMAGE GENERATION + FILE ANALYSIS)
+   7. GEMINI AI ENGINE WITH YOUTUBE & FILE ANALYSIS
    ========================================================= */
-function isImageGenerationRequest(text) {
-  if (!text) return false;
-  return /\b(generate|create|draw|make|design)\b.*\b(image|picture|photo|artwork|illustration|logo|wallpaper|scene)\b/i.test(text) ||
-         /\b(image|picture|photo)\b.*\b(of|for)\b/i.test(text);
-}
-
-async function generateImageWithGemini(promptText, activeKey) {
-  const parts = [{ text: promptText }];
-  if (pendingImageData) {
-    parts.push({
-      inline_data: {
-        mime_type: pendingImageData.mimeType,
-        data: pendingImageData.data
-      }
-    });
-  }
-
-  for (const imgModel of IMAGE_MODELS) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20000);
-
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${imgModel}:generateContent?key=${activeKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts }],
-            generationConfig: {
-              responseModalities: ["TEXT", "IMAGE"]
-            }
-          }),
-          signal: controller.signal
-        }
-      );
-      clearTimeout(timeoutId);
-
-      if (res.ok) {
-        const data = await res.json();
-        const candidateParts = data.candidates?.[0]?.content?.parts || [];
-        let caption = "Here is the generated image, Boss.";
-        let imageDataUrl = null;
-
-        for (const part of candidateParts) {
-          if (part.text) {
-            caption = part.text.trim();
-          }
-          const inline = part.inlineData || part.inline_data;
-          if (inline && inline.data) {
-            const mime = inline.mimeType || inline.mime_type || "image/png";
-            imageDataUrl = `data:${mime};base64,${inline.data}`;
-          }
-        }
-
-        if (imageDataUrl) {
-          pendingImageData = null;
-          pushSystemLog("ImgModel", imgModel.toUpperCase());
-          return { text: caption, imageDataUrl };
-        }
-      }
-    } catch (e) {
-      console.warn("Image model attempt failed:", imgModel, e);
-    }
-  }
-
-  return null;
-}
-
 async function callGemini(text) {
   let activeKey = API_KEY || localStorage.getItem('jarvis_key');
   if (!activeKey) {
     checkApiKey();
     activeKey = API_KEY || localStorage.getItem('jarvis_key');
-    if (!activeKey) return { text: "API Key is required to connect with AI online, Boss.", imageDataUrl: null };
-  }
-
-  if (statusText) statusText.innerText = "PROCESSING...";
-  pushSystemLog("Gemini", "QUERYING");
-
-  if (isImageGenerationRequest(text)) {
-    const imgResult = await generateImageWithGemini(text, activeKey);
-    if (imgResult) {
-      return imgResult;
-    }
+    if (!activeKey) return "API Key is required to connect with AI online, Boss.";
   }
 
   const customMems = getCustomMemories();
@@ -1438,8 +1247,10 @@ async function callGemini(text) {
   }
 
   contents.push({ role: 'user', parts: userParts });
+  if (statusText) statusText.innerText = "PROCESSING...";
+  pushSystemLog("Gemini", "QUERYING");
 
-  for (let model of TEXT_MODELS) {
+  for (let model of MODELS) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 12000);
@@ -1469,7 +1280,7 @@ async function callGemini(text) {
             setTimeout(() => { openYouTubeModal(cleanQuery || text); }, 300);
           }
 
-          return { text: aiResponseText, imageDataUrl: null };
+          return aiResponseText;
         }
       }
     } catch (e) {
@@ -1479,10 +1290,7 @@ async function callGemini(text) {
 
   pendingImageData = null;
   pushSystemLog("Gemini", "OFFLINE");
-  return {
-    text: "Network connection unavailable or API limit reached, Boss. Please verify your API Key.",
-    imageDataUrl: null
-  };
+  return "Network connection unavailable or API limit reached, Boss. Please verify your API Key.";
 }
 
 /* =========================================================
@@ -1524,18 +1332,11 @@ async function handleUserCommand() {
   if (statusText) statusText.innerText = "PROCESSING...";
 
   try {
-    const result = await callGemini(text);
-    const replyText = typeof result === 'string' ? result : result.text;
-    const imageDataUrl = typeof result === 'object' ? result.imageDataUrl : null;
-
-    addMessage(`Jarvis: ${replyText}`, 'ai', imageDataUrl);
-    currentSession.messages.push({
-      role: 'model',
-      text: imageDataUrl ? `${replyText} [Generated Image]` : replyText,
-      time: format12HourTime(new Date())
-    });
+    const reply = await callGemini(text);
+    addMessage(`Jarvis: ${reply}`, 'ai');
+    currentSession.messages.push({ role: 'model', text: reply, time: format12HourTime(new Date()) });
     saveSessions();
-    speak(replyText);
+    speak(reply);
   } catch (err) {
     addMessage(`Jarvis: Error executing requested protocols.`, 'ai');
     speak(`Error executing requested protocols, Boss.`);
@@ -1650,142 +1451,46 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. REAL-TIME USER VOICE EQUALIZER + SPEECH RECOGNITION
+   11. CONTINUOUS VOICE RECOGNITION + VIBE PANEL + TELEMETRY (ORIGINAL)
    ========================================================= */
-const eqContainer = document.getElementById('equalizer');
-const barCount = 36;
-const bars = [];
-if (eqContainer) {
-  for (let i = 0; i < barCount; i++) {
-    const bar = document.createElement('div');
-    bar.className = 'eq-bar';
-    eqContainer.appendChild(bar);
-    bars.push(bar);
-  }
-}
-
-let userMicAudioCtx = null;
-let userMicAnalyser = null;
-let userMicDataArray = null;
-let userMicStream = null;
-let micInitInProgress = false;
-
-async function enableUserVoiceMeter() {
-  if (userMicAnalyser || micInitInProgress) return;
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-  micInitInProgress = true;
-  try {
-    userMicStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
-    });
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    userMicAudioCtx = new AudioContextClass();
-    if (userMicAudioCtx.state === 'suspended') {
-      await userMicAudioCtx.resume();
-    }
-    const source = userMicAudioCtx.createMediaStreamSource(userMicStream);
-    userMicAnalyser = userMicAudioCtx.createAnalyser();
-    userMicAnalyser.fftSize = 128;
-    userMicAnalyser.smoothingTimeConstant = 0.72;
-    source.connect(userMicAnalyser);
-    userMicDataArray = new Uint8Array(userMicAnalyser.frequencyBinCount);
-  } catch (err) {
-    // Mic permission denied or unavailable; keep quiet floor
-  } finally {
-    micInitInProgress = false;
-  }
-}
-
-function initUserVoiceEqualizer() {
-  if (!bars.length) return;
-
-  function renderUserVoiceBars() {
-    let freqData = null;
-    if (userMicAnalyser && userMicDataArray) {
-      if (userMicAudioCtx && userMicAudioCtx.state === 'suspended') {
-        userMicAudioCtx.resume().catch(() => {});
-      }
-      userMicAnalyser.getByteFrequencyData(userMicDataArray);
-      freqData = userMicDataArray;
-    }
-
-    const half = Math.floor(barCount / 2);
-
-    for (let i = 0; i < barCount; i++) {
-      let normAmp = 0;
-      if (freqData && freqData.length > 0) {
-        const distFromCenter = Math.abs(i - half) / Math.max(1, half);
-        const binIndex = Math.min(
-          freqData.length - 1,
-          Math.floor((1 - distFromCenter) * (freqData.length * 0.65))
-        );
-        const rawVal = freqData[binIndex] / 255;
-        const gated = Math.max(0, (rawVal - 0.06) / 0.94);
-        normAmp = Math.pow(gated, 1.15);
-      }
-
-      const heightPct = 10 + normAmp * 88;
-      bars[i].style.height = `${Math.min(100, Math.max(10, heightPct))}%`;
-    }
-
-    requestAnimationFrame(renderUserVoiceBars);
-  }
-
-  renderUserVoiceBars();
-}
-
 let startJarvisListening = function() {};
+
+function toggleVoiceAssistant() {
+  isListeningActive = !isListeningActive;
+  const leftOrb = document.getElementById('leftOrb');
+  const rightOrb = document.getElementById('rightOrb');
+  const voicePanel = document.getElementById('voicePanel');
+
+  if (isListeningActive) {
+    if (leftOrb) leftOrb.classList.add('listening');
+    if (rightOrb) rightOrb.classList.add('listening');
+    if (micBtn) micBtn.classList.add('active-mic');
+    if (voiceStatus) voiceStatus.innerText = 'ACTIVE';
+    if (statusBadge) statusBadge.innerText = '[VOICE_ON]';
+
+    if (navigator.vibrate) {
+      navigator.vibrate([110, 50, 110, 50, 180]);
+    }
+    if (voicePanel) {
+      voicePanel.classList.add('glitch-active');
+      setTimeout(() => voicePanel.classList.remove('glitch-active'), 450);
+    }
+    pushSystemLog("Voice Link", "LISTENING");
+    if (typeof startJarvisListening === 'function') startJarvisListening();
+  } else {
+    if (leftOrb) leftOrb.classList.remove('listening');
+    if (rightOrb) rightOrb.classList.remove('listening');
+    if (micBtn) micBtn.classList.remove('active-mic');
+    if (voiceStatus) voiceStatus.innerText = 'STANDBY';
+    if (statusBadge) statusBadge.innerText = '[ONLINE]';
+    if (navigator.vibrate) navigator.vibrate(0);
+    pushSystemLog("Voice Link", "STANDBY");
+  }
+}
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
-  let restartTimer = null;
-
-  function safeStartRecognition() {
-    if (!recognition || !isListeningActive || pausedForTTS || isRecognitionRunning) return;
-    try {
-      recognition.start();
-    } catch (err) {
-      if (err && err.name === 'InvalidStateError') {
-        isRecognitionRunning = true;
-      } else {
-        console.warn("Recognition start error:", err);
-      }
-    }
-  }
-
-  function safeStopRecognition() {
-    if (restartTimer) {
-      clearTimeout(restartTimer);
-      restartTimer = null;
-    }
-    if (recognition && isRecognitionRunning) {
-      try {
-        recognition.stop();
-      } catch (err) {}
-    }
-  }
-
-  pauseRecognitionForTTS = function() {
-    if (isListeningActive) {
-      pausedForTTS = true;
-      safeStopRecognition();
-    }
-  };
-
-  resumeRecognitionAfterTTS = function() {
-    pausedForTTS = false;
-    if (isListeningActive && !isRecognitionRunning) {
-      clearTimeout(restartTimer);
-      restartTimer = setTimeout(() => {
-        safeStartRecognition();
-      }, 220);
-    }
-  };
 
   function initRecognition() {
     recognition = new SpeechRecognition();
@@ -1794,16 +1499,8 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     recognition.interimResults = false;
 
     recognition.onstart = () => {
-      isRecognitionRunning = true;
       if (statusText) statusText.innerText = "LISTENING...";
-      if (voiceStatus) voiceStatus.innerText = "ACTIVE";
-      if (statusBadge) statusBadge.innerText = "[VOICE_ON]";
-      if (micBtn) {
-        micBtn.classList.add('active-mic');
-        micBtn.style.background = "#00f3ff";
-        micBtn.style.color = "#000";
-      }
-      enableUserVoiceMeter();
+      if (micBtn) micBtn.classList.add('active-mic');
     };
 
     recognition.onresult = (event) => {
@@ -1819,6 +1516,11 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
       const lowerTranscript = rawTranscript.toLowerCase();
 
+      if (isJarvisSpeaking && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        isJarvisSpeaking = false;
+      }
+
       if (input) input.value = rawTranscript;
 
       if (strictJarvisKeywordMode && !lowerTranscript.includes("jarvis")) {
@@ -1826,10 +1528,13 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         return;
       }
 
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+
       if (lowerTranscript.includes("smart stop listening") || lowerTranscript.includes("stop listening")) {
         isListeningActive = false;
-        pausedForTTS = false;
-        safeStopRecognition();
+        try { recognition.stop(); } catch (e) {}
         addMessage(`You: ${rawTranscript}`, 'user');
         addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
         speak('Stopped Listening, Boss.');
@@ -1839,41 +1544,22 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       handleUserCommand();
     };
 
-    recognition.onerror = (event) => {
-      console.warn("Speech recognition error:", event.error);
-      isRecognitionRunning = false;
-
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        isListeningActive = false;
-        pausedForTTS = false;
-        pushSystemLog("Mic", "BLOCKED");
-        if (statusText) statusText.innerText = "MIC BLOCKED";
-        if (voiceStatus) voiceStatus.innerText = "DENIED";
-        return;
-      }
-
+    recognition.onerror = () => {
       if (!isJarvisSpeaking && statusText) {
         statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
       }
     };
 
     recognition.onend = () => {
-      isRecognitionRunning = false;
-
-      if (isListeningActive && !pausedForTTS) {
-        clearTimeout(restartTimer);
-        restartTimer = setTimeout(() => {
-          safeStartRecognition();
-        }, 280);
-      } else if (!pausedForTTS) {
-        if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
-        if (voiceStatus) voiceStatus.innerText = "STANDBY";
-        if (statusBadge) statusBadge.innerText = "[ONLINE]";
-        if (micBtn) {
-          micBtn.classList.remove('active-mic');
-          micBtn.style.background = "";
-          micBtn.style.color = "";
+      if (isListeningActive) {
+        try {
+          recognition.start();
+        } catch (e) {
+          setTimeout(() => { try { recognition.start(); } catch (err) {} }, 250);
         }
+      } else {
+        if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
+        if (micBtn) micBtn.classList.remove('active-mic');
       }
     };
   }
@@ -1882,24 +1568,20 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
   startJarvisListening = function() {
     isListeningActive = true;
-    if (!pausedForTTS) {
-      safeStartRecognition();
-    }
+    if (micBtn) micBtn.classList.add('active-mic');
+    try { recognition.start(); } catch (err) {}
   };
 
   if (micBtn) {
     micBtn.addEventListener('click', () => {
       if (!isListeningActive) {
-        isListeningActive = true;
-        pausedForTTS = false;
+        startJarvisListening();
         addMessage(`Jarvis: Active and listening continuously, Boss...`, 'ai');
-        speak('Listening continuously, Boss.', () => {
-          safeStartRecognition();
-        });
+        speak('Listening continuously, Boss.');
       } else {
         isListeningActive = false;
-        pausedForTTS = false;
-        safeStopRecognition();
+        try { recognition.stop(); } catch (err) {}
+        if (micBtn) micBtn.classList.remove('active-mic');
         addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
         speak('Stopped Listening, Boss.');
       }
@@ -1907,8 +1589,34 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   }
 }
 
+// Equalizer Bars & Continuous Telemetry Loop
+const eqContainer = document.getElementById('equalizer');
+const barCount = 36;
+const bars = [];
+if (eqContainer) {
+  for (let i = 0; i < barCount; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'eq-bar';
+    eqContainer.appendChild(bar);
+    bars.push(bar);
+  }
+}
+
+function pulseEqualizer() {
+  if (!bars.length) return;
+  const now = Date.now();
+  bars.forEach((bar, idx) => {
+    const centerDist = Math.abs(idx - barCount / 2) / (barCount / 2);
+    const wave = Math.sin(now * 0.012 + idx * 0.35) * 0.5 + 0.5;
+    const activeFactor = isJarvisSpeaking ? 1.0 : (isListeningActive ? 0.72 : 0.32);
+    const height = (wave * (1 - centerDist * 0.35) * 78 * activeFactor) + 12;
+    bar.style.height = `${Math.min(100, Math.max(10, height))}%`;
+  });
+}
+
 let decryptProg = 30;
 setInterval(() => {
+  pulseEqualizer();
   updateTelemetryCounters();
 
   decryptProg = decryptProg >= 100 ? 12 : decryptProg + 1;
@@ -1946,7 +1654,7 @@ function triggerEffect(mode, btnElement) {
     if (r3) r3.style.animationDuration = '7s';
     pushSystemLog("FX", "RINGS_ROTATE");
   } else if (mode === 'pulse') {
-    skullRingVibrationLevel = 1.0;
+    waveBoostLevel = 1.0;
     if (r1) r1.style.animationDuration = '8s';
     pushSystemLog("FX", "WAVE_BOOST");
   } else if (mode === 'glitch') {
