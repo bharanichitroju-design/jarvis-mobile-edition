@@ -10,7 +10,6 @@ function checkApiKey() {
   }
 }
 
-// Preserved original text models from your earlier configuration
 const TEXT_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.0-flash",
@@ -20,7 +19,6 @@ const TEXT_MODELS = [
   "gemini-flash-latest"
 ];
 
-// Dedicated models used specifically when generating images
 const IMAGE_MODELS = [
   "gemini-2.5-flash-image",
   "gemini-2.0-flash-preview-image-generation"
@@ -1311,8 +1309,11 @@ async function generateImageWithGemini(promptText, activeKey) {
     });
   }
 
+  let lastStatusError = null;
+
   for (const imgModel of IMAGE_MODELS) {
     try {
+      pushSystemLog("ImgModel", `TRY_${imgModel.toUpperCase()}`);
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 20000);
 
@@ -1323,6 +1324,7 @@ async function generateImageWithGemini(promptText, activeKey) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ role: 'user', parts }],
+            system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
             generationConfig: {
               responseModalities: ["TEXT", "IMAGE"]
             }
@@ -1352,15 +1354,23 @@ async function generateImageWithGemini(promptText, activeKey) {
         if (imageDataUrl) {
           pendingImageData = null;
           pushSystemLog("ImgModel", imgModel.toUpperCase());
-          return { text: caption, imageDataUrl };
+          return { text: caption, imageDataUrl, errorReason: null };
+        } else {
+          lastStatusError = `${imgModel} returned no image data`;
         }
+      } else {
+        const errBody = await res.text().catch(() => '');
+        lastStatusError = `${imgModel} HTTP ${res.status}: ${errBody.slice(0, 120)}`;
+        console.warn("Image model response error:", lastStatusError);
       }
     } catch (e) {
+      lastStatusError = `${imgModel} request failed: ${e.message || e}`;
       console.warn("Image model attempt failed:", imgModel, e);
     }
   }
 
-  return null;
+  pushSystemLog("ImgModel", "UNAVAILABLE");
+  return { text: null, imageDataUrl: null, errorReason: lastStatusError };
 }
 
 async function callGemini(text) {
@@ -1376,9 +1386,14 @@ async function callGemini(text) {
 
   if (isImageGenerationRequest(text)) {
     const imgResult = await generateImageWithGemini(text, activeKey);
-    if (imgResult) {
+    if (imgResult && imgResult.imageDataUrl) {
       return imgResult;
     }
+    pendingImageData = null;
+    return {
+      text: `Boss, image generation could not complete (${imgResult?.errorReason || 'image model unavailable on this key/endpoint'}). Please check your Gemini API key access for image models.`,
+      imageDataUrl: null
+    };
   }
 
   const customMems = getCustomMemories();
