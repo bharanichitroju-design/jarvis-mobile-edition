@@ -859,9 +859,9 @@ function setup3DInteractions(viewport) {
 }
 
 /* =========================================================
-   2. CONTINUOUS VIBRATING CIRCULAR WAVEFORM OVER THE 3 RINGS
+   2. OUTER RING WAVEFORM OVER THE 3 RINGS (JARVIS SPEECH REACTIVE)
    ========================================================= */
-let waveBoostLevel = 0.25;
+let skullRingVibrationLevel = 0.08;
 
 function initCircularVibrationGraph() {
   const canvas = document.getElementById('circularVibrationCanvas');
@@ -874,24 +874,26 @@ function initCircularVibrationGraph() {
     const cx = w / 2;
     const cy = h / 2;
     const baseRadius = Math.min(w, h) * 0.37;
-    const segments = 96;
-    const now = Date.now() * 0.008;
+    const segments = 108;
+    const now = Date.now() * 0.009;
 
-    // Continuous motion even in standby, boosted when speaking or listening
-    const targetBoost = isJarvisSpeaking ? 1.0 : (isListeningActive ? 0.72 : 0.28);
-    waveBoostLevel += (targetBoost - waveBoostLevel) * 0.12;
+    // When Jarvis speaks -> high vibration; when silent -> gentle low vibration rotation
+    const targetLevel = isJarvisSpeaking ? 1.0 : 0.08;
+    skullRingVibrationLevel += (targetLevel - skullRingVibrationLevel) * 0.16;
 
     ctx.clearRect(0, 0, w, h);
 
-    // Outer vibrating radial waveform circle
+    // Outer ring perimeter wave around the 3 rings (skull stays stationary inside)
     ctx.beginPath();
     for (let i = 0; i <= segments; i++) {
       const angle = (i / segments) * Math.PI * 2;
-      const harmonic1 = Math.sin(angle * 8 + now * 1.6);
-      const harmonic2 = Math.cos(angle * 5 - now * 1.2);
-      const jitter = Math.sin(now * 3.1 + i * 0.7) * 0.35;
-      const amplitude = (5 + waveBoostLevel * 14) * (0.55 + 0.45 * harmonic2 + jitter * 0.25);
-      const r = baseRadius + harmonic1 * amplitude;
+      const slowSpin = now * (isJarvisSpeaking ? 2.6 : 0.65);
+      const waveA = Math.sin(angle * 10 + slowSpin);
+      const waveB = Math.cos(angle * 6 - slowSpin * 0.8);
+      const speechBurst = isJarvisSpeaking
+        ? (0.5 + 0.5 * Math.sin(now * 4.5 + i * 0.55)) * 15
+        : 2.2;
+      const r = baseRadius + waveA * speechBurst * skullRingVibrationLevel + waveB * (isJarvisSpeaking ? 4.5 : 1.0);
 
       const x = cx + Math.cos(angle) * r;
       const y = cy + Math.sin(angle) * r;
@@ -900,26 +902,27 @@ function initCircularVibrationGraph() {
     }
     ctx.closePath();
     ctx.strokeStyle = '#ff1e27';
-    ctx.lineWidth = 2.2;
-    ctx.shadowBlur = 10;
+    ctx.lineWidth = isJarvisSpeaking ? 2.5 : 1.5;
+    ctx.shadowBlur = isJarvisSpeaking ? 14 : 5;
     ctx.shadowColor = '#ff1e27';
     ctx.stroke();
 
-    // Inner secondary vibrating ring
+    // Subtle secondary perimeter line
     ctx.beginPath();
     for (let i = 0; i <= segments; i++) {
       const angle = (i / segments) * Math.PI * 2;
-      const pulse = Math.cos(angle * 12 - now * 2.1) * (2.5 + waveBoostLevel * 7);
-      const r = baseRadius * 0.84 + pulse;
+      const spin2 = now * (isJarvisSpeaking ? -2.2 : 0.45);
+      const pulse = Math.cos(angle * 14 + spin2) * (isJarvisSpeaking ? 7.5 : 1.2) * skullRingVibrationLevel;
+      const r = baseRadius * 0.88 + pulse;
       const x = cx + Math.cos(angle) * r;
       const y = cy + Math.sin(angle) * r;
       if (i === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.closePath();
-    ctx.strokeStyle = 'rgba(255, 71, 78, 0.55)';
+    ctx.strokeStyle = isJarvisSpeaking ? 'rgba(255, 71, 78, 0.75)' : 'rgba(255, 71, 78, 0.35)';
     ctx.lineWidth = 1.2;
-    ctx.shadowBlur = 4;
+    ctx.shadowBlur = isJarvisSpeaking ? 8 : 2;
     ctx.stroke();
 
     requestAnimationFrame(renderCircleWave);
@@ -930,6 +933,7 @@ function initCircularVibrationGraph() {
 
 window.addEventListener('DOMContentLoaded', () => {
   initCircularVibrationGraph();
+  initUserVoiceEqualizer();
   updateTelemetryCounters();
 
   setTimeout(() => {
@@ -1053,7 +1057,39 @@ if (saveCustomMemory) {
 }
 
 /* =========================================================
-   6. VOICE / TEXT COMMAND ROUTING (NO EXTRA UI BUTTONS)
+   5.5. JARVIS MODE TOGGLE CONTROLLER
+   ========================================================= */
+function setJarvisModeState(enabled, announce = true) {
+  strictJarvisKeywordMode = Boolean(enabled);
+  const rightOrb = document.getElementById('rightOrb');
+
+  if (modeIndicator) {
+    modeIndicator.innerText = strictJarvisKeywordMode ? "STRICT" : "STANDARD";
+  }
+  if (rightOrb) {
+    if (strictJarvisKeywordMode) rightOrb.classList.add('jarvis-mode-active');
+    else rightOrb.classList.remove('jarvis-mode-active');
+  }
+
+  pushSystemLog("Mode", strictJarvisKeywordMode ? "JARVIS_ON" : "STANDARD");
+
+  if (announce) {
+    const msg = strictJarvisKeywordMode
+      ? "Jarvis Mode activated, Boss. Only 'Jarvis' commands will trigger."
+      : "Jarvis Mode deactivated, Boss. Standard voice mode active.";
+    addMessage(`Jarvis: ${msg}`, 'ai');
+    currentSession.messages.push({ role: 'model', text: msg, time: format12HourTime(new Date()) });
+    saveSessions();
+    speak(msg);
+  }
+}
+
+function toggleJarvisMode() {
+  setJarvisModeState(!strictJarvisKeywordMode, true);
+}
+
+/* =========================================================
+   6. VOICE / TEXT COMMAND ROUTING
    ========================================================= */
 function handleHardcoded(text) {
   if (!text) return null;
@@ -1064,16 +1100,12 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("jarvis mode activate") || query === "jarvis mode" || query === "jarvis on" || query === "jarvis activate") {
-    strictJarvisKeywordMode = true;
-    if (modeIndicator) modeIndicator.innerText = "STRICT";
-    pushSystemLog("Mode", "JARVIS_ON");
+    setJarvisModeState(true, false);
     return "Jarvis Mode activated, Boss.";
   }
 
   if (query.includes("jarvis mode off") || query.includes("jarvis off") || query.includes("close jarvis") || query === "normal mode") {
-    strictJarvisKeywordMode = false;
-    if (modeIndicator) modeIndicator.innerText = "STANDARD";
-    pushSystemLog("Mode", "STANDARD");
+    setJarvisModeState(false, false);
     return "Jarvis Mode deactivated, Boss.";
   }
 
@@ -1454,42 +1486,97 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. CONTINUOUS VOICE RECOGNITION + VIBE PANEL + TELEMETRY
+   11. REAL-TIME USER VOICE EQUALIZER + SPEECH RECOGNITION + TELEMETRY
    ========================================================= */
-let startJarvisListening = function() {};
-
-function toggleVoiceAssistant() {
-  isListeningActive = !isListeningActive;
-  const leftOrb = document.getElementById('leftOrb');
-  const rightOrb = document.getElementById('rightOrb');
-  const voicePanel = document.getElementById('voicePanel');
-
-  if (isListeningActive) {
-    if (leftOrb) leftOrb.classList.add('listening');
-    if (rightOrb) rightOrb.classList.add('listening');
-    if (micBtn) micBtn.classList.add('active-mic');
-    if (voiceStatus) voiceStatus.innerText = 'ACTIVE';
-    if (statusBadge) statusBadge.innerText = '[VOICE_ON]';
-
-    if (navigator.vibrate) {
-      navigator.vibrate([110, 50, 110, 50, 180]);
-    }
-    if (voicePanel) {
-      voicePanel.classList.add('glitch-active');
-      setTimeout(() => voicePanel.classList.remove('glitch-active'), 450);
-    }
-    pushSystemLog("Voice Link", "LISTENING");
-    if (typeof startJarvisListening === 'function') startJarvisListening();
-  } else {
-    if (leftOrb) leftOrb.classList.remove('listening');
-    if (rightOrb) rightOrb.classList.remove('listening');
-    if (micBtn) micBtn.classList.remove('active-mic');
-    if (voiceStatus) voiceStatus.innerText = 'STANDBY';
-    if (statusBadge) statusBadge.innerText = '[ONLINE]';
-    if (navigator.vibrate) navigator.vibrate(0);
-    pushSystemLog("Voice Link", "STANDBY");
+const eqContainer = document.getElementById('equalizer');
+const barCount = 36;
+const bars = [];
+if (eqContainer) {
+  for (let i = 0; i < barCount; i++) {
+    const bar = document.createElement('div');
+    bar.className = 'eq-bar';
+    eqContainer.appendChild(bar);
+    bars.push(bar);
   }
 }
+
+let userMicAudioCtx = null;
+let userMicAnalyser = null;
+let userMicDataArray = null;
+let userMicStream = null;
+let micInitInProgress = false;
+
+async function enableUserVoiceMeter() {
+  if (userMicAnalyser || micInitInProgress) return;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+  micInitInProgress = true;
+  try {
+    userMicStream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    userMicAudioCtx = new AudioContextClass();
+    if (userMicAudioCtx.state === 'suspended') {
+      await userMicAudioCtx.resume();
+    }
+    const source = userMicAudioCtx.createMediaStreamSource(userMicStream);
+    userMicAnalyser = userMicAudioCtx.createAnalyser();
+    userMicAnalyser.fftSize = 128;
+    userMicAnalyser.smoothingTimeConstant = 0.72;
+    source.connect(userMicAnalyser);
+    userMicDataArray = new Uint8Array(userMicAnalyser.frequencyBinCount);
+  } catch (err) {
+    // Mic permission denied or unavailable; keep quiet floor
+  } finally {
+    micInitInProgress = false;
+  }
+}
+
+function initUserVoiceEqualizer() {
+  if (!bars.length) return;
+
+  function renderUserVoiceBars() {
+    let freqData = null;
+    if (userMicAnalyser && userMicDataArray) {
+      if (userMicAudioCtx && userMicAudioCtx.state === 'suspended') {
+        userMicAudioCtx.resume().catch(() => {});
+      }
+      userMicAnalyser.getByteFrequencyData(userMicDataArray);
+      freqData = userMicDataArray;
+    }
+
+    const half = Math.floor(barCount / 2);
+
+    for (let i = 0; i < barCount; i++) {
+      let normAmp = 0;
+      if (freqData && freqData.length > 0) {
+        const distFromCenter = Math.abs(i - half) / Math.max(1, half);
+        const binIndex = Math.min(
+          freqData.length - 1,
+          Math.floor((1 - distFromCenter) * (freqData.length * 0.65))
+        );
+        const rawVal = freqData[binIndex] / 255;
+        // Noise gate so quiet room stays calm, loud/soft speech scales smoothly
+        const gated = Math.max(0, (rawVal - 0.06) / 0.94);
+        normAmp = Math.pow(gated, 1.15);
+      }
+
+      // Base height is minimal (10%); scales directly with user voice loudness
+      const heightPct = 10 + normAmp * 88;
+      bars[i].style.height = `${Math.min(100, Math.max(10, heightPct))}%`;
+    }
+
+    requestAnimationFrame(renderUserVoiceBars);
+  }
+
+  renderUserVoiceBars();
+}
+
+let startJarvisListening = function() {};
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1504,6 +1591,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     recognition.onstart = () => {
       if (statusText) statusText.innerText = "LISTENING...";
       if (micBtn) micBtn.classList.add('active-mic');
+      enableUserVoiceMeter();
     };
 
     recognition.onresult = (event) => {
@@ -1572,11 +1660,13 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   startJarvisListening = function() {
     isListeningActive = true;
     if (micBtn) micBtn.classList.add('active-mic');
+    enableUserVoiceMeter();
     try { recognition.start(); } catch (err) {}
   };
 
   if (micBtn) {
     micBtn.addEventListener('click', () => {
+      enableUserVoiceMeter();
       if (!isListeningActive) {
         startJarvisListening();
         addMessage(`Jarvis: Active and listening continuously, Boss...`, 'ai');
@@ -1592,34 +1682,8 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   }
 }
 
-// Equalizer Bars & Continuous Telemetry Loop
-const eqContainer = document.getElementById('equalizer');
-const barCount = 36;
-const bars = [];
-if (eqContainer) {
-  for (let i = 0; i < barCount; i++) {
-    const bar = document.createElement('div');
-    bar.className = 'eq-bar';
-    eqContainer.appendChild(bar);
-    bars.push(bar);
-  }
-}
-
-function pulseEqualizer() {
-  if (!bars.length) return;
-  const now = Date.now();
-  bars.forEach((bar, idx) => {
-    const centerDist = Math.abs(idx - barCount / 2) / (barCount / 2);
-    const wave = Math.sin(now * 0.012 + idx * 0.35) * 0.5 + 0.5;
-    const activeFactor = isJarvisSpeaking ? 1.0 : (isListeningActive ? 0.72 : 0.32);
-    const height = (wave * (1 - centerDist * 0.35) * 78 * activeFactor) + 12;
-    bar.style.height = `${Math.min(100, Math.max(10, height))}%`;
-  });
-}
-
 let decryptProg = 30;
 setInterval(() => {
-  pulseEqualizer();
   updateTelemetryCounters();
 
   decryptProg = decryptProg >= 100 ? 12 : decryptProg + 1;
@@ -1657,7 +1721,7 @@ function triggerEffect(mode, btnElement) {
     if (r3) r3.style.animationDuration = '7s';
     pushSystemLog("FX", "RINGS_ROTATE");
   } else if (mode === 'pulse') {
-    waveBoostLevel = 1.0;
+    skullRingVibrationLevel = 1.0;
     if (r1) r1.style.animationDuration = '8s';
     pushSystemLog("FX", "WAVE_BOOST");
   } else if (mode === 'glitch') {
