@@ -95,7 +95,7 @@
       </section>
     </aside>
 
-    <!-- CENTER STAGE: SKULL + 3 ROTATING RINGS + CONTINUOUS VIBRATING GRAPH CIRCLE -->
+    <!-- CENTER STAGE: SKULL + 3 ROTATING RINGS + VIBRATING GRAPH CIRCLE -->
     <section class="column center-col">
       <div class="panel skull-stage" id="skullContainer">
         <div class="stage-top-bar">
@@ -105,7 +105,7 @@
 
         <!-- Center Visual Assembly -->
         <div class="skull-assembly">
-          <!-- Continuous Vibrating Circular Graph Ring over the 3 Rings -->
+          <!-- Circular Graph Ring over the 3 Rings (Jarvis Voice Reactive) -->
           <canvas id="circularVibrationCanvas" class="vibration-circle-canvas" width="320" height="320"></canvas>
 
           <!-- Three Rotating Rings Around the Skull -->
@@ -208,15 +208,15 @@
 
   </main>
 
-  <!-- BOTTOM FOOTER BAR: LEFT VOICE ORB | CONTINUOUS EQUALIZER | RIGHT JARVIS VIBE ORB -->
+  <!-- BOTTOM FOOTER BAR: LEFT GALLERY ORB | USER VOICE EQUALIZER | RIGHT JARVIS MODE ORB -->
   <footer class="panel voice-footer" id="voicePanel">
     <div class="voice-controls">
-      <div class="voice-orb footer-orb" id="leftOrb" onclick="toggleVoiceAssistant()">
-        VOICE<br>ACTION
+      <div class="voice-orb footer-orb" id="leftOrb" onclick="document.getElementById('img-input').click()" title="Open Gallery">
+        GALLERY
       </div>
       <div class="equalizer-bars" id="equalizer"></div>
-      <div class="voice-orb footer-orb" id="rightOrb" onclick="toggleVoiceAssistant()">
-        JARVIS<br>VIBE
+      <div class="voice-orb footer-orb" id="rightOrb" onclick="if(typeof toggleJarvisMode==='function') toggleJarvisMode();" title="Toggle Jarvis Mode">
+        JARVIS<br>MODE
       </div>
     </div>
   </footer>
@@ -249,8 +249,8 @@
     </div>
   </div>
 
-  <!-- Hidden file input used by voice command "open gallery" -->
-  <input id="img-input" type="file" accept="image/*" style="display:none">
+  <!-- Hidden file input used by gallery button & voice command "open gallery" -->
+  <input id="img-input" type="file" accept="image/*" multiple style="display:none">
 
   <script src="script.js"></script>
 </body>
