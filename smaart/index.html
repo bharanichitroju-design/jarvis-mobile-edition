@@ -6,7 +6,7 @@
 <title>J.A.R.V.I.S - Sector Delta Core</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<!-- Three.js for 3D Workspace, Slow Holographic Globe & Map Engine -->
+<!-- Three.js for 3D Workspace & Hologram Table -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
@@ -41,7 +41,6 @@
           <li>Voice Engine: <span class="highlight">READY</span></li>
           <li>Memory Vault: <span class="highlight">LOCKED</span></li>
           <li>3D Table: <span class="highlight">IDLE</span></li>
-          <li>Globe Core: <span class="highlight" id="globeModeBadge">SLOW_3D</span></li>
         </ul>
       </section>
 
@@ -159,7 +158,7 @@
 
     <!-- RIGHT SIDEBAR -->
     <aside class="column right-col">
-      <!-- IRON MAN 2 STYLE RED HACKING WHEEL -->
+      <!-- REPLACED TOP-RIGHT BOX: IRON MAN 2 STYLE RED HACKING WHEEL -->
       <section class="panel hack-wheel-panel" id="hackWheelSlot">
         <div class="panel-header">
           <span>HACK_DIAL</span>
@@ -173,42 +172,31 @@
         </div>
       </section>
 
-      <!-- 3D SLOW GLOBE & MAP VIEWPORT (REPLACING OLD IN/OUT RADAR BOX) -->
-      <section class="panel globe-panel" id="globePanel" data-expandable="true" data-box-id="globe-panel">
+      <section class="panel net-panel" data-expandable="true" data-box-id="net-panel">
         <div class="panel-header">
-          <span id="globeTitleLabel">GLOBAL_3D_SCAN</span>
-          <button id="resetGlobeBtn" class="globe-mini-btn" title="Return to Slow 3D Globe">GLOBE</button>
+          <span>SIGNAL_WAVE</span>
+          <span>LINK</span>
         </div>
-        <div class="globe-viewport" id="globeViewport">
-          <canvas id="slowGlobeCanvas"></canvas>
-          <div id="mapOverlayStage" class="map-overlay-stage" style="display:none;">
-            <div id="mapVisualCanvasWrap" class="map-visual-wrap"></div>
-            <div id="mapCalloutLayer" class="map-callout-layer"></div>
-          </div>
-          <div class="globe-hud-caption" id="globeStatusCaption">SLOW ORBIT • 1F ROTATE • 2F ZOOM</div>
+        <div class="net-stats">
+          <div>IN: <span id="netIn" class="highlight">15.4M/s</span></div>
+          <div>OUT: <span id="netOut" class="highlight">8.2M/s</span></div>
         </div>
+        <canvas id="networkCanvas" width="220" height="44"></canvas>
       </section>
 
-      <!-- DEDICATED TEXT BOX FOR COUNTRY / STATE / PLACE MAP QUERIES -->
-      <section class="panel globe-search-panel" data-expandable="true" data-box-id="globe-search-panel">
+      <section class="panel voice-trigger-panel" data-expandable="true" data-box-id="voice-trigger-panel">
         <div class="panel-header">
-          <span>GEO_TARGET_INPUT</span>
-          <span id="geoFormatBadge">AUTO</span>
+          <span>VOICE_LINK</span>
+          <span id="voiceStatus">STANDBY</span>
         </div>
-        <div class="geo-input-row">
-          <input
-            id="geoQueryInput"
-            type="text"
-            placeholder="e.g. India, India with states, India with states and names, AP, US..."
-            autocomplete="off"
-          />
-          <button id="geoSearchBtn" class="exec-btn">SCAN</button>
-        </div>
-        <div class="geo-quick-tags">
-          <button type="button" class="geo-tag-btn" data-geo="India">India</button>
-          <button type="button" class="geo-tag-btn" data-geo="India with states">India + States</button>
-          <button type="button" class="geo-tag-btn" data-geo="India with states and names">States + Names</button>
-          <button type="button" class="geo-tag-btn" data-geo="AP">AP</button>
+        <div class="voice-link-body">
+          <div class="voice-orb" id="mic-btn" title="Toggle Continuous Voice Recognition">
+            MIC<br>LINK
+          </div>
+          <div class="voice-meta">
+            <div>MODE: <span id="modeIndicator" class="highlight">STANDARD</span></div>
+            <div>SPEECH: <span id="speechIndicator" class="highlight">IDLE</span></div>
+          </div>
         </div>
       </section>
     </aside>
