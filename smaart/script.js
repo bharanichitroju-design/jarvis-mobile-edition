@@ -64,7 +64,6 @@ let isListeningActive = false;
 let strictJarvisKeywordMode = false;
 let workspaceFiles3D = [];
 let totalAccessLogs = 23258;
-let manualWaveBoostUntil = 0;
 
 // DOM Elements
 const chat = document.getElementById('chat');
@@ -120,43 +119,278 @@ function updateTelemetryCounters() {
 }
 
 /* =========================================================
-   1.2. KEYFRAME_FX CONTROLS (RIGHT TOP PANEL)
+   1.2. KEY RING (AUTO RIGHT SPIN -> 3 LEFT TURNS GLOW -> DRAG FULLSCREEN)
    ========================================================= */
-function initKeyframeFX() {
-  const fxButtons = document.querySelectorAll('.fx-btn');
-  let fastRings = false;
+const keyDialPuckEl = document.getElementById('keyDialPuck');
+const keyRingStageEl = document.getElementById('keyRingStage');
+const keyTurnBadgeEl = document.getElementById('keyTurnBadge');
+const keyLockStateEl = document.getElementById('keyLockState');
 
-  fxButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const fxType = btn.getAttribute('data-fx');
-      btn.classList.add('fx-active');
-      setTimeout(() => btn.classList.remove('fx-active'), 600);
+const REQUIRED_LEFT_DEGREES = 360 * 3; // 3 full counter-clockwise (left) turns
 
-      if (fxType === 'rings') {
-        fastRings = !fastRings;
-        document.documentElement.style.setProperty('--ring-1-dur', fastRings ? '3.5s' : '16s');
-        document.documentElement.style.setProperty('--ring-2-dur', fastRings ? '2.4s' : '10s');
-        document.documentElement.style.setProperty('--ring-3-dur', fastRings ? '1.6s' : '7s');
-        pushSystemLog("FX", fastRings ? "RINGS_TURBO" : "RINGS_NORMAL");
-      } else if (fxType === 'wave') {
-        manualWaveBoostUntil = Date.now() + 2600;
-        pushSystemLog("FX", "WAVE_BOOST");
-      } else if (fxType === 'glitch') {
-        const mainGrid = document.getElementById('mainGrid');
-        if (mainGrid) {
-          mainGrid.classList.add('glitch-active');
-          setTimeout(() => mainGrid.classList.remove('glitch-active'), 500);
-        }
-        pushSystemLog("FX", "HUD_GLITCH");
-      } else if (fxType === 'sweep') {
-        document.body.classList.remove('rapid-sweep-active');
-        void document.body.offsetWidth;
-        document.body.classList.add('rapid-sweep-active');
-        setTimeout(() => document.body.classList.remove('rapid-sweep-active'), 1900);
-        pushSystemLog("FX", "RAPID_SWEEP");
+let keyState = {
+  autoAngle: 0,
+  manualOffset: 0,
+  leftAccumulated: 0,
+  lastPointerAngle: null,
+  isTurningKey: false,
+  isKeyActive: false,
+  isDraggingKey: false,
+  pointerStartX: 0,
+  pointerStartY: 0,
+  keyStartLeft: 0,
+  keyStartTop: 0,
+  hoveredPanel: null,
+  expandedPanel: null
+};
+
+function applyKeyVisualAngle() {
+  if (!keyDialPuckEl) return;
+  const totalDeg = keyState.autoAngle + keyState.manualOffset;
+  keyDialPuckEl.style.setProperty('--key-angle', `${totalDeg}deg`);
+}
+
+function updateKeyHUD() {
+  const turnsDone = Math.min(3, Math.floor(keyState.leftAccumulated / 360));
+  if (keyTurnBadgeEl) {
+    if (keyState.expandedPanel) {
+      keyTurnBadgeEl.textContent = "EXIT";
+    } else if (keyState.isKeyActive) {
+      keyTurnBadgeEl.textContent = "READY";
+    } else {
+      keyTurnBadgeEl.textContent = `${turnsDone}/3`;
+    }
+  }
+
+  if (keyLockStateEl) {
+    if (keyState.expandedPanel) {
+      keyLockStateEl.textContent = "EXPANDED";
+    } else if (keyState.isKeyActive) {
+      keyLockStateEl.textContent = "ACTIVE";
+    } else {
+      keyLockStateEl.textContent = "LOCKED";
+    }
+  }
+
+  if (keyDialPuckEl) {
+    keyDialPuckEl.classList.toggle('key-activated', keyState.isKeyActive);
+  }
+}
+
+function startAutoRightSpin() {
+  function tickAutoSpin() {
+    if (!keyState.isTurningKey && !keyState.isDraggingKey && !keyState.expandedPanel) {
+      keyState.autoAngle = (keyState.autoAngle + 0.55) % 360000;
+      applyKeyVisualAngle();
+    }
+    requestAnimationFrame(tickAutoSpin);
+  }
+  requestAnimationFrame(tickAutoSpin);
+}
+
+function getPointerAngleFromKey(clientX, clientY) {
+  if (!keyDialPuckEl) return 0;
+  const rect = keyDialPuckEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  return (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
+}
+
+function findExpandablePanelAtPoint(clientX, clientY) {
+  const panels = Array.from(document.querySelectorAll('[data-expandable="true"]'));
+  for (let i = panels.length - 1; i >= 0; i--) {
+    const panel = panels[i];
+    if (panel === keyState.expandedPanel) continue;
+    const rect = panel.getBoundingClientRect();
+    if (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    ) {
+      return panel;
+    }
+  }
+  return null;
+}
+
+function clearKeyHoverHighlight() {
+  if (keyState.hoveredPanel) {
+    keyState.hoveredPanel.classList.remove('drop-target-hover');
+    keyState.hoveredPanel = null;
+  }
+}
+
+function expandPanelWithKey(panel) {
+  if (!panel) return;
+  if (keyState.expandedPanel && keyState.expandedPanel !== panel) {
+    keyState.expandedPanel.classList.remove('expanded-fullscreen');
+  }
+
+  panel.classList.add('expanded-fullscreen');
+  keyState.expandedPanel = panel;
+  keyState.isDraggingKey = false;
+
+  if (keyDialPuckEl) {
+    keyDialPuckEl.classList.remove('floating-key', 'dragging');
+    keyDialPuckEl.style.left = '';
+    keyDialPuckEl.style.top = '';
+    keyDialPuckEl.classList.add('docked-return');
+    if (keyDialPuckEl.parentElement !== document.body) {
+      document.body.appendChild(keyDialPuckEl);
+    }
+  }
+
+  const boxId = panel.getAttribute('data-box-id') || 'PANEL';
+  pushSystemLog("Key", `EXPANDED_${boxId.toUpperCase()}`);
+  updateKeyHUD();
+}
+
+function resetKeyAndCollapsePanel() {
+  if (keyState.expandedPanel) {
+    keyState.expandedPanel.classList.remove('expanded-fullscreen');
+    keyState.expandedPanel = null;
+  }
+
+  keyState.isKeyActive = false;
+  keyState.isDraggingKey = false;
+  keyState.isTurningKey = false;
+  keyState.leftAccumulated = 0;
+  keyState.manualOffset = 0;
+  keyState.lastPointerAngle = null;
+  clearKeyHoverHighlight();
+  applyKeyVisualAngle();
+
+  if (keyDialPuckEl) {
+    keyDialPuckEl.classList.remove('docked-return', 'floating-key', 'dragging', 'key-activated');
+    keyDialPuckEl.style.left = '';
+    keyDialPuckEl.style.top = '';
+    if (keyRingStageEl && keyDialPuckEl.parentElement !== keyRingStageEl) {
+      keyRingStageEl.appendChild(keyDialPuckEl);
+    }
+  }
+
+  pushSystemLog("Key", "RESET_LOCKED");
+  updateKeyHUD();
+}
+
+function initKeyRingInteractions() {
+  if (!keyDialPuckEl) return;
+
+  keyDialPuckEl.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (keyState.expandedPanel) {
+      resetKeyAndCollapsePanel();
+      return;
+    }
+
+    keyState.pointerStartX = e.clientX;
+    keyState.pointerStartY = e.clientY;
+
+    if (keyState.isKeyActive) {
+      keyState.isDraggingKey = true;
+      keyDialPuckEl.classList.add('dragging', 'floating-key');
+      const rect = keyDialPuckEl.getBoundingClientRect();
+      if (keyDialPuckEl.parentElement !== document.body) {
+        document.body.appendChild(keyDialPuckEl);
       }
-    });
+      keyState.keyStartLeft = rect.left;
+      keyState.keyStartTop = rect.top;
+      keyDialPuckEl.style.left = `${rect.left}px`;
+      keyDialPuckEl.style.top = `${rect.top}px`;
+      keyDialPuckEl.style.right = 'auto';
+      keyDialPuckEl.style.bottom = 'auto';
+    } else {
+      keyState.isTurningKey = true;
+      keyState.lastPointerAngle = getPointerAngleFromKey(e.clientX, e.clientY);
+    }
+
+    keyDialPuckEl.setPointerCapture(e.pointerId);
   });
+
+  keyDialPuckEl.addEventListener('pointermove', (e) => {
+    if (keyState.expandedPanel) return;
+
+    if (keyState.isDraggingKey && keyState.isKeyActive) {
+      const dx = e.clientX - keyState.pointerStartX;
+      const dy = e.clientY - keyState.pointerStartY;
+      keyDialPuckEl.style.left = `${keyState.keyStartLeft + dx}px`;
+      keyDialPuckEl.style.top = `${keyState.keyStartTop + dy}px`;
+
+      const targetPanel = findExpandablePanelAtPoint(e.clientX, e.clientY);
+      if (targetPanel !== keyState.hoveredPanel) {
+        clearKeyHoverHighlight();
+        if (targetPanel) {
+          targetPanel.classList.add('drop-target-hover');
+          keyState.hoveredPanel = targetPanel;
+        }
+      }
+      return;
+    }
+
+    if (keyState.isTurningKey && !keyState.isKeyActive) {
+      const currentAngle = getPointerAngleFromKey(e.clientX, e.clientY);
+      if (keyState.lastPointerAngle !== null) {
+        let delta = currentAngle - keyState.lastPointerAngle;
+        if (delta > 180) delta -= 360;
+        if (delta < -180) delta += 360;
+
+        keyState.manualOffset += delta;
+        applyKeyVisualAngle();
+
+        // Counter-clockwise (left) rotation produces negative delta
+        if (delta < 0) {
+          keyState.leftAccumulated += Math.abs(delta);
+          if (keyState.leftAccumulated >= REQUIRED_LEFT_DEGREES) {
+            keyState.leftAccumulated = REQUIRED_LEFT_DEGREES;
+            keyState.isKeyActive = true;
+            keyState.isTurningKey = false;
+            pushSystemLog("Key", "ACTIVATED_GLOW");
+            if (navigator.vibrate) navigator.vibrate([70, 40, 70]);
+          }
+        }
+      }
+      keyState.lastPointerAngle = currentAngle;
+      updateKeyHUD();
+    }
+  });
+
+  const finishKeyPointer = (e) => {
+    if (keyDialPuckEl.hasPointerCapture(e.pointerId)) {
+      try { keyDialPuckEl.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+
+    if (keyState.isDraggingKey) {
+      keyState.isDraggingKey = false;
+      keyDialPuckEl.classList.remove('dragging');
+
+      const dropPanel = findExpandablePanelAtPoint(e.clientX, e.clientY) || keyState.hoveredPanel;
+      clearKeyHoverHighlight();
+
+      if (dropPanel) {
+        expandPanelWithKey(dropPanel);
+      } else {
+        keyDialPuckEl.classList.remove('floating-key');
+        keyDialPuckEl.style.left = '';
+        keyDialPuckEl.style.top = '';
+        if (keyRingStageEl && keyDialPuckEl.parentElement !== keyRingStageEl) {
+          keyRingStageEl.appendChild(keyDialPuckEl);
+        }
+        updateKeyHUD();
+      }
+    }
+
+    keyState.isTurningKey = false;
+    keyState.lastPointerAngle = null;
+  };
+
+  keyDialPuckEl.addEventListener('pointerup', finishKeyPointer);
+  keyDialPuckEl.addEventListener('pointercancel', finishKeyPointer);
+
+  updateKeyHUD();
+  startAutoRightSpin();
 }
 
 /* =========================================================
@@ -933,8 +1167,7 @@ function initCircularVibrationGraph() {
     const segments = 96;
     const now = Date.now() * 0.008;
 
-    const boosted = Date.now() < manualWaveBoostUntil;
-    const targetBoost = boosted ? 1.15 : (isJarvisSpeaking ? 1.0 : (isListeningActive ? 0.72 : 0.28));
+    const targetBoost = isJarvisSpeaking ? 1.0 : (isListeningActive ? 0.72 : 0.28);
     waveBoostLevel += (targetBoost - waveBoostLevel) * 0.12;
 
     ctx.clearRect(0, 0, w, h);
@@ -984,7 +1217,7 @@ function initCircularVibrationGraph() {
 
 window.addEventListener('DOMContentLoaded', () => {
   initCircularVibrationGraph();
-  initKeyframeFX();
+  initKeyRingInteractions();
   updateTelemetryCounters();
 
   setTimeout(() => {
@@ -998,7 +1231,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 /* =========================================================
-   3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT
+   3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT (ORIGINAL)
    ========================================================= */
 function speak(text) {
   if ('speechSynthesis' in window) {
@@ -1228,6 +1461,11 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("go back") || query.includes("back")) {
+    if (keyState.expandedPanel) {
+      resetKeyAndCollapsePanel();
+      return "Exited fullscreen box view, Boss.";
+    }
+
     const projLayer = document.getElementById('fullscreen-projection-layer');
     const tdModal = document.getElementById('td-workspace-modal');
     const ytModal = document.getElementById('youtube-workspace-modal');
@@ -1252,6 +1490,7 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("go to home") || query.includes("go home") || query.includes("home")) {
+    resetKeyAndCollapsePanel();
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
     close3DWorkspaceModal();
@@ -1691,7 +1930,7 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. CONTINUOUS VOICE RECOGNITION + EQUALIZER + SIGNAL WAVE
+   11. CONTINUOUS VOICE RECOGNITION + VIBE PANEL + TELEMETRY (ORIGINAL)
    ========================================================= */
 let startJarvisListening = function() {};
 
@@ -1876,7 +2115,7 @@ setInterval(() => {
   if (binEl) binEl.innerHTML = `${randBin()} ${randBin()}<br>${randBin()} ${randBin()}`;
 }, 350);
 
-// Moving Signal Waveform Canvas inside SIGNAL_WAVE
+// Signal Waveform Canvas
 const netCanvas = document.getElementById('networkCanvas');
 if (netCanvas) {
   const ctx = netCanvas.getContext('2d');
@@ -1884,38 +2123,23 @@ if (netCanvas) {
 
   function drawNetworkWave() {
     ctx.clearRect(0, 0, netCanvas.width, netCanvas.height);
-
-    // Subtle baseline grid line
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(255, 30, 39, 0.22)';
-    ctx.lineWidth = 1;
-    ctx.moveTo(0, netCanvas.height / 2);
-    ctx.lineTo(netCanvas.width, netCanvas.height / 2);
-    ctx.stroke();
-
-    // Moving red signal wave
-    ctx.beginPath();
-    ctx.strokeStyle = '#ff2a32';
-    ctx.lineWidth = 2;
-    ctx.shadowBlur = 7;
+    ctx.strokeStyle = '#ff1e27';
+    ctx.lineWidth = 1.6;
+    ctx.shadowBlur = 5;
     ctx.shadowColor = '#ff1e27';
 
-    const boosted = Date.now() < manualWaveBoostUntil;
-    const amp = boosted ? 18 : (isJarvisSpeaking ? 15 : (isListeningActive ? 11 : 8));
-
-    for (let x = 0; x <= netCanvas.width; x += 3) {
-      const y =
-        netCanvas.height / 2 +
-        Math.sin((x + waveOffset) * 0.065) * amp * (0.65 + 0.35 * Math.cos(x * 0.025));
+    const amp = isJarvisSpeaking ? 14 : (isListeningActive ? 10 : 6);
+    for (let x = 0; x < netCanvas.width; x += 4) {
+      const y = netCanvas.height / 2 +
+        Math.sin((x + waveOffset) * 0.06) * amp * Math.cos(x * 0.025) +
+        (Math.random() - 0.5) * 3;
       if (x === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    waveOffset += boosted ? 9 : 4;
+    waveOffset += 4;
     requestAnimationFrame(drawNetworkWave);
   }
-
   drawNetworkWave();
 }
