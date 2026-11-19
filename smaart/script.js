@@ -10,7 +10,8 @@ function checkApiKey() {
   }
 }
 
-const MODELS = [
+// Preserved original text models from your earlier configuration
+const TEXT_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.0-flash",
   "gemini-1.5-flash",
@@ -19,12 +20,18 @@ const MODELS = [
   "gemini-flash-latest"
 ];
 
+// Dedicated models used specifically when generating images
+const IMAGE_MODELS = [
+  "gemini-2.5-flash-image",
+  "gemini-2.0-flash-preview-image-generation"
+];
+
 const SYSTEM_INSTRUCTION = `You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir).
 Behavior Guidelines:
 1. Always address Bharani as "Boss" or "Sir".
 2. If asked "What is your name?" or "Who are you?", respond with: "My name is Jarvis, created by Bharani (Sir)."
 3. Keep answers concise, direct, and helpful. Utilize the user's saved memory files and offline notes when requested.
-4. [Projection & File Control Commands]: Support commands like 'full screen f1', 'natural f1', '3d f1', 'natural all files', '3d all files', 'explain f1', 'analyze f1', 'go back', and 'go home'.`;
+4. [Projection & File Control Commands]: Support commands like 'full screen f1', 'natural f1', '3d f1', 'natural all files', '3d all files', 'explain f1', 'analyze f1', 'go back', 'go home', and 'clear memory'.`;
 
 let SESSIONS = [];
 try {
@@ -413,6 +420,87 @@ function init3DBoxScene() {
   animateBoxScene();
 }
 
+function addBase64ImageTo3DWorkspace(base64FullData, mimeType = 'image/png', fileName = 'generated.png') {
+  if (typeof THREE === 'undefined') return null;
+  if (!desktopGroup3D) {
+    open3DWorkspaceModal();
+  }
+  if (!desktopGroup3D) return null;
+
+  const fileLabel = `f${workspaceFiles3D.length + 1}`;
+  const base64DataOnly = base64FullData.includes(',') ? base64FullData.split(',')[1] : base64FullData;
+
+  const img = new Image();
+  img.src = base64FullData;
+  img.onload = () => {
+    const origTexture = new THREE.TextureLoader().load(base64FullData);
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = img.width || 512;
+    canvas.height = img.height || 512;
+
+    ctx.drawImage(img, 0, 0);
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imgData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      data[i] = 0;
+      data[i + 1] = avg * 0.9;
+      data[i + 2] = avg * 1.2;
+    }
+    ctx.putImageData(imgData, 0, 0);
+
+    const threeDTexture = new THREE.CanvasTexture(canvas);
+    const aspect = canvas.width / canvas.height;
+    const geometry = new THREE.PlaneGeometry(14 * aspect, 14);
+    const material = new THREE.MeshBasicMaterial({
+      map: threeDTexture,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.95
+    });
+
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(0, 10, 0);
+
+    const edges = new THREE.EdgesGeometry(geometry);
+    const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
+    const wireframe = new THREE.LineSegments(edges, lineMat);
+    wireframe.name = "outline";
+    wireframe.visible = false;
+    mesh.add(wireframe);
+
+    attachMapPinToMesh(mesh, fileLabel);
+
+    desktopGroup3D.add(mesh);
+    loadedObjects3D.push(mesh);
+
+    workspaceFiles3D.push({
+      label: fileLabel,
+      mesh: mesh,
+      type: 'image',
+      mode: '3d',
+      originalTexture: origTexture,
+      threeDTexture: threeDTexture,
+      mimeType: mimeType,
+      data: base64DataOnly,
+      fileName: fileName,
+      isNatural: false,
+      isDeleted: false,
+      originalPosition: mesh.position.clone(),
+      originalScale: mesh.scale.clone()
+    });
+
+    updateTelemetryCounters();
+    const hud = document.getElementById('td-hud-status');
+    if (hud) hud.innerText = `IMAGE LOADED AS ${fileLabel.toUpperCase()} WITH BLUE HOLOGRAPHIC TINT.`;
+  };
+
+  return fileLabel;
+}
+
 function spawn3DTextFromInput() {
   const textInput = document.getElementById('td-box-input');
   const hud = document.getElementById('td-hud-status');
@@ -478,82 +566,11 @@ function spawn3DTextFromInput() {
 
 function handle3DBlueprintUpload(e) {
   const file = e.target.files[0];
-  const hud = document.getElementById('td-hud-status');
   if (!file || typeof THREE === 'undefined') return;
-
-  const fileLabel = `f${workspaceFiles3D.length + 1}`;
 
   const reader = new FileReader();
   reader.onload = function(evt) {
-    const base64FullData = evt.target.result;
-    const base64DataOnly = base64FullData.split(',')[1];
-
-    const img = new Image();
-    img.src = base64FullData;
-    img.onload = () => {
-      const origTexture = new THREE.TextureLoader().load(base64FullData);
-
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = img.width;
-      canvas.height = img.height;
-
-      ctx.drawImage(img, 0, 0);
-      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imgData.data;
-
-      for (let i = 0; i < data.length; i += 4) {
-        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-        data[i] = 0;
-        data[i + 1] = avg * 0.9;
-        data[i + 2] = avg * 1.2;
-      }
-      ctx.putImageData(imgData, 0, 0);
-
-      const threeDTexture = new THREE.CanvasTexture(canvas);
-      const aspect = img.width / img.height;
-      const geometry = new THREE.PlaneGeometry(14 * aspect, 14);
-      const material = new THREE.MeshBasicMaterial({
-        map: threeDTexture,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.95
-      });
-
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(0, 10, 0);
-
-      const edges = new THREE.EdgesGeometry(geometry);
-      const lineMat = new THREE.LineBasicMaterial({ color: 0x00ffff, linewidth: 2 });
-      const wireframe = new THREE.LineSegments(edges, lineMat);
-      wireframe.name = "outline";
-      wireframe.visible = false;
-      mesh.add(wireframe);
-
-      attachMapPinToMesh(mesh, fileLabel);
-
-      desktopGroup3D.add(mesh);
-      loadedObjects3D.push(mesh);
-
-      workspaceFiles3D.push({
-        label: fileLabel,
-        mesh: mesh,
-        type: 'image',
-        mode: '3d',
-        originalTexture: origTexture,
-        threeDTexture: threeDTexture,
-        mimeType: file.type,
-        data: base64DataOnly,
-        fileName: file.name,
-        isNatural: false,
-        isDeleted: false,
-        originalPosition: mesh.position.clone(),
-        originalScale: mesh.scale.clone()
-      });
-
-      updateTelemetryCounters();
-      if (hud) hud.innerText = `IMAGE UPLOADED AS ${fileLabel.toUpperCase()} WITH BLUE HOLOGRAPHIC TINT.`;
-    };
+    addBase64ImageTo3DWorkspace(evt.target.result, file.type, file.name);
   };
   reader.readAsDataURL(file);
   this.value = '';
@@ -877,13 +894,11 @@ function initCircularVibrationGraph() {
     const segments = 108;
     const now = Date.now() * 0.009;
 
-    // When Jarvis speaks -> high vibration; when silent -> gentle low vibration rotation
     const targetLevel = isJarvisSpeaking ? 1.0 : 0.08;
     skullRingVibrationLevel += (targetLevel - skullRingVibrationLevel) * 0.16;
 
     ctx.clearRect(0, 0, w, h);
 
-    // Outer ring perimeter wave around the 3 rings (skull stays stationary inside)
     ctx.beginPath();
     for (let i = 0; i <= segments; i++) {
       const angle = (i / segments) * Math.PI * 2;
@@ -907,7 +922,6 @@ function initCircularVibrationGraph() {
     ctx.shadowColor = '#ff1e27';
     ctx.stroke();
 
-    // Subtle secondary perimeter line
     ctx.beginPath();
     for (let i = 0; i <= segments; i++) {
       const angle = (i / segments) * Math.PI * 2;
@@ -942,8 +956,7 @@ window.addEventListener('DOMContentLoaded', () => {
     currentSession.messages.push({ role: 'model', text: welcomeText, time: format12HourTime(new Date()) });
     updateTelemetryCounters();
     speak(welcomeText);
-    if (typeof startJarvisListening === 'function') startJarvisListening();
-  }, 800);
+  }, 600);
 });
 
 /* =========================================================
@@ -987,14 +1000,66 @@ function saveSessions() {
   localStorage.setItem('jarvis_sessions', JSON.stringify(SESSIONS));
 }
 
-function addMessage(text, sender) {
+function addMessage(text, sender, imageDataUrl = null) {
   if (!chat) return;
   const msgDiv = document.createElement('div');
   msgDiv.className = `message ${sender}`;
-  msgDiv.innerText = text;
+
+  if (imageDataUrl) {
+    const textSpan = document.createElement('div');
+    textSpan.innerText = text;
+    msgDiv.appendChild(textSpan);
+
+    const imgEl = document.createElement('img');
+    imgEl.src = imageDataUrl;
+    imgEl.alt = 'Generated Image';
+    imgEl.style.cssText = "max-width:100%; max-height:240px; border-radius:6px; margin-top:6px; border:1px solid #00ffff; display:block;";
+    msgDiv.appendChild(imgEl);
+
+    const load3DBtn = document.createElement('button');
+    load3DBtn.innerText = "SEND TO 3D WORKSPACE";
+    load3DBtn.style.cssText = "margin-top:6px; background:rgba(0,30,60,0.9); border:1px solid #00ffff; color:#00ffff; padding:4px 8px; font-size:10px; font-family:monospace; cursor:pointer; border-radius:4px;";
+    load3DBtn.addEventListener('click', () => {
+      const mimeMatch = imageDataUrl.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
+      const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+      addBase64ImageTo3DWorkspace(imageDataUrl, mime, 'jarvis-generated.png');
+    });
+    msgDiv.appendChild(load3DBtn);
+  } else {
+    msgDiv.innerText = text;
+  }
+
   chat.appendChild(msgDiv);
   chat.scrollTop = chat.scrollHeight;
   updateTelemetryCounters();
+}
+
+/* =========================================================
+   4.5. CLEAR MEMORY -> SAVE TO HISTORY & CLEAR CHAT
+   ========================================================= */
+function archiveCurrentChatToHistoryAndClear() {
+  if (currentSession.messages.length > 0) {
+    const snapshot = {
+      id: Date.now(),
+      title: currentSession.title !== "New Conversation" ? currentSession.title : `Session (${currentSession.messages.length} msgs)`,
+      date: format12HourTime(new Date()),
+      messages: [...currentSession.messages]
+    };
+    SESSIONS.unshift(snapshot);
+    saveSessions();
+  }
+
+  currentSession = {
+    id: Date.now() + 1,
+    title: "New Conversation",
+    date: format12HourTime(new Date()),
+    messages: []
+  };
+
+  if (chat) chat.innerHTML = '';
+  if (input) input.value = '';
+  updateTelemetryCounters();
+  pushSystemLog("Memory", "SAVED_TO_HISTORY");
 }
 
 /* =========================================================
@@ -1095,6 +1160,11 @@ function handleHardcoded(text) {
   if (!text) return null;
   const query = text.toLowerCase().trim();
 
+  if (query.includes("clear memory") || query === "clear memory") {
+    archiveCurrentChatToHistoryAndClear();
+    return "Previous conversation saved to History and cleared, Boss.";
+  }
+
   if (query.includes("explain") || query.includes("analyze") || query.includes("what is") || query.includes("matter")) {
     return null;
   }
@@ -1110,15 +1180,8 @@ function handleHardcoded(text) {
   }
 
   if (query === "clear jarvis" || query.includes("clear jarvis")) {
-    if (currentSession.messages.length > 0) {
-      SESSIONS.unshift(currentSession);
-      saveSessions();
-    }
-    currentSession = { id: Date.now(), title: "New Conversation", date: format12HourTime(new Date()), messages: [] };
-    if (chat) chat.innerHTML = '';
-    updateTelemetryCounters();
-    pushSystemLog("Chat", "CLEARED");
-    return "Chat display cleared, Boss.";
+    archiveCurrentChatToHistoryAndClear();
+    return "Chat display saved to History and cleared, Boss.";
   }
 
   if (query.includes("smart open three dimensional") || query.includes("open three dimensional") || query.includes("open 3d") || query.includes("3d workspace")) {
@@ -1232,14 +1295,93 @@ function handleHardcoded(text) {
 }
 
 /* =========================================================
-   7. GEMINI AI ENGINE WITH YOUTUBE & FILE ANALYSIS
+   7. GEMINI AI ENGINE (TEXT + IMAGE GENERATION + FILE ANALYSIS)
    ========================================================= */
+function isImageGenerationRequest(text) {
+  if (!text) return false;
+  return /\b(generate|create|draw|make|design)\b.*\b(image|picture|photo|artwork|illustration|logo|wallpaper|scene)\b/i.test(text) ||
+         /\b(image|picture|photo)\b.*\b(of|for)\b/i.test(text);
+}
+
+async function generateImageWithGemini(promptText, activeKey) {
+  const parts = [{ text: promptText }];
+  if (pendingImageData) {
+    parts.push({
+      inline_data: {
+        mime_type: pendingImageData.mimeType,
+        data: pendingImageData.data
+      }
+    });
+  }
+
+  for (const imgModel of IMAGE_MODELS) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${imgModel}:generateContent?key=${activeKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts }],
+            generationConfig: {
+              responseModalities: ["TEXT", "IMAGE"]
+            }
+          }),
+          signal: controller.signal
+        }
+      );
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const data = await res.json();
+        const candidateParts = data.candidates?.[0]?.content?.parts || [];
+        let caption = "Here is the generated image, Boss.";
+        let imageDataUrl = null;
+
+        for (const part of candidateParts) {
+          if (part.text) {
+            caption = part.text.trim();
+          }
+          const inline = part.inlineData || part.inline_data;
+          if (inline && inline.data) {
+            const mime = inline.mimeType || inline.mime_type || "image/png";
+            imageDataUrl = `data:${mime};base64,${inline.data}`;
+          }
+        }
+
+        if (imageDataUrl) {
+          pendingImageData = null;
+          pushSystemLog("ImgModel", imgModel.toUpperCase());
+          return { text: caption, imageDataUrl };
+        }
+      }
+    } catch (e) {
+      console.warn("Image model attempt failed:", imgModel, e);
+    }
+  }
+
+  return null;
+}
+
 async function callGemini(text) {
   let activeKey = API_KEY || localStorage.getItem('jarvis_key');
   if (!activeKey) {
     checkApiKey();
     activeKey = API_KEY || localStorage.getItem('jarvis_key');
-    if (!activeKey) return "API Key is required to connect with AI online, Boss.";
+    if (!activeKey) return { text: "API Key is required to connect with AI online, Boss.", imageDataUrl: null };
+  }
+
+  if (statusText) statusText.innerText = "PROCESSING...";
+  pushSystemLog("Gemini", "QUERYING");
+
+  if (isImageGenerationRequest(text)) {
+    const imgResult = await generateImageWithGemini(text, activeKey);
+    if (imgResult) {
+      return imgResult;
+    }
   }
 
   const customMems = getCustomMemories();
@@ -1282,10 +1424,8 @@ async function callGemini(text) {
   }
 
   contents.push({ role: 'user', parts: userParts });
-  if (statusText) statusText.innerText = "PROCESSING...";
-  pushSystemLog("Gemini", "QUERYING");
 
-  for (let model of MODELS) {
+  for (let model of TEXT_MODELS) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 12000);
@@ -1315,7 +1455,7 @@ async function callGemini(text) {
             setTimeout(() => { openYouTubeModal(cleanQuery || text); }, 300);
           }
 
-          return aiResponseText;
+          return { text: aiResponseText, imageDataUrl: null };
         }
       }
     } catch (e) {
@@ -1325,7 +1465,10 @@ async function callGemini(text) {
 
   pendingImageData = null;
   pushSystemLog("Gemini", "OFFLINE");
-  return "Network connection unavailable or API limit reached, Boss. Please verify your API Key.";
+  return {
+    text: "Network connection unavailable or API limit reached, Boss. Please verify your API Key.",
+    imageDataUrl: null
+  };
 }
 
 /* =========================================================
@@ -1367,11 +1510,18 @@ async function handleUserCommand() {
   if (statusText) statusText.innerText = "PROCESSING...";
 
   try {
-    const reply = await callGemini(text);
-    addMessage(`Jarvis: ${reply}`, 'ai');
-    currentSession.messages.push({ role: 'model', text: reply, time: format12HourTime(new Date()) });
+    const result = await callGemini(text);
+    const replyText = typeof result === 'string' ? result : result.text;
+    const imageDataUrl = typeof result === 'object' ? result.imageDataUrl : null;
+
+    addMessage(`Jarvis: ${replyText}`, 'ai', imageDataUrl);
+    currentSession.messages.push({
+      role: 'model',
+      text: imageDataUrl ? `${replyText} [Generated Image]` : replyText,
+      time: format12HourTime(new Date())
+    });
     saveSessions();
-    speak(reply);
+    speak(replyText);
   } catch (err) {
     addMessage(`Jarvis: Error executing requested protocols.`, 'ai');
     speak(`Error executing requested protocols, Boss.`);
@@ -1560,12 +1710,10 @@ function initUserVoiceEqualizer() {
           Math.floor((1 - distFromCenter) * (freqData.length * 0.65))
         );
         const rawVal = freqData[binIndex] / 255;
-        // Noise gate so quiet room stays calm, loud/soft speech scales smoothly
         const gated = Math.max(0, (rawVal - 0.06) / 0.94);
         normAmp = Math.pow(gated, 1.15);
       }
 
-      // Base height is minimal (10%); scales directly with user voice loudness
       const heightPct = 10 + normAmp * 88;
       bars[i].style.height = `${Math.min(100, Math.max(10, heightPct))}%`;
     }
@@ -1581,23 +1729,29 @@ let startJarvisListening = function() {};
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
+  let isRecognitionRunning = false;
+  let restartTimer = null;
 
-  function initRecognition() {
-    recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.continuous = true;
-    recognition.interimResults = false;
+  function buildRecognitionInstance() {
+    const rec = new SpeechRecognition();
+    rec.lang = 'en-US';
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.maxAlternatives = 1;
 
-    recognition.onstart = () => {
+    rec.onstart = () => {
+      isRecognitionRunning = true;
       if (statusText) statusText.innerText = "LISTENING...";
+      if (voiceStatus) voiceStatus.innerText = "ACTIVE";
+      if (statusBadge) statusBadge.innerText = "[VOICE_ON]";
       if (micBtn) micBtn.classList.add('active-mic');
       enableUserVoiceMeter();
     };
 
-    recognition.onresult = (event) => {
+    rec.onresult = (event) => {
       let finalTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
+        if (event.results[i] && event.results[i][0]) {
           finalTranscript += event.results[i][0].transcript;
         }
       }
@@ -1625,7 +1779,8 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
       if (lowerTranscript.includes("smart stop listening") || lowerTranscript.includes("stop listening")) {
         isListeningActive = false;
-        try { recognition.stop(); } catch (e) {}
+        clearTimeout(restartTimer);
+        try { rec.stop(); } catch (e) {}
         addMessage(`You: ${rawTranscript}`, 'user');
         addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
         speak('Stopped Listening, Boss.');
@@ -1635,33 +1790,58 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       handleUserCommand();
     };
 
-    recognition.onerror = () => {
+    rec.onerror = (event) => {
+      isRecognitionRunning = false;
+      if (event && (event.error === 'not-allowed' || event.error === 'service-not-allowed')) {
+        isListeningActive = false;
+        if (statusText) statusText.innerText = "MIC BLOCKED";
+        if (voiceStatus) voiceStatus.innerText = "DENIED";
+        pushSystemLog("Mic", "PERMISSION_DENIED");
+        return;
+      }
       if (!isJarvisSpeaking && statusText) {
         statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
       }
     };
 
-    recognition.onend = () => {
+    rec.onend = () => {
+      isRecognitionRunning = false;
       if (isListeningActive) {
-        try {
-          recognition.start();
-        } catch (e) {
-          setTimeout(() => { try { recognition.start(); } catch (err) {} }, 250);
-        }
+        clearTimeout(restartTimer);
+        restartTimer = setTimeout(() => {
+          if (!isListeningActive || isRecognitionRunning) return;
+          try {
+            recognition = buildRecognitionInstance();
+            recognition.start();
+          } catch (err) {}
+        }, 350);
       } else {
+        if (voiceStatus) voiceStatus.innerText = "STANDBY";
+        if (statusBadge) statusBadge.innerText = "[ONLINE]";
         if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
         if (micBtn) micBtn.classList.remove('active-mic');
       }
     };
+
+    return rec;
   }
 
-  initRecognition();
+  recognition = buildRecognitionInstance();
 
   startJarvisListening = function() {
     isListeningActive = true;
+    clearTimeout(restartTimer);
     if (micBtn) micBtn.classList.add('active-mic');
+    if (voiceStatus) voiceStatus.innerText = "ACTIVE";
+    if (statusBadge) statusBadge.innerText = "[VOICE_ON]";
     enableUserVoiceMeter();
-    try { recognition.start(); } catch (err) {}
+
+    if (!isRecognitionRunning) {
+      try {
+        recognition = buildRecognitionInstance();
+        recognition.start();
+      } catch (err) {}
+    }
   };
 
   if (micBtn) {
@@ -1673,8 +1853,11 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         speak('Listening continuously, Boss.');
       } else {
         isListeningActive = false;
-        try { recognition.stop(); } catch (err) {}
+        clearTimeout(restartTimer);
+        try { if (recognition) recognition.stop(); } catch (err) {}
         if (micBtn) micBtn.classList.remove('active-mic');
+        if (voiceStatus) voiceStatus.innerText = "STANDBY";
+        if (statusBadge) statusBadge.innerText = "[ONLINE]";
         addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
         speak('Stopped Listening, Boss.');
       }
