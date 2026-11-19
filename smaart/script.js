@@ -968,26 +968,29 @@ function speak(text) {
     window.speechSynthesis.cancel();
     const cleanText = text.replace(/[\*\#\`\_]/g, '');
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = 'en-US';
+    utterance.lang = /[\u0C00-\u0C7F]/.test(cleanText) ? 'te-IN' : 'en-US';
     utterance.rate = 1.0;
     utterance.pitch = 0.95;
 
     utterance.onstart = () => {
       isJarvisSpeaking = true;
+      if (typeof pauseRecognitionForSpeech === 'function') pauseRecognitionForSpeech();
       if (statusText) statusText.innerText = "SPEAKING";
       if (speechIndicator) speechIndicator.innerText = "ACTIVE";
     };
 
     utterance.onend = () => {
       isJarvisSpeaking = false;
-      if (statusText) statusText.innerText = "SYSTEM ONLINE";
+      if (statusText) statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
       if (speechIndicator) speechIndicator.innerText = "IDLE";
+      if (typeof resumeRecognitionAfterSpeech === 'function') resumeRecognitionAfterSpeech();
     };
 
     utterance.onerror = () => {
       isJarvisSpeaking = false;
-      if (statusText) statusText.innerText = "SYSTEM ONLINE";
+      if (statusText) statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
       if (speechIndicator) speechIndicator.innerText = "IDLE";
+      if (typeof resumeRecognitionAfterSpeech === 'function') resumeRecognitionAfterSpeech();
     };
 
     window.speechSynthesis.speak(utterance);
@@ -1637,7 +1640,7 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. REAL-TIME USER VOICE EQUALIZER + SPEECH RECOGNITION (CLEAN RELEASE)
+   11. VOICE EQUALIZER & RELIABLE SPEECH RECOGNITION (VOICE ONLY)
    ========================================================= */
 const eqContainer = document.getElementById('equalizer');
 const barCount = 36;
@@ -1651,83 +1654,24 @@ if (eqContainer) {
   }
 }
 
-let userMicAudioCtx = null;
-let userMicAnalyser = null;
-let userMicDataArray = null;
-let userMicStream = null;
-let micInitInProgress = false;
-
-async function enableUserVoiceMeter() {
-  if (userMicAnalyser || micInitInProgress) return;
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-  micInitInProgress = true;
-  try {
-    userMicStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
-    });
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    userMicAudioCtx = new AudioContextClass();
-    if (userMicAudioCtx.state === 'suspended') {
-      await userMicAudioCtx.resume();
-    }
-    const source = userMicAudioCtx.createMediaStreamSource(userMicStream);
-    userMicAnalyser = userMicAudioCtx.createAnalyser();
-    userMicAnalyser.fftSize = 128;
-    userMicAnalyser.smoothingTimeConstant = 0.72;
-    source.connect(userMicAnalyser);
-    userMicDataArray = new Uint8Array(userMicAnalyser.frequencyBinCount);
-  } catch (err) {
-    // Mic permission denied or unavailable; keep quiet floor
-  } finally {
-    micInitInProgress = false;
-  }
-}
-
-function releaseUserVoiceMeter() {
-  if (userMicStream) {
-    userMicStream.getTracks().forEach(track => {
-      try { track.stop(); } catch (e) {}
-    });
-    userMicStream = null;
-  }
-  if (userMicAudioCtx) {
-    userMicAudioCtx.close().catch(() => {});
-    userMicAudioCtx = null;
-  }
-  userMicAnalyser = null;
-  userMicDataArray = null;
-}
+let isRecognitionRunning = false;
+let isPausedForSpeech = false;
 
 function initUserVoiceEqualizer() {
   if (!bars.length) return;
+  const half = Math.floor(barCount / 2);
 
   function renderUserVoiceBars() {
-    let freqData = null;
-    if (userMicAnalyser && userMicDataArray) {
-      if (userMicAudioCtx && userMicAudioCtx.state === 'suspended') {
-        userMicAudioCtx.resume().catch(() => {});
-      }
-      userMicAnalyser.getByteFrequencyData(userMicDataArray);
-      freqData = userMicDataArray;
-    }
-
-    const half = Math.floor(barCount / 2);
+    const now = performance.now() * 0.008;
+    const activeVoice = isListeningActive || isJarvisSpeaking;
 
     for (let i = 0; i < barCount; i++) {
       let normAmp = 0;
-      if (freqData && freqData.length > 0) {
+      if (activeVoice) {
         const distFromCenter = Math.abs(i - half) / Math.max(1, half);
-        const binIndex = Math.min(
-          freqData.length - 1,
-          Math.floor((1 - distFromCenter) * (freqData.length * 0.65))
-        );
-        const rawVal = freqData[binIndex] / 255;
-        const gated = Math.max(0, (rawVal - 0.06) / 0.94);
-        normAmp = Math.pow(gated, 1.15);
+        const envelope = Math.max(0.15, 1 - distFromCenter * 0.75);
+        const wave = 0.5 + 0.5 * Math.sin(now * (isJarvisSpeaking ? 2.4 : 1.4) + i * 0.45);
+        normAmp = envelope * wave * (isJarvisSpeaking ? 0.9 : 0.65);
       }
 
       const heightPct = 10 + normAmp * 88;
@@ -1742,11 +1686,14 @@ function initUserVoiceEqualizer() {
 
 let startJarvisListening = function() {};
 let stopJarvisListening = function() {};
+let pauseRecognitionForSpeech = function() {};
+let resumeRecognitionAfterSpeech = function() {};
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let restartTimer = null;
+  let preferredLang = 'te-IN';
 
   function clearRestartTimer() {
     if (restartTimer) {
@@ -1755,13 +1702,36 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     }
   }
 
+  function safeStartRecognition() {
+    if (!recognition || isRecognitionRunning || isPausedForSpeech) return;
+    if (document.visibilityState !== 'visible') return;
+    try {
+      recognition.lang = preferredLang;
+      recognition.start();
+    } catch (err) {
+      if (err && err.name === 'InvalidStateError') {
+        isRecognitionRunning = true;
+      }
+    }
+  }
+
+  function safeStopRecognition() {
+    if (!recognition) return;
+    try {
+      recognition.stop();
+    } catch (err) {}
+    isRecognitionRunning = false;
+  }
+
   function initRecognition() {
     recognition = new SpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.continuous = true;
+    recognition.lang = preferredLang;
+    recognition.continuous = false;
     recognition.interimResults = false;
+    recognition.maxAlternatives = 3;
 
     recognition.onstart = () => {
+      isRecognitionRunning = true;
       if (statusText) statusText.innerText = "LISTENING...";
       if (voiceStatus) voiceStatus.innerText = "ACTIVE";
       if (statusBadge) statusBadge.innerText = "[VOICE_ON]";
@@ -1770,13 +1740,12 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         micBtn.style.background = "#00f3ff";
         micBtn.style.color = "#000";
       }
-      enableUserVoiceMeter();
     };
 
     recognition.onresult = (event) => {
       let finalTranscript = '';
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
+        if (event.results[i].isFinal && event.results[i][0]) {
           finalTranscript += event.results[i][0].transcript;
         }
       }
@@ -1791,6 +1760,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
           window.speechSynthesis.cancel();
         }
         isJarvisSpeaking = false;
+        isPausedForSpeech = false;
       }
 
       if (input) input.value = rawTranscript;
@@ -1805,7 +1775,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       }
 
       if (lowerTranscript.includes("smart stop listening") || lowerTranscript.includes("stop listening")) {
-        stopJarvisListening(false);
+        stopJarvisListening();
         addMessage(`You: ${rawTranscript}`, 'user');
         addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
         speak('Stopped Listening, Boss.');
@@ -1816,27 +1786,40 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     };
 
     recognition.onerror = (event) => {
+      isRecognitionRunning = false;
       console.warn("Speech recognition error:", event.error);
+
+      if (event.error === 'language-not-supported' && preferredLang !== 'en-US') {
+        preferredLang = 'en-US';
+      }
+
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
         isListeningActive = false;
         clearRestartTimer();
-        releaseUserVoiceMeter();
+        if (statusText) statusText.innerText = "MIC BLOCKED";
+        if (voiceStatus) voiceStatus.innerText = "DENIED";
+        return;
       }
-      if (!isJarvisSpeaking && statusText) {
+
+      if (isListeningActive && !isPausedForSpeech && document.visibilityState === 'visible') {
+        clearRestartTimer();
+        restartTimer = setTimeout(() => {
+          safeStartRecognition();
+        }, 300);
+      } else if (!isJarvisSpeaking && statusText) {
         statusText.innerText = isListeningActive ? "LISTENING..." : "SYSTEM ONLINE";
       }
     };
 
     recognition.onend = () => {
-      if (isListeningActive && document.visibilityState === 'visible') {
+      isRecognitionRunning = false;
+      if (isListeningActive && !isPausedForSpeech && document.visibilityState === 'visible') {
         clearRestartTimer();
         restartTimer = setTimeout(() => {
-          if (!isListeningActive || document.visibilityState !== 'visible') return;
-          try { recognition.start(); } catch (err) {}
-        }, 250);
-      } else {
+          safeStartRecognition();
+        }, 200);
+      } else if (!isListeningActive) {
         clearRestartTimer();
-        releaseUserVoiceMeter();
         if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
         if (voiceStatus) voiceStatus.innerText = "STANDBY";
         if (statusBadge) statusBadge.innerText = "[ONLINE]";
@@ -1851,21 +1834,34 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
   initRecognition();
 
-  startJarvisListening = function() {
-    if (!isListeningActive) {
-      isListeningActive = true;
+  pauseRecognitionForSpeech = function() {
+    isPausedForSpeech = true;
+    clearRestartTimer();
+    safeStopRecognition();
+  };
+
+  resumeRecognitionAfterSpeech = function() {
+    isPausedForSpeech = false;
+    if (isListeningActive && document.visibilityState === 'visible') {
       clearRestartTimer();
-      try { recognition.start(); } catch (err) { console.log(err); }
+      restartTimer = setTimeout(() => {
+        safeStartRecognition();
+      }, 220);
     }
   };
 
-  stopJarvisListening = function(releaseAudioCtx = true) {
-    isListeningActive = false;
+  startJarvisListening = function() {
+    isListeningActive = true;
+    isPausedForSpeech = false;
     clearRestartTimer();
-    try { recognition.stop(); } catch (err) {}
-    if (releaseAudioCtx) {
-      releaseUserVoiceMeter();
-    }
+    safeStartRecognition();
+  };
+
+  stopJarvisListening = function() {
+    isListeningActive = false;
+    isPausedForSpeech = false;
+    clearRestartTimer();
+    safeStopRecognition();
     if (!isJarvisSpeaking && statusText) statusText.innerText = "SYSTEM ONLINE";
     if (voiceStatus) voiceStatus.innerText = "STANDBY";
     if (statusBadge) statusBadge.innerText = "[ONLINE]";
@@ -1876,31 +1872,43 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     }
   };
 
-  // Release mic cleanly when leaving/hiding the tab so other apps/tabs (like Gemini Live) can use the mic
+  // Auto-arm on first user gesture if browser blocked initial auto-start
+  document.addEventListener('pointerdown', () => {
+    if (isListeningActive && !isRecognitionRunning && !isPausedForSpeech && document.visibilityState === 'visible') {
+      safeStartRecognition();
+    }
+  }, { passive: true });
+
+  // Release mic cleanly when switching/hiding tab so other tabs or Live mic can use it
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && isListeningActive) {
-      stopJarvisListening(true);
+    if (document.hidden) {
+      clearRestartTimer();
+      safeStopRecognition();
+    } else if (isListeningActive && !isPausedForSpeech) {
+      clearRestartTimer();
+      restartTimer = setTimeout(() => {
+        safeStartRecognition();
+      }, 250);
     }
   });
 
   window.addEventListener('pagehide', () => {
-    if (isListeningActive) {
-      stopJarvisListening(true);
-    }
+    clearRestartTimer();
+    safeStopRecognition();
   });
 
   if (micBtn) {
-    micBtn.addEventListener('click', () => {
+    micBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       if (!isListeningActive) {
         isListeningActive = true;
+        isPausedForSpeech = false;
         clearRestartTimer();
-        try {
-          recognition.start();
-          addMessage(`Jarvis: Active and listening continuously, Boss...`, 'ai');
-          speak('Listening continuously, Boss.');
-        } catch (err) { console.log(err); }
+        safeStartRecognition();
+        addMessage(`Jarvis: Active and listening, Boss...`, 'ai');
+        speak('Listening, Boss.');
       } else {
-        stopJarvisListening(true);
+        stopJarvisListening();
         addMessage(`Jarvis: Stopped Listening, Boss.`, 'ai');
         speak('Stopped Listening, Boss.');
       }
