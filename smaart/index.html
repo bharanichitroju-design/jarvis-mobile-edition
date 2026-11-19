@@ -151,30 +151,37 @@
       </section>
     </section>
 
-    <!-- RIGHT SIDEBAR: KEYFRAME_FX + SIGNAL_WAVE (WITH WAVE AT BOTTOM) + VOICE_LINK -->
+    <!-- RIGHT SIDEBAR: KEYFRAME_FX (ROTARY KEY RING) + SIGNAL_WAVE + VOICE_LINK -->
     <aside class="column right-col">
       <section class="panel fx-panel" data-expandable="true" data-box-id="fx-panel">
         <div class="panel-header">
           <span>KEYFRAME_FX</span>
-          <span>CORE</span>
+          <span id="keyLockState">LOCKED</span>
         </div>
-        <div class="fx-list">
-          <button class="fx-btn" data-fx="rings" type="button">
-            <span>Rings_Rotate</span>
-            <span class="fx-arrow">▸</span>
-          </button>
-          <button class="fx-btn" data-fx="wave" type="button">
-            <span>Ring_Wave_Boost</span>
-            <span class="fx-arrow">▸</span>
-          </button>
-          <button class="fx-btn" data-fx="glitch" type="button">
-            <span>HUD_Glitch</span>
-            <span class="fx-arrow">▸</span>
-          </button>
-          <button class="fx-btn" data-fx="sweep" type="button">
-            <span>Rapid_Sweep</span>
-            <span class="fx-arrow">▸</span>
-          </button>
+
+        <div class="key-ring-stage" id="keyRingStage" title="Turn left 3 times to unlock, then drag onto any panel">
+          <!-- Outer Ambient Right-Rotating Reactor Ring -->
+          <div class="key-outer-halo"></div>
+
+          <!-- Interactive Modern Key Dial -->
+          <div class="key-dial-puck" id="keyDialPuck">
+            <svg class="key-dial-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+              <!-- Outer Segmented Gear Ring -->
+              <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="18 7 4 7" />
+              <!-- Inner Precision Track -->
+              <circle cx="60" cy="60" r="39" fill="rgba(18, 3, 5, 0.92)" stroke="currentColor" stroke-width="1.5" stroke-dasharray="6 4" />
+              <!-- 4 Cardinal Notches -->
+              <line x1="60" y1="4" x2="60" y2="14" stroke="currentColor" stroke-width="2.5" />
+              <line x1="60" y1="106" x2="60" y2="116" stroke="currentColor" stroke-width="2.5" />
+              <line x1="4" y1="60" x2="14" y2="60" stroke="currentColor" stroke-width="2.5" />
+              <line x1="106" y1="60" x2="116" y2="60" stroke="currentColor" stroke-width="2.5" />
+              <!-- Modern Cyber Key Emblem in Center -->
+              <circle cx="60" cy="46" r="11" fill="none" stroke="currentColor" stroke-width="2.5" />
+              <circle cx="60" cy="46" r="4" fill="currentColor" />
+              <path d="M60 57 L60 84 M60 71 L69 71 M60 79 L67 79" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+            </svg>
+            <div class="key-turn-badge" id="keyTurnBadge">0/3</div>
+          </div>
         </div>
       </section>
 
