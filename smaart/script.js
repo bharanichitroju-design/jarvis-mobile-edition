@@ -64,6 +64,7 @@ let isListeningActive = false;
 let strictJarvisKeywordMode = false;
 let workspaceFiles3D = [];
 let totalAccessLogs = 23258;
+let manualWaveBoostUntil = 0;
 
 // DOM Elements
 const chat = document.getElementById('chat');
@@ -119,343 +120,43 @@ function updateTelemetryCounters() {
 }
 
 /* =========================================================
-   1.2. IRON MAN 2 STYLE RED HACKING WHEEL (3 SPINS -> DRAG -> FULLSCREEN)
+   1.2. KEYFRAME_FX CONTROLS (RIGHT TOP PANEL)
    ========================================================= */
-const hackingWheelEl = document.getElementById('hackingWheel');
-const hackingWheelCanvas = document.getElementById('hackingWheelCanvas');
-const wheelReadoutEl = document.getElementById('wheelReadout');
-const wheelLockStateEl = document.getElementById('wheelLockState');
-const hackWheelDockEl = document.getElementById('hackWheelDock');
+function initKeyframeFX() {
+  const fxButtons = document.querySelectorAll('.fx-btn');
+  let fastRings = false;
 
-let wheelState = {
-  cumulativeAngle: 0,      // Degrees rotated (360 * 3 = 1080 unlocks)
-  visualAngle: 0,
-  lastPointerAngle: null,
-  isRotating: false,
-  isUnlocked: false,
-  isDraggingWheel: false,
-  dragMovedDistance: 0,
-  pointerStartX: 0,
-  pointerStartY: 0,
-  wheelStartLeft: 0,
-  wheelStartTop: 0,
-  hoveredBox: null,
-  expandedBox: null
-};
+  fxButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const fxType = btn.getAttribute('data-fx');
+      btn.classList.add('fx-active');
+      setTimeout(() => btn.classList.remove('fx-active'), 600);
 
-const REQUIRED_DEGREES = 360 * 3; // 3 full rotations
-
-function drawHackingWheel() {
-  if (!hackingWheelCanvas) return;
-  const ctx = hackingWheelCanvas.getContext('2d');
-  const w = hackingWheelCanvas.width;
-  const h = hackingWheelCanvas.height;
-  const cx = w / 2;
-  const cy = h / 2;
-  const maxR = Math.min(cx, cy) - 4;
-  const progress = Math.min(1, Math.abs(wheelState.cumulativeAngle) / REQUIRED_DEGREES);
-  const rotRad = (wheelState.visualAngle * Math.PI) / 180;
-
-  ctx.clearRect(0, 0, w, h);
-
-  // Subtle crimson backing glow
-  const grad = ctx.createRadialGradient(cx, cy, maxR * 0.15, cx, cy, maxR);
-  grad.addColorStop(0, wheelState.isUnlocked ? 'rgba(255, 30, 39, 0.34)' : 'rgba(255, 30, 39, 0.14)');
-  grad.addColorStop(1, 'rgba(20, 2, 4, 0.05)');
-  ctx.fillStyle = grad;
-  ctx.beginPath();
-  ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Outer Iron Man 2 style segmented arc ring
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(rotRad);
-
-  const segCount = 6;
-  for (let i = 0; i < segCount; i++) {
-    const startA = (i * Math.PI * 2) / segCount + 0.08;
-    const endA = ((i + 1) * Math.PI * 2) / segCount - 0.08;
-    ctx.beginPath();
-    ctx.arc(0, 0, maxR - 3, startA, endA);
-    ctx.strokeStyle = wheelState.isUnlocked ? '#ff474e' : 'rgba(255, 30, 39, 0.65)';
-    ctx.lineWidth = 3;
-    ctx.stroke();
-  }
-
-  // Precision tick marks on middle ring
-  const tickCount = 24;
-  for (let t = 0; t < tickCount; t++) {
-    const a = (t * Math.PI * 2) / tickCount;
-    const inner = t % 4 === 0 ? maxR - 15 : maxR - 11;
-    const outer = maxR - 7;
-    ctx.beginPath();
-    ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
-    ctx.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
-    ctx.strokeStyle = t % 4 === 0 ? '#ff474e' : 'rgba(255, 30, 39, 0.45)';
-    ctx.lineWidth = t % 4 === 0 ? 1.8 : 1;
-    ctx.stroke();
-  }
-
-  // Inner directional reticle / pointer notch
-  ctx.beginPath();
-  ctx.arc(0, 0, maxR * 0.56, -Math.PI * 0.75, Math.PI * 0.75);
-  ctx.strokeStyle = 'rgba(255, 30, 39, 0.75)';
-  ctx.lineWidth = 1.6;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.moveTo(maxR * 0.52, 0);
-  ctx.lineTo(maxR * 0.76, 0);
-  ctx.strokeStyle = '#ff474e';
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-
-  ctx.restore();
-
-  // 3-Rotation Unlock Progress Ring
-  ctx.beginPath();
-  ctx.arc(cx, cy, maxR * 0.42, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
-  ctx.strokeStyle = wheelState.isUnlocked ? '#ff474e' : '#ff1e27';
-  ctx.lineWidth = 3.2;
-  ctx.shadowBlur = 8;
-  ctx.shadowColor = '#ff1e27';
-  ctx.stroke();
-  ctx.shadowBlur = 0;
-}
-
-function updateWheelUI() {
-  const spinsDone = Math.min(3, Math.floor(Math.abs(wheelState.cumulativeAngle) / 360));
-  if (wheelReadoutEl) {
-    if (wheelState.expandedBox) {
-      wheelReadoutEl.innerHTML = "EXIT<br>VIEW";
-    } else if (wheelState.isUnlocked) {
-      wheelReadoutEl.innerHTML = "DRAG<br>BOX";
-    } else {
-      wheelReadoutEl.innerHTML = `${spinsDone}/3`;
-    }
-  }
-
-  if (wheelLockStateEl) {
-    if (wheelState.expandedBox) {
-      wheelLockStateEl.innerText = "FULLSCREEN";
-    } else if (wheelState.isUnlocked) {
-      wheelLockStateEl.innerText = "UNLOCKED";
-    } else {
-      wheelLockStateEl.innerText = "3x SPIN LOCK";
-    }
-  }
-
-  if (hackingWheelEl) {
-    hackingWheelEl.classList.toggle('unlocked', wheelState.isUnlocked);
-  }
-
-  drawHackingWheel();
-}
-
-function getPointerAngleFromWheel(clientX, clientY) {
-  if (!hackingWheelEl) return 0;
-  const rect = hackingWheelEl.getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + rect.height / 2;
-  return (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
-}
-
-function findExpandableBoxAtPoint(clientX, clientY) {
-  const boxes = Array.from(document.querySelectorAll('[data-expandable="true"]'));
-  for (let i = boxes.length - 1; i >= 0; i--) {
-    const box = boxes[i];
-    if (box === wheelState.expandedBox) continue;
-    const rect = box.getBoundingClientRect();
-    if (
-      clientX >= rect.left &&
-      clientX <= rect.right &&
-      clientY >= rect.top &&
-      clientY <= rect.bottom
-    ) {
-      return box;
-    }
-  }
-  return null;
-}
-
-function clearDropHighlight() {
-  if (wheelState.hoveredBox) {
-    wheelState.hoveredBox.classList.remove('drop-target-hover');
-    wheelState.hoveredBox = null;
-  }
-}
-
-function expandBoxToFullscreen(box) {
-  if (!box) return;
-  if (wheelState.expandedBox && wheelState.expandedBox !== box) {
-    wheelState.expandedBox.classList.remove('expanded-fullscreen');
-  }
-
-  box.classList.add('expanded-fullscreen');
-  wheelState.expandedBox = box;
-  wheelState.isDraggingWheel = false;
-
-  if (hackingWheelEl) {
-    hackingWheelEl.classList.remove('floating-wheel', 'dragging');
-    hackingWheelEl.style.left = '';
-    hackingWheelEl.style.top = '';
-    hackingWheelEl.classList.add('docked-return');
-    if (hackingWheelEl.parentElement !== document.body) {
-      document.body.appendChild(hackingWheelEl);
-    }
-  }
-
-  const label = box.getAttribute('data-box-id') || 'PANEL';
-  pushSystemLog("Wheel", `FULLSCREEN_${label.toUpperCase()}`);
-  updateWheelUI();
-}
-
-function restoreFullscreenBoxAndResetWheel() {
-  if (wheelState.expandedBox) {
-    wheelState.expandedBox.classList.remove('expanded-fullscreen');
-    wheelState.expandedBox = null;
-  }
-
-  wheelState.isUnlocked = false;
-  wheelState.isDraggingWheel = false;
-  wheelState.cumulativeAngle = 0;
-  wheelState.visualAngle = 0;
-  wheelState.lastPointerAngle = null;
-  clearDropHighlight();
-
-  if (hackingWheelEl) {
-    hackingWheelEl.classList.remove('docked-return', 'floating-wheel', 'dragging', 'unlocked');
-    hackingWheelEl.style.left = '';
-    hackingWheelEl.style.top = '';
-    if (hackWheelDockEl && hackingWheelEl.parentElement !== hackWheelDockEl) {
-      hackWheelDockEl.appendChild(hackingWheelEl);
-    }
-  }
-
-  pushSystemLog("Wheel", "LOCKED_RESET");
-  updateWheelUI();
-}
-
-function initHackingWheelInteractions() {
-  if (!hackingWheelEl) return;
-
-  hackingWheelEl.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // If docked in bottom-right during fullscreen mode, tapping/clicking returns to home layout
-    if (wheelState.expandedBox) {
-      restoreFullscreenBoxAndResetWheel();
-      return;
-    }
-
-    wheelState.pointerStartX = e.clientX;
-    wheelState.pointerStartY = e.clientY;
-    wheelState.dragMovedDistance = 0;
-
-    if (wheelState.isUnlocked) {
-      wheelState.isDraggingWheel = true;
-      hackingWheelEl.classList.add('dragging', 'floating-wheel');
-      const rect = hackingWheelEl.getBoundingClientRect();
-      if (hackingWheelEl.parentElement !== document.body) {
-        document.body.appendChild(hackingWheelEl);
+      if (fxType === 'rings') {
+        fastRings = !fastRings;
+        document.documentElement.style.setProperty('--ring-1-dur', fastRings ? '3.5s' : '16s');
+        document.documentElement.style.setProperty('--ring-2-dur', fastRings ? '2.4s' : '10s');
+        document.documentElement.style.setProperty('--ring-3-dur', fastRings ? '1.6s' : '7s');
+        pushSystemLog("FX", fastRings ? "RINGS_TURBO" : "RINGS_NORMAL");
+      } else if (fxType === 'wave') {
+        manualWaveBoostUntil = Date.now() + 2600;
+        pushSystemLog("FX", "WAVE_BOOST");
+      } else if (fxType === 'glitch') {
+        const mainGrid = document.getElementById('mainGrid');
+        if (mainGrid) {
+          mainGrid.classList.add('glitch-active');
+          setTimeout(() => mainGrid.classList.remove('glitch-active'), 500);
+        }
+        pushSystemLog("FX", "HUD_GLITCH");
+      } else if (fxType === 'sweep') {
+        document.body.classList.remove('rapid-sweep-active');
+        void document.body.offsetWidth;
+        document.body.classList.add('rapid-sweep-active');
+        setTimeout(() => document.body.classList.remove('rapid-sweep-active'), 1900);
+        pushSystemLog("FX", "RAPID_SWEEP");
       }
-      wheelState.wheelStartLeft = rect.left;
-      wheelState.wheelStartTop = rect.top;
-      hackingWheelEl.style.left = `${rect.left}px`;
-      hackingWheelEl.style.top = `${rect.top}px`;
-      hackingWheelEl.style.right = 'auto';
-      hackingWheelEl.style.bottom = 'auto';
-    } else {
-      wheelState.isRotating = true;
-      wheelState.lastPointerAngle = getPointerAngleFromWheel(e.clientX, e.clientY);
-    }
-
-    hackingWheelEl.setPointerCapture(e.pointerId);
+    });
   });
-
-  hackingWheelEl.addEventListener('pointermove', (e) => {
-    if (wheelState.expandedBox) return;
-
-    const dxMove = e.clientX - wheelState.pointerStartX;
-    const dyMove = e.clientY - wheelState.pointerStartY;
-    wheelState.dragMovedDistance = Math.hypot(dxMove, dyMove);
-
-    if (wheelState.isDraggingWheel && wheelState.isUnlocked) {
-      const nextLeft = wheelState.wheelStartLeft + dxMove;
-      const nextTop = wheelState.wheelStartTop + dyMove;
-      hackingWheelEl.style.left = `${nextLeft}px`;
-      hackingWheelEl.style.top = `${nextTop}px`;
-
-      const targetBox = findExpandableBoxAtPoint(e.clientX, e.clientY);
-      if (targetBox !== wheelState.hoveredBox) {
-        clearDropHighlight();
-        if (targetBox) {
-          targetBox.classList.add('drop-target-hover');
-          wheelState.hoveredBox = targetBox;
-        }
-      }
-      return;
-    }
-
-    if (wheelState.isRotating && !wheelState.isUnlocked) {
-      const currentAngle = getPointerAngleFromWheel(e.clientX, e.clientY);
-      if (wheelState.lastPointerAngle !== null) {
-        let delta = currentAngle - wheelState.lastPointerAngle;
-        if (delta > 180) delta -= 360;
-        if (delta < -180) delta += 360;
-
-        wheelState.cumulativeAngle += delta;
-        wheelState.visualAngle += delta;
-
-        if (Math.abs(wheelState.cumulativeAngle) >= REQUIRED_DEGREES) {
-          wheelState.cumulativeAngle = Math.sign(wheelState.cumulativeAngle || 1) * REQUIRED_DEGREES;
-          wheelState.isUnlocked = true;
-          wheelState.isRotating = false;
-          pushSystemLog("Wheel", "UNLOCKED_3X");
-          if (navigator.vibrate) navigator.vibrate([70, 40, 70]);
-        }
-      }
-      wheelState.lastPointerAngle = currentAngle;
-      updateWheelUI();
-    }
-  });
-
-  const handlePointerFinish = (e) => {
-    if (hackingWheelEl.hasPointerCapture(e.pointerId)) {
-      try { hackingWheelEl.releasePointerCapture(e.pointerId); } catch (err) {}
-    }
-
-    if (wheelState.isDraggingWheel) {
-      wheelState.isDraggingWheel = false;
-      hackingWheelEl.classList.remove('dragging');
-
-      const dropBox = findExpandableBoxAtPoint(e.clientX, e.clientY) || wheelState.hoveredBox;
-      clearDropHighlight();
-
-      if (dropBox) {
-        expandBoxToFullscreen(dropBox);
-      } else {
-        // Dropped outside any box -> snap back to dock while staying unlocked
-        hackingWheelEl.classList.remove('floating-wheel');
-        hackingWheelEl.style.left = '';
-        hackingWheelEl.style.top = '';
-        if (hackWheelDockEl && hackingWheelEl.parentElement !== hackWheelDockEl) {
-          hackWheelDockEl.appendChild(hackingWheelEl);
-        }
-        updateWheelUI();
-      }
-    }
-
-    wheelState.isRotating = false;
-    wheelState.lastPointerAngle = null;
-  };
-
-  hackingWheelEl.addEventListener('pointerup', handlePointerFinish);
-  hackingWheelEl.addEventListener('pointercancel', handlePointerFinish);
-
-  updateWheelUI();
 }
 
 /* =========================================================
@@ -1232,7 +933,8 @@ function initCircularVibrationGraph() {
     const segments = 96;
     const now = Date.now() * 0.008;
 
-    const targetBoost = isJarvisSpeaking ? 1.0 : (isListeningActive ? 0.72 : 0.28);
+    const boosted = Date.now() < manualWaveBoostUntil;
+    const targetBoost = boosted ? 1.15 : (isJarvisSpeaking ? 1.0 : (isListeningActive ? 0.72 : 0.28));
     waveBoostLevel += (targetBoost - waveBoostLevel) * 0.12;
 
     ctx.clearRect(0, 0, w, h);
@@ -1282,7 +984,7 @@ function initCircularVibrationGraph() {
 
 window.addEventListener('DOMContentLoaded', () => {
   initCircularVibrationGraph();
-  initHackingWheelInteractions();
+  initKeyframeFX();
   updateTelemetryCounters();
 
   setTimeout(() => {
@@ -1296,7 +998,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 /* =========================================================
-   3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT (ORIGINAL)
+   3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT
    ========================================================= */
 function speak(text) {
   if ('speechSynthesis' in window) {
@@ -1526,11 +1228,6 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("go back") || query.includes("back")) {
-    if (wheelState.expandedBox) {
-      restoreFullscreenBoxAndResetWheel();
-      return "Exited fullscreen box view, Boss.";
-    }
-
     const projLayer = document.getElementById('fullscreen-projection-layer');
     const tdModal = document.getElementById('td-workspace-modal');
     const ytModal = document.getElementById('youtube-workspace-modal');
@@ -1555,7 +1252,6 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("go to home") || query.includes("go home") || query.includes("home")) {
-    restoreFullscreenBoxAndResetWheel();
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
     close3DWorkspaceModal();
@@ -1995,7 +1691,7 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. CONTINUOUS VOICE RECOGNITION + VIBE PANEL + TELEMETRY (ORIGINAL)
+   11. CONTINUOUS VOICE RECOGNITION + EQUALIZER + SIGNAL WAVE
    ========================================================= */
 let startJarvisListening = function() {};
 
@@ -2180,7 +1876,7 @@ setInterval(() => {
   if (binEl) binEl.innerHTML = `${randBin()} ${randBin()}<br>${randBin()} ${randBin()}`;
 }, 350);
 
-// Signal Waveform Canvas
+// Moving Signal Waveform Canvas inside SIGNAL_WAVE
 const netCanvas = document.getElementById('networkCanvas');
 if (netCanvas) {
   const ctx = netCanvas.getContext('2d');
@@ -2188,23 +1884,38 @@ if (netCanvas) {
 
   function drawNetworkWave() {
     ctx.clearRect(0, 0, netCanvas.width, netCanvas.height);
+
+    // Subtle baseline grid line
     ctx.beginPath();
-    ctx.strokeStyle = '#ff1e27';
-    ctx.lineWidth = 1.6;
-    ctx.shadowBlur = 5;
+    ctx.strokeStyle = 'rgba(255, 30, 39, 0.22)';
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, netCanvas.height / 2);
+    ctx.lineTo(netCanvas.width, netCanvas.height / 2);
+    ctx.stroke();
+
+    // Moving red signal wave
+    ctx.beginPath();
+    ctx.strokeStyle = '#ff2a32';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 7;
     ctx.shadowColor = '#ff1e27';
 
-    const amp = isJarvisSpeaking ? 14 : (isListeningActive ? 10 : 6);
-    for (let x = 0; x < netCanvas.width; x += 4) {
-      const y = netCanvas.height / 2 +
-        Math.sin((x + waveOffset) * 0.06) * amp * Math.cos(x * 0.025) +
-        (Math.random() - 0.5) * 3;
+    const boosted = Date.now() < manualWaveBoostUntil;
+    const amp = boosted ? 18 : (isJarvisSpeaking ? 15 : (isListeningActive ? 11 : 8));
+
+    for (let x = 0; x <= netCanvas.width; x += 3) {
+      const y =
+        netCanvas.height / 2 +
+        Math.sin((x + waveOffset) * 0.065) * amp * (0.65 + 0.35 * Math.cos(x * 0.025));
       if (x === 0) ctx.moveTo(x, y);
       else ctx.lineTo(x, y);
     }
     ctx.stroke();
-    waveOffset += 4;
+    ctx.shadowBlur = 0;
+
+    waveOffset += boosted ? 9 : 4;
     requestAnimationFrame(drawNetworkWave);
   }
+
   drawNetworkWave();
 }
