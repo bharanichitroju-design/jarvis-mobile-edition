@@ -41,7 +41,6 @@ html, body {
   position: relative;
 }
 
-/* CRT Scanline Overlay */
 body::after {
   content: "";
   position: fixed;
@@ -209,68 +208,8 @@ body::after {
   color: var(--neon-red);
 }
 
-/* Drop Hover Highlight When Dragging Unlocked Hacking Wheel */
-.drop-target-hover {
-  border-color: var(--bright-red) !important;
-  box-shadow: 0 0 18px rgba(255, 30, 39, 0.9), inset 0 0 14px rgba(255, 30, 39, 0.35) !important;
-  transform: scale(1.012);
-}
-
-/* Fullscreen Expanded Box State */
-.panel.expanded-fullscreen,
-.navbar.expanded-fullscreen {
-  position: fixed !important;
-  inset: 8px !important;
-  width: calc(100vw - 16px) !important;
-  height: calc(100vh - 16px) !important;
-  height: calc(100dvh - 16px) !important;
-  z-index: 1500 !important;
-  flex: none !important;
-  max-width: none !important;
-  max-height: none !important;
-  background: rgba(12, 3, 5, 0.98) !important;
-  border: 2px solid var(--neon-red) !important;
-  box-shadow: 0 0 32px rgba(255, 30, 39, 0.75), inset 0 0 20px rgba(255, 30, 39, 0.16) !important;
-  padding: 12px !important;
-  overflow: auto !important;
-}
-
-.expanded-fullscreen .panel-header {
-  font-size: 0.85rem;
-  padding-bottom: 6px;
-  margin-bottom: 10px;
-}
-
-.expanded-fullscreen .log-list {
-  font-size: 0.95rem;
-  line-height: 1.7;
-}
-
-.expanded-fullscreen .metric-label {
-  font-size: 0.75rem;
-}
-
-.expanded-fullscreen .metric-value {
-  font-size: 1.25rem;
-}
-
-.expanded-fullscreen .message {
-  font-size: 0.9rem;
-  line-height: 1.5;
-  padding: 8px 10px;
-}
-
-.expanded-fullscreen .skull-svg {
-  width: 150px !important;
-  max-width: 55% !important;
-}
-
-.expanded-fullscreen canvas#networkCanvas {
-  height: 140px !important;
-}
-
 /* =========================================================
-   4. MAIN 3-COLUMN GRID (LEFT BAR | CENTER SKULL | RIGHT BAR)
+   4. MAIN 3-COLUMN GRID
    ========================================================= */
 .dashboard-container {
   display: grid;
@@ -289,9 +228,7 @@ body::after {
 }
 
 /* Left Column Sections */
-.status-panel {
-  flex: 1.1;
-}
+.status-panel { flex: 1.1; }
 
 .log-list {
   list-style: none;
@@ -307,9 +244,7 @@ body::after {
   text-overflow: ellipsis;
 }
 
-.telemetry-panel {
-  flex: 1.15;
-}
+.telemetry-panel { flex: 1.15; }
 
 .metrics-grid {
   display: grid;
@@ -341,9 +276,7 @@ body::after {
   font-weight: 700;
 }
 
-.decrypt-panel {
-  flex: 1;
-}
+.decrypt-panel { flex: 1; }
 
 .decrypt-container {
   display: flex;
@@ -391,14 +324,12 @@ body::after {
 }
 
 /* =========================================================
-   5. CENTER STAGE: STATIC SKULL + 3 RINGS + OUTER RING VIBRATION
+   5. CENTER STAGE: SKULL + 3 RINGS + OUTER RING VIBRATION + CHAT
    ========================================================= */
-.center-col {
-  gap: 5px;
-}
+.center-col { gap: 5px; }
 
 .skull-stage {
-  flex: 1.45;
+  flex: 1.35;
   justify-content: space-between;
 }
 
@@ -428,11 +359,10 @@ body::after {
   min-height: 0;
 }
 
-/* Outer Ring Vibration Canvas over the 3 Rings (Jarvis Voice Reactive) */
 .vibration-circle-canvas {
   position: absolute;
-  width: 192px;
-  height: 192px;
+  width: 186px;
+  height: 186px;
   max-width: 98%;
   max-height: 98%;
   z-index: 4;
@@ -440,7 +370,6 @@ body::after {
   filter: drop-shadow(0 0 6px var(--glow-red));
 }
 
-/* Three Rotating Rings Around the Skull */
 .orbit-ring {
   position: absolute;
   border-radius: 50%;
@@ -449,40 +378,39 @@ body::after {
 }
 
 .ring-1 {
-  width: 152px;
-  height: 152px;
+  width: 148px;
+  height: 148px;
   max-width: 82%;
   max-height: 82%;
   border: 1.5px dashed var(--neon-red);
   opacity: 0.65;
-  animation: spinClockwise 16s linear infinite;
+  animation: spinClockwise var(--ring-1-dur, 16s) linear infinite;
 }
 
 .ring-2 {
-  width: 128px;
-  height: 128px;
+  width: 124px;
+  height: 124px;
   max-width: 70%;
   max-height: 70%;
   border: 1px solid var(--neon-red);
   border-left-color: transparent;
   border-right-color: transparent;
   opacity: 0.75;
-  animation: spinCounter 10s linear infinite;
+  animation: spinCounter var(--ring-2-dur, 10s) linear infinite;
 }
 
 .ring-3 {
-  width: 104px;
-  height: 104px;
+  width: 100px;
+  height: 100px;
   max-width: 58%;
   max-height: 58%;
   border: 1.5px dotted var(--bright-red);
   opacity: 0.6;
-  animation: spinClockwise 7s linear infinite;
+  animation: spinClockwise var(--ring-3-dur, 7s) linear infinite;
 }
 
-/* Skull stays completely steady / non-vibrating */
 .skull-svg {
-  width: 74px;
+  width: 72px;
   max-width: 42%;
   max-height: 58%;
   height: auto;
@@ -498,8 +426,8 @@ body::after {
 
 .boss-quote {
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.5rem;
-  letter-spacing: 0.8px;
+  font-size: 0.48rem;
+  letter-spacing: 0.6px;
   color: var(--neon-red);
   text-align: center;
   font-weight: 700;
@@ -510,10 +438,7 @@ body::after {
   text-overflow: ellipsis;
 }
 
-/* Live AI Chat Window inside Center Column */
-.chat-panel {
-  flex: 1;
-}
+.chat-panel { flex: 1.15; }
 
 .chat {
   flex: 1;
@@ -522,7 +447,7 @@ body::after {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 3px;
+  padding: 4px;
   background: rgba(6, 1, 2, 0.75);
   border: 1px solid rgba(255, 30, 39, 0.28);
   border-radius: 2px;
@@ -556,90 +481,51 @@ body::after {
 }
 
 /* =========================================================
-   6. RIGHT COLUMN: RED HACKING WHEEL + SIGNAL_WAVE + VOICE_LINK
+   6. RIGHT COLUMN: KEYFRAME_FX + SIGNAL_WAVE + VOICE_LINK
    ========================================================= */
-.hack-wheel-panel {
-  flex: 1.25;
+.fx-panel {
+  flex: 1.28;
   justify-content: space-between;
-  overflow: visible;
 }
 
-.hack-wheel-stage {
+.fx-list {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 4px;
   flex: 1;
+}
+
+.fx-btn {
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  min-height: 76px;
-}
-
-.hacking-wheel {
-  position: relative;
-  width: 78px;
-  height: 78px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  touch-action: none;
-  cursor: grab;
-  z-index: 25;
-  transition: box-shadow 0.2s ease, transform 0.15s ease;
-  filter: drop-shadow(0 0 8px rgba(255, 30, 39, 0.6));
-}
-
-.hacking-wheel canvas#hackingWheelCanvas {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.wheel-center-readout {
-  position: absolute;
-  font-family: 'Orbitron', sans-serif;
+  flex: 1;
+  min-height: 24px;
+  background: rgba(32, 5, 8, 0.78);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-family: 'Share Tech Mono', monospace;
   font-size: 0.5rem;
-  font-weight: 700;
-  color: var(--neon-red);
-  text-shadow: 0 0 6px var(--neon-red);
-  pointer-events: none;
-  text-align: center;
-  line-height: 1.05;
-}
-
-.hacking-wheel.unlocked {
-  cursor: grab;
-  box-shadow: 0 0 18px rgba(255, 30, 39, 0.9), inset 0 0 10px rgba(255, 30, 39, 0.45);
-  filter: drop-shadow(0 0 14px #ff1e27);
-}
-
-.hacking-wheel.dragging {
-  cursor: grabbing;
-  transform: scale(1.08);
-  z-index: 2200 !important;
-}
-
-/* Floating / Bottom-Right Docked Return Wheel State */
-.hacking-wheel.floating-wheel {
-  position: fixed !important;
-  z-index: 2200 !important;
-  margin: 0 !important;
-}
-
-.hacking-wheel.docked-return {
-  position: fixed !important;
-  right: 18px !important;
-  bottom: 18px !important;
-  left: auto !important;
-  top: auto !important;
-  width: 68px !important;
-  height: 68px !important;
-  z-index: 2200 !important;
-  background: rgba(16, 3, 5, 0.92);
-  border: 1.5px solid var(--neon-red);
-  box-shadow: 0 0 20px rgba(255, 30, 39, 0.85), inset 0 0 10px rgba(255, 30, 39, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   cursor: pointer;
+  transition: 0.16s ease;
+  text-align: left;
+}
+
+.fx-btn:hover,
+.fx-btn.fx-active {
+  border-color: var(--neon-red);
+  background: rgba(255, 30, 39, 0.2);
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(255, 30, 39, 0.35);
+}
+
+.fx-arrow {
+  color: var(--neon-red);
+  font-size: 0.58rem;
 }
 
 .net-panel {
@@ -650,14 +536,19 @@ body::after {
 .net-stats {
   display: flex;
   justify-content: space-between;
-  font-size: 0.48rem;
+  font-size: 0.46rem;
+  margin-bottom: 2px;
+  flex-shrink: 0;
 }
 
 canvas#networkCanvas {
   width: 100%;
-  height: 36px;
-  background: rgba(8, 2, 3, 0.75);
-  border: 1px solid var(--dark-red);
+  height: 44px;
+  flex-shrink: 0;
+  display: block;
+  background: rgba(8, 2, 3, 0.85);
+  border: 1px solid var(--border-color);
+  border-radius: 2px;
 }
 
 .voice-trigger-panel {
@@ -709,13 +600,13 @@ canvas#networkCanvas {
 }
 
 .voice-meta {
-  font-size: 0.46rem;
+  font-size: 0.45rem;
   line-height: 1.35;
   color: var(--text-dim);
 }
 
 /* =========================================================
-   7. BOTTOM FOOTER BAR: GALLERY ORB | USER VOICE EQUALIZER | JARVIS MODE ORB
+   7. BOTTOM FOOTER BAR
    ========================================================= */
 .voice-footer {
   height: 76px;
@@ -753,7 +644,6 @@ canvas#networkCanvas {
   overflow: hidden;
 }
 
-/* Driven directly by real-time user voice amplitude */
 .eq-bar {
   flex: 1;
   background: linear-gradient(to top, var(--dark-red), var(--neon-red));
@@ -765,7 +655,7 @@ canvas#networkCanvas {
 }
 
 /* =========================================================
-   8. MODALS (OPENED VIA VOICE OR CONTROLS)
+   8. MODALS
    ========================================================= */
 .modal {
   display: none;
@@ -889,7 +779,7 @@ canvas#networkCanvas {
 }
 
 /* =========================================================
-   9. KEYFRAME ANIMATIONS
+   9. KEYFRAME ANIMATIONS & FX STATES
    ========================================================= */
 @keyframes spinClockwise {
   100% { transform: rotate(360deg); }
@@ -927,6 +817,26 @@ canvas#networkCanvas {
   100% { transform: translate(0); }
 }
 
+.rapid-sweep-active::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 30, 39, 0.14) 50%,
+    transparent 100%
+  );
+  animation: sweepPass 0.9s linear 2;
+  pointer-events: none;
+  z-index: 998;
+}
+
+@keyframes sweepPass {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 /* =========================================================
    10. TABLET / DESKTOP SCALING
    ========================================================= */
@@ -938,8 +848,8 @@ canvas#networkCanvas {
   .ring-2 { width: 190px; height: 190px; }
   .ring-3 { width: 155px; height: 155px; }
   .skull-svg { width: 112px; }
-  .hacking-wheel { width: 112px; height: 112px; }
-  .wheel-center-readout { font-size: 0.65rem; }
+  .fx-btn { font-size: 0.65rem; }
+  canvas#networkCanvas { height: 58px; }
   .panel-header { font-size: 0.7rem; }
   .log-list, .message { font-size: 0.72rem; }
   .metric-value { font-size: 0.82rem; }
