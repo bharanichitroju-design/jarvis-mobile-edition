@@ -128,7 +128,7 @@ const wheelLockStateEl = document.getElementById('wheelLockState');
 const hackWheelDockEl = document.getElementById('hackWheelDock');
 
 let wheelState = {
-  cumulativeAngle: 0,
+  cumulativeAngle: 0,      // Degrees rotated (360 * 3 = 1080 unlocks)
   visualAngle: 0,
   lastPointerAngle: null,
   isRotating: false,
@@ -143,7 +143,7 @@ let wheelState = {
   expandedBox: null
 };
 
-const REQUIRED_DEGREES = 360 * 3;
+const REQUIRED_DEGREES = 360 * 3; // 3 full rotations
 
 function drawHackingWheel() {
   if (!hackingWheelCanvas) return;
@@ -158,6 +158,7 @@ function drawHackingWheel() {
 
   ctx.clearRect(0, 0, w, h);
 
+  // Subtle crimson backing glow
   const grad = ctx.createRadialGradient(cx, cy, maxR * 0.15, cx, cy, maxR);
   grad.addColorStop(0, wheelState.isUnlocked ? 'rgba(255, 30, 39, 0.34)' : 'rgba(255, 30, 39, 0.14)');
   grad.addColorStop(1, 'rgba(20, 2, 4, 0.05)');
@@ -166,6 +167,7 @@ function drawHackingWheel() {
   ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
   ctx.fill();
 
+  // Outer Iron Man 2 style segmented arc ring
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(rotRad);
@@ -181,6 +183,7 @@ function drawHackingWheel() {
     ctx.stroke();
   }
 
+  // Precision tick marks on middle ring
   const tickCount = 24;
   for (let t = 0; t < tickCount; t++) {
     const a = (t * Math.PI * 2) / tickCount;
@@ -194,6 +197,7 @@ function drawHackingWheel() {
     ctx.stroke();
   }
 
+  // Inner directional reticle / pointer notch
   ctx.beginPath();
   ctx.arc(0, 0, maxR * 0.56, -Math.PI * 0.75, Math.PI * 0.75);
   ctx.strokeStyle = 'rgba(255, 30, 39, 0.75)';
@@ -209,6 +213,7 @@ function drawHackingWheel() {
 
   ctx.restore();
 
+  // 3-Rotation Unlock Progress Ring
   ctx.beginPath();
   ctx.arc(cx, cy, maxR * 0.42, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
   ctx.strokeStyle = wheelState.isUnlocked ? '#ff474e' : '#ff1e27';
@@ -304,7 +309,6 @@ function expandBoxToFullscreen(box) {
   const label = box.getAttribute('data-box-id') || 'PANEL';
   pushSystemLog("Wheel", `FULLSCREEN_${label.toUpperCase()}`);
   updateWheelUI();
-  setTimeout(resizeSlowGlobeViewport, 60);
 }
 
 function restoreFullscreenBoxAndResetWheel() {
@@ -331,7 +335,6 @@ function restoreFullscreenBoxAndResetWheel() {
 
   pushSystemLog("Wheel", "LOCKED_RESET");
   updateWheelUI();
-  setTimeout(resizeSlowGlobeViewport, 60);
 }
 
 function initHackingWheelInteractions() {
@@ -341,6 +344,7 @@ function initHackingWheelInteractions() {
     e.preventDefault();
     e.stopPropagation();
 
+    // If docked in bottom-right during fullscreen mode, tapping/clicking returns to home layout
     if (wheelState.expandedBox) {
       restoreFullscreenBoxAndResetWheel();
       return;
@@ -433,6 +437,7 @@ function initHackingWheelInteractions() {
       if (dropBox) {
         expandBoxToFullscreen(dropBox);
       } else {
+        // Dropped outside any box -> snap back to dock while staying unlocked
         hackingWheelEl.classList.remove('floating-wheel');
         hackingWheelEl.style.left = '';
         hackingWheelEl.style.top = '';
@@ -454,562 +459,7 @@ function initHackingWheelInteractions() {
 }
 
 /* =========================================================
-   1.3. SLOW 3D GLOBE + SPEED-SPIN/DIVE + COUNTRY/STATE MAP ENGINE
-   ========================================================= */
-let globeScene = null;
-let globeCamera = null;
-let globeRenderer = null;
-let globeGroup = null;
-let globeMesh = null;
-let globeWireframe = null;
-let globePinsGroup = null;
-
-let globeAnimState = {
-  mode: 'globe', // 'globe' | 'diving' | 'map'
-  slowSpinSpeedY: 0.0022, // Very slow, natural orbit speed
-  burstSpinVelY: 0,
-  diveProgress: 0,
-  pendingMapQuery: '',
-  currentMapRegion: null,
-  mapZoom: 1,
-  mapPanX: 0,
-  mapPanY: 0
-};
-
-function createHolographicEarthTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d');
-
-  // Deep crimson/dark holographic ocean base
-  ctx.fillStyle = '#140305';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Latitude & Longitude graticule lines
-  ctx.strokeStyle = 'rgba(255, 30, 39, 0.22)';
-  ctx.lineWidth = 1;
-  for (let lon = -180; lon <= 180; lon += 20) {
-    const x = ((lon + 180) / 360) * canvas.width;
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
-    ctx.stroke();
-  }
-  for (let lat = -80; lat <= 80; lat += 20) {
-    const y = ((90 - lat) / 180) * canvas.height;
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
-    ctx.stroke();
-  }
-
-  // Stylized continent polygons in neon crimson/red
-  const continents = [
-    // North America
-    [[-165, 65], [-130, 70], [-95, 62], [-60, 48], [-82, 26], [-105, 19], [-125, 42]],
-    // South America
-    [[-78, 10], [-50, 4], [-35, -8], [-45, -25], [-68, -52], [-76, -35], [-78, -5]],
-    // Europe
-    [[-10, 36], [5, 46], [28, 55], [40, 68], [22, 70], [8, 56], [-8, 44]],
-    // Africa
-    [[-17, 15], [12, 36], [34, 31], [50, 11], [40, -18], [25, -34], [14, -22], [5, 4]],
-    // Asia & India
-    [[42, 40], [65, 68], [135, 68], [165, 58], [140, 35], [118, 22], [103, 4], [88, 21], [77, 8], [72, 22], [60, 25], [45, 32]],
-    // India highlight / subcontinent marker
-    [[68, 24], [78, 34], [89, 27], [84, 17], [77, 8], [72, 20]],
-    // Australia
-    [[114, -22], [132, -12], [148, -18], [152, -35], [135, -34], [115, -33]]
-  ];
-
-  continents.forEach((poly, idx) => {
-    ctx.beginPath();
-    poly.forEach(([lon, lat], i) => {
-      const x = ((lon + 180) / 360) * canvas.width;
-      const y = ((90 - lat) / 180) * canvas.height;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    });
-    ctx.closePath();
-    ctx.fillStyle = idx === 5 ? 'rgba(255, 71, 78, 0.42)' : 'rgba(255, 30, 39, 0.24)';
-    ctx.fill();
-    ctx.strokeStyle = idx === 5 ? '#ff666b' : '#ff1e27';
-    ctx.lineWidth = idx === 5 ? 2.6 : 1.6;
-    ctx.stroke();
-  });
-
-  // Key city / country beacons on globe
-  const beacons = [
-    { name: 'INDIA', lon: 78.9, lat: 20.5 },
-    { name: 'AP', lon: 79.7, lat: 15.9 },
-    { name: 'US', lon: -98.5, lat: 39.8 },
-    { name: 'UK', lon: -1.5, lat: 52.5 },
-    { name: 'JP', lon: 138.2, lat: 36.2 }
-  ];
-
-  beacons.forEach(b => {
-    const x = ((b.lon + 180) / 360) * canvas.width;
-    const y = ((90 - b.lat) / 180) * canvas.height;
-    ctx.beginPath();
-    ctx.arc(x, y, 4.5, 0, Math.PI * 2);
-    ctx.fillStyle = '#ff474e';
-    ctx.fill();
-    ctx.font = 'bold 12px monospace';
-    ctx.fillStyle = '#ffdede';
-    ctx.fillText(b.name, x + 7, y + 4);
-  });
-
-  return new THREE.CanvasTexture(canvas);
-}
-
-function latLonToVector3(lat, lon, radius) {
-  const phi = (90 - lat) * (Math.PI / 180);
-  const theta = (lon + 180) * (Math.PI / 180);
-  return new THREE.Vector3(
-    -radius * Math.sin(phi) * Math.cos(theta),
-    radius * Math.cos(phi),
-    radius * Math.sin(phi) * Math.sin(theta)
-  );
-}
-
-function initSlow3DGlobe() {
-  const canvas = document.getElementById('slowGlobeCanvas');
-  const viewport = document.getElementById('globeViewport');
-  if (!canvas || !viewport || typeof THREE === 'undefined') return;
-
-  const width = Math.max(120, viewport.clientWidth || 220);
-  const height = Math.max(90, viewport.clientHeight || 120);
-
-  globeScene = new THREE.Scene();
-  globeCamera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-  globeCamera.position.set(0, 0, 6.2);
-
-  globeRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  globeRenderer.setSize(width, height, false);
-  globeRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-
-  const ambient = new THREE.AmbientLight(0xff3b42, 1.1);
-  globeScene.add(ambient);
-
-  const keyLight = new THREE.DirectionalLight(0xff474e, 1.4);
-  keyLight.position.set(6, 5, 8);
-  globeScene.add(keyLight);
-
-  globeGroup = new THREE.Group();
-  globeScene.add(globeGroup);
-
-  const earthTex = createHolographicEarthTexture();
-  const sphereGeo = new THREE.SphereGeometry(2.15, 48, 48);
-  const sphereMat = new THREE.MeshPhongMaterial({
-    map: earthTex,
-    emissive: new THREE.Color(0x3b0407),
-    emissiveIntensity: 0.45,
-    shininess: 35,
-    transparent: true,
-    opacity: 0.96
-  });
-  globeMesh = new THREE.Mesh(sphereGeo, sphereMat);
-  globeGroup.add(globeMesh);
-
-  // Subtle holographic latitude/longitude cage around the sphere
-  const wireGeo = new THREE.SphereGeometry(2.18, 18, 12);
-  const wireMat = new THREE.MeshBasicMaterial({
-    color: 0xff1e27,
-    wireframe: true,
-    transparent: true,
-    opacity: 0.14
-  });
-  globeWireframe = new THREE.Mesh(wireGeo, wireMat);
-  globeGroup.add(globeWireframe);
-
-  // 3D Location markers on globe surface
-  globePinsGroup = new THREE.Group();
-  const points = [
-    { lat: 20.5, lon: 78.9 },
-    { lat: 15.9, lon: 79.7 },
-    { lat: 39.8, lon: -98.5 },
-    { lat: 28.6, lon: 77.2 }
-  ];
-  points.forEach(pt => {
-    const pos = latLonToVector3(pt.lat, pt.lon, 2.2);
-    const dot = new THREE.Mesh(
-      new THREE.SphereGeometry(0.055, 10, 10),
-      new THREE.MeshBasicMaterial({ color: 0xff666b })
-    );
-    dot.position.copy(pos);
-    globePinsGroup.add(dot);
-  });
-  globeGroup.add(globePinsGroup);
-
-  setupGlobeTouchAndMouseControls(viewport);
-  animateSlowGlobe();
-}
-
-function resizeSlowGlobeViewport() {
-  const viewport = document.getElementById('globeViewport');
-  if (!viewport || !globeRenderer || !globeCamera) return;
-  const w = Math.max(120, viewport.clientWidth || 220);
-  const h = Math.max(90, viewport.clientHeight || 120);
-  globeCamera.aspect = w / h;
-  globeCamera.updateProjectionMatrix();
-  globeRenderer.setSize(w, h, false);
-}
-
-function setupGlobeTouchAndMouseControls(viewport) {
-  if (!viewport) return;
-
-  let isDragging = false;
-  let lastX = 0;
-  let lastY = 0;
-  let pinchStartDist = 0;
-  let pinchStartCamZ = 6.2;
-
-  function getDist(t1, t2) {
-    return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-  }
-
-  viewport.addEventListener('pointerdown', (e) => {
-    if (globeAnimState.mode === 'map') return;
-    isDragging = true;
-    lastX = e.clientX;
-    lastY = e.clientY;
-  });
-
-  viewport.addEventListener('pointermove', (e) => {
-    if (!isDragging || globeAnimState.mode === 'map' || !globeGroup) return;
-    const dx = e.clientX - lastX;
-    const dy = e.clientY - lastY;
-    lastX = e.clientX;
-    lastY = e.clientY;
-
-    // 1-finger / pointer free ball rotation in any direction
-    globeGroup.rotation.y += dx * 0.012;
-    globeGroup.rotation.x += dy * 0.012;
-    globeGroup.rotation.x = Math.max(-Math.PI * 0.48, Math.min(Math.PI * 0.48, globeGroup.rotation.x));
-  });
-
-  const stopDrag = () => { isDragging = false; };
-  viewport.addEventListener('pointerup', stopDrag);
-  viewport.addEventListener('pointercancel', stopDrag);
-
-  viewport.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) {
-      isDragging = true;
-      lastX = e.touches[0].clientX;
-      lastY = e.touches[0].clientY;
-    } else if (e.touches.length === 2) {
-      isDragging = false;
-      pinchStartDist = getDist(e.touches[0], e.touches[1]);
-      if (globeAnimState.mode === 'map') {
-        pinchStartCamZ = globeAnimState.mapZoom;
-      } else if (globeCamera) {
-        pinchStartCamZ = globeCamera.position.z;
-      }
-    }
-  }, { passive: true });
-
-  viewport.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    if (e.touches.length === 1 && isDragging) {
-      const dx = e.touches[0].clientX - lastX;
-      const dy = e.touches[0].clientY - lastY;
-      lastX = e.touches[0].clientX;
-      lastY = e.touches[0].clientY;
-
-      if (globeAnimState.mode === 'map') {
-        globeAnimState.mapPanX += dx;
-        globeAnimState.mapPanY += dy;
-        applyMapTransform();
-      } else if (globeGroup) {
-        globeGroup.rotation.y += dx * 0.013;
-        globeGroup.rotation.x += dy * 0.013;
-        globeGroup.rotation.x = Math.max(-Math.PI * 0.48, Math.min(Math.PI * 0.48, globeGroup.rotation.x));
-      }
-    } else if (e.touches.length === 2 && pinchStartDist > 0) {
-      const curDist = getDist(e.touches[0], e.touches[1]);
-      const ratio = curDist / pinchStartDist;
-      if (globeAnimState.mode === 'map') {
-        globeAnimState.mapZoom = Math.max(0.6, Math.min(4.5, pinchStartCamZ * ratio));
-        applyMapTransform();
-      } else if (globeCamera) {
-        // Two fingers zoom in / zoom out
-        const nextZ = pinchStartCamZ / ratio;
-        globeCamera.position.z = Math.max(2.9, Math.min(11.5, nextZ));
-      }
-    }
-  }, { passive: false });
-
-  viewport.addEventListener('touchend', (e) => {
-    if (e.touches.length < 2) pinchStartDist = 0;
-    if (e.touches.length === 0) isDragging = false;
-  });
-
-  viewport.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    if (globeAnimState.mode === 'map') {
-      const factor = e.deltaY < 0 ? 1.12 : 0.89;
-      globeAnimState.mapZoom = Math.max(0.6, Math.min(4.5, globeAnimState.mapZoom * factor));
-      applyMapTransform();
-    } else if (globeCamera) {
-      globeCamera.position.z = Math.max(2.9, Math.min(11.5, globeCamera.position.z + e.deltaY * 0.004));
-    }
-  }, { passive: false });
-}
-
-function animateSlowGlobe() {
-  requestAnimationFrame(animateSlowGlobe);
-  if (!globeRenderer || !globeScene || !globeCamera || !globeGroup) return;
-
-  if (globeAnimState.mode === 'globe') {
-    // Smooth, slow normal speed rotation
-    globeGroup.rotation.y += globeAnimState.slowSpinSpeedY;
-  } else if (globeAnimState.mode === 'diving') {
-    // Fast spin + zoom dive into the globe before revealing the requested map
-    globeAnimState.burstSpinVelY = Math.min(0.26, globeAnimState.burstSpinVelY + 0.016);
-    globeGroup.rotation.y += globeAnimState.burstSpinVelY;
-    globeAnimState.diveProgress += 0.032;
-
-    const easeT = Math.min(1, globeAnimState.diveProgress);
-    globeCamera.position.z = THREE.MathUtils.lerp(6.2, 2.35, easeT);
-    globeGroup.scale.setScalar(THREE.MathUtils.lerp(1, 1.55, easeT));
-
-    if (globeAnimState.diveProgress >= 1) {
-      const targetQuery = globeAnimState.pendingMapQuery;
-      globeAnimState.mode = 'map';
-      globeAnimState.burstSpinVelY = 0;
-      globeCamera.position.z = 6.2;
-      globeGroup.scale.setScalar(1);
-      renderRequestedGeoMap(targetQuery);
-    }
-  }
-
-  globeRenderer.render(globeScene, globeCamera);
-}
-
-function returnToSlow3DGlobe() {
-  const overlay = document.getElementById('mapOverlayStage');
-  const titleEl = document.getElementById('globeTitleLabel');
-  const captionEl = document.getElementById('globeStatusCaption');
-  const badgeEl = document.getElementById('globeModeBadge');
-
-  if (overlay) overlay.style.display = 'none';
-  if (titleEl) titleEl.innerText = 'GLOBAL_3D_SCAN';
-  if (captionEl) captionEl.innerText = 'SLOW ORBIT • 1F ROTATE • 2F ZOOM';
-  if (badgeEl) badgeEl.innerText = 'SLOW_3D';
-
-  globeAnimState.mode = 'globe';
-  globeAnimState.diveProgress = 0;
-  globeAnimState.burstSpinVelY = 0;
-  globeAnimState.mapZoom = 1;
-  globeAnimState.mapPanX = 0;
-  globeAnimState.mapPanY = 0;
-
-  if (globeGroup) globeGroup.scale.setScalar(1);
-  if (globeCamera) globeCamera.position.z = 6.2;
-
-  pushSystemLog("Globe", "SLOW_ORBIT_RESTORED");
-}
-
-function applyMapTransform() {
-  const wrap = document.getElementById('mapVisualCanvasWrap');
-  if (!wrap) return;
-  wrap.style.transform = `translate(${globeAnimState.mapPanX}px, ${globeAnimState.mapPanY}px) scale(${globeAnimState.mapZoom})`;
-}
-
-function triggerGlobeToMapTransition(rawQuery) {
-  const cleaned = (rawQuery || '').trim();
-  if (!cleaned) return;
-
-  const badgeEl = document.getElementById('globeFormatBadge');
-  const captionEl = document.getElementById('globeStatusCaption');
-  const modeBadge = document.getElementById('globeModeBadge');
-
-  const lower = cleaned.toLowerCase();
-  const wantsStates = lower.includes('state') || lower.includes('with states') || lower.includes(', states');
-  const wantsNames = lower.includes('name') || lower.includes('names') || lower.includes('with names');
-
-  if (badgeEl) {
-    if (wantsStates && wantsNames) badgeEl.innerText = 'STATES+NAMES';
-    else if (wantsStates) badgeEl.innerText = 'WITH_STATES';
-    else if (wantsNames) badgeEl.innerText = 'WITH_NAMES';
-    else badgeEl.innerText = 'OUTLINE_ONLY';
-  }
-
-  if (captionEl) captionEl.innerText = `LOCKING TARGET: ${cleaned.toUpperCase()}...`;
-  if (modeBadge) modeBadge.innerText = 'ZOOM_LOCK';
-
-  globeAnimState.pendingMapQuery = cleaned;
-  globeAnimState.diveProgress = 0;
-  globeAnimState.burstSpinVelY = 0.05;
-  globeAnimState.mode = 'diving';
-
-  pushSystemLog("GeoScan", cleaned.toUpperCase());
-}
-
-function renderRequestedGeoMap(queryText) {
-  const overlay = document.getElementById('mapOverlayStage');
-  const mapWrap = document.getElementById('mapVisualCanvasWrap');
-  const calloutLayer = document.getElementById('mapCalloutLayer');
-  const titleEl = document.getElementById('globeTitleLabel');
-  const captionEl = document.getElementById('globeStatusCaption');
-  const modeBadge = document.getElementById('globeModeBadge');
-
-  if (!overlay || !mapWrap || !calloutLayer) return;
-
-  const q = queryText.toLowerCase();
-  const showStates = q.includes('state') || q.includes('with states') || q.includes(', states') || q.includes('ap') || q.includes('andhra');
-  const showNames = q.includes('name') || q.includes('names') || q.includes('with names') || q.includes('label');
-
-  globeAnimState.mapZoom = 1;
-  globeAnimState.mapPanX = 0;
-  globeAnimState.mapPanY = 0;
-  applyMapTransform();
-  calloutLayer.innerHTML = '';
-
-  let svgContent = '';
-  let callouts = [];
-
-  if (q.includes('ap') || q.includes('andhra')) {
-    if (titleEl) titleEl.innerText = showNames ? 'AP_MAP // NAMES' : 'AP_MAP // REGION';
-    svgContent = `
-      <svg viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg">
-        <path d="M25,65 L75,45 L130,38 L185,55 L210,85 L165,112 L120,132 L72,145 L32,115 Z"
-              fill="rgba(255,30,39,0.22)" stroke="#ff1e27" stroke-width="2.5"/>
-        ${showStates ? `
-          <line x1="85" y1="44" x2="92" y2="140" stroke="#ff474e" stroke-width="1.2" stroke-dasharray="3,2"/>
-          <line x1="135" y1="42" x2="122" y2="132" stroke="#ff474e" stroke-width="1.2" stroke-dasharray="3,2"/>
-          <line x1="35" y1="95" x2="188" y2="85" stroke="#ff474e" stroke-width="1.2" stroke-dasharray="3,2"/>
-        ` : ''}
-        ${showNames ? `
-          <text x="62" y="75" fill="#ffdede" font-size="9" font-family="monospace">Rayalaseema</text>
-          <text x="115" y="72" fill="#ffdede" font-size="9" font-family="monospace">Amaravati / Guntur</text>
-          <text x="145" y="102" fill="#ffdede" font-size="9" font-family="monospace">Coastal AP</text>
-        ` : ''}
-      </svg>
-    `;
-    if (showNames) {
-      callouts = [
-        { top: '24%', left: '54%', text: '↗ Guntur / ANU' },
-        { top: '66%', left: '58%', text: '↙ Bay of Bengal' }
-      ];
-    }
-  } else if (q.includes('us') || q.includes('usa') || q.includes('united states') || q.includes('texas') || q.includes('california')) {
-    if (titleEl) titleEl.innerText = showNames ? 'US_MAP // STATES+NAMES' : (showStates ? 'US_MAP // STATES' : 'US_MAP // OUTLINE');
-    svgContent = `
-      <svg viewBox="0 0 260 160" xmlns="http://www.w3.org/2000/svg">
-        <path d="M22,35 L195,35 L228,55 L212,102 L175,112 L152,135 L125,112 L65,112 L25,95 Z"
-              fill="rgba(255,30,39,0.2)" stroke="#ff1e27" stroke-width="2.4"/>
-        ${showStates ? `
-          <line x1="75" y1="35" x2="75" y2="112" stroke="#ff474e" stroke-width="1.1"/>
-          <line x1="135" y1="35" x2="135" y2="122" stroke="#ff474e" stroke-width="1.1"/>
-          <line x1="185" y1="35" x2="185" y2="108" stroke="#ff474e" stroke-width="1.1"/>
-          <line x1="25" y1="74" x2="220" y2="74" stroke="#ff474e" stroke-width="1.1"/>
-        ` : ''}
-        ${showNames ? `
-          <text x="36" y="62" fill="#ffdede" font-size="8.5" font-family="monospace">California</text>
-          <text x="112" y="96" fill="#ffdede" font-size="8.5" font-family="monospace">Texas</text>
-        ` : ''}
-      </svg>
-    `;
-    if (showNames) {
-      callouts = [
-        { top: '18%', left: '56%', text: '↗ New York / East' },
-        { top: '70%', left: '52%', text: '↙ Gulf Coast' }
-      ];
-    }
-  } else {
-    // Default India map with configurable state borders and external callout arrows for small/compact states
-    if (titleEl) {
-      if (showStates && showNames) titleEl.innerText = 'INDIA // STATES + NAMES';
-      else if (showStates) titleEl.innerText = 'INDIA // WITH STATES';
-      else if (showNames) titleEl.innerText = 'INDIA // WITH NAMES';
-      else titleEl.innerText = 'INDIA // MAP ONLY';
-    }
-
-    svgContent = `
-      <svg viewBox="0 0 220 240" xmlns="http://www.w3.org/2000/svg">
-        <!-- Stylized India Outline -->
-        <path d="M72,18 L108,24 L118,46 L96,62 L126,84 L166,94 L156,118 L132,126 L124,154 L106,192 L88,224 L74,186 L62,152 L42,124 L54,96 L66,68 L52,42 Z"
-              fill="rgba(255,30,39,0.22)" stroke="#ff1e27" stroke-width="2.5"/>
-        ${showStates ? `
-          <!-- State Border Divisions -->
-          <path d="M56,64 L104,64" stroke="#ff474e" stroke-width="1.2"/>
-          <path d="M48,96 L146,102" stroke="#ff474e" stroke-width="1.2"/>
-          <path d="M52,126 L132,126" stroke="#ff474e" stroke-width="1.2"/>
-          <path d="M95,62 L92,185" stroke="#ff474e" stroke-width="1.2"/>
-          <path d="M126,84 L115,156" stroke="#ff474e" stroke-width="1.2"/>
-          <path d="M66,152 L114,156" stroke="#ff474e" stroke-width="1.2"/>
-        ` : ''}
-        ${showNames ? `
-          <text x="64" y="46" fill="#ffdede" font-size="8" font-family="monospace">North</text>
-          <text x="62" y="114" fill="#ffdede" font-size="8" font-family="monospace">Central</text>
-          <text x="116" y="112" fill="#ffdede" font-size="7.5" font-family="monospace">East</text>
-          <text x="76" y="174" fill="#ffdede" font-size="8" font-family="monospace">AP / South</text>
-        ` : ''}
-      </svg>
-    `;
-
-    if (showNames) {
-      // External arrow callouts pointing outside when labels can't fit inside small/dense zones
-      callouts = [
-        { top: '12%', left: '54%', text: '↗ Delhi / NCR' },
-        { top: '38%', left: '58%', text: '↗ Bihar / WB' },
-        { top: '72%', left: '54%', text: '↘ Andhra Pradesh' }
-      ];
-    }
-  }
-
-  mapWrap.innerHTML = svgContent;
-  callouts.forEach(c => {
-    const el = document.createElement('div');
-    el.className = 'map-callout-item';
-    el.style.top = c.top;
-    el.style.left = c.left;
-    el.innerText = c.text;
-    calloutLayer.appendChild(el);
-  });
-
-  overlay.style.display = 'flex';
-  if (captionEl) captionEl.innerText = `${queryText.toUpperCase()} • 1F PAN • 2F ZOOM`;
-  if (modeBadge) modeBadge.innerText = 'MAP_LOCK';
-}
-
-function initGlobeSearchControls() {
-  const geoInput = document.getElementById('geoQueryInput');
-  const geoBtn = document.getElementById('geoSearchBtn');
-  const resetBtn = document.getElementById('resetGlobeBtn');
-  const quickTags = document.querySelectorAll('.geo-tag-btn');
-
-  if (geoBtn && geoInput) {
-    geoBtn.addEventListener('click', () => {
-      const val = geoInput.value.trim();
-      if (val) triggerGlobeToMapTransition(val);
-    });
-
-    geoInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        const val = geoInput.value.trim();
-        if (val) triggerGlobeToMapTransition(val);
-      }
-    });
-  }
-
-  quickTags.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const val = btn.getAttribute('data-geo') || '';
-      if (geoInput) geoInput.value = val;
-      if (val) triggerGlobeToMapTransition(val);
-    });
-  });
-
-  if (resetBtn) {
-    resetBtn.addEventListener('click', returnToSlow3DGlobe);
-  }
-}
-
-/* =========================================================
-   1.4. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL
+   1.3. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL
    ========================================================= */
 function ensureYouTubeModalExists() {
   let modal = document.getElementById('youtube-workspace-modal');
@@ -1100,7 +550,7 @@ function loadYouTubeSearch(query) {
 }
 
 /* =========================================================
-   1.5. MAP POINTING PIN & BLUE HOLOGRAPHIC BLUEPRINT GENERATOR
+   1.4. MAP POINTING PIN & BLUE HOLOGRAPHIC BLUEPRINT GENERATOR
    ========================================================= */
 function createMapPinCanvas(fileLabel) {
   const canvas = document.createElement('canvas');
@@ -1158,7 +608,7 @@ function attachMapPinToMesh(mesh, fileLabel) {
 }
 
 /* =========================================================
-   1.6. IN-APP 3D WORKSPACE MODAL & HOLOGRAM ENGINE
+   1.5. IN-APP 3D WORKSPACE MODAL & HOLOGRAM ENGINE
    ========================================================= */
 let scene3DBox, camera3DBox, renderer3DBox, desktopGroup3D;
 let loadedObjects3D = [];
@@ -1485,7 +935,7 @@ function updateAll3DFilesMode(makeNormal) {
 }
 
 /* =========================================================
-   1.7. FULLSCREEN PROJECTION LAYER & 3D TOUCH CONTROLS
+   1.6. FULLSCREEN PROJECTION LAYER & 3D TOUCH CONTROLS
    ========================================================= */
 let activeFullscreenFilesState = [];
 let fullscreenFilesNaturalMap = {};
@@ -1833,8 +1283,6 @@ function initCircularVibrationGraph() {
 window.addEventListener('DOMContentLoaded', () => {
   initCircularVibrationGraph();
   initHackingWheelInteractions();
-  initSlow3DGlobe();
-  initGlobeSearchControls();
   updateTelemetryCounters();
 
   setTimeout(() => {
@@ -2102,16 +1550,12 @@ function handleHardcoded(text) {
     } else if (memoryModal && memoryModal.style.display === 'block') {
       memoryModal.style.display = 'none';
       return "Memory closed, Boss.";
-    } else if (globeAnimState.mode === 'map') {
-      returnToSlow3DGlobe();
-      return "Returned to slow 3D globe, Boss.";
     }
     return "Already at base screen, Boss.";
   }
 
   if (query.includes("go to home") || query.includes("go home") || query.includes("home")) {
     restoreFullscreenBoxAndResetWheel();
-    returnToSlow3DGlobe();
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
     close3DWorkspaceModal();
@@ -2550,8 +1994,6 @@ window.addEventListener('click', (e) => {
   if (e.target === memoryModal) memoryModal.style.display = 'none';
 });
 
-window.addEventListener('resize', resizeSlowGlobeViewport);
-
 /* =========================================================
    11. CONTINUOUS VOICE RECOGNITION + VIBE PANEL + TELEMETRY (ORIGINAL)
    ========================================================= */
@@ -2728,7 +2170,41 @@ setInterval(() => {
   const tempEl = document.getElementById('coreTemp');
   if (tempEl) tempEl.textContent = `${(37.5 + Math.random() * 2.4).toFixed(1)}°C`;
 
+  const netInEl = document.getElementById('netIn');
+  const netOutEl = document.getElementById('netOut');
+  if (netInEl) netInEl.textContent = `${(12 + Math.random() * 8).toFixed(1)}M/s`;
+  if (netOutEl) netOutEl.textContent = `${(6 + Math.random() * 6).toFixed(1)}M/s`;
+
   const randBin = () => Array.from({ length: 8 }, () => Math.round(Math.random())).join('');
   const binEl = document.getElementById('binaryStream');
   if (binEl) binEl.innerHTML = `${randBin()} ${randBin()}<br>${randBin()} ${randBin()}`;
 }, 350);
+
+// Signal Waveform Canvas
+const netCanvas = document.getElementById('networkCanvas');
+if (netCanvas) {
+  const ctx = netCanvas.getContext('2d');
+  let waveOffset = 0;
+
+  function drawNetworkWave() {
+    ctx.clearRect(0, 0, netCanvas.width, netCanvas.height);
+    ctx.beginPath();
+    ctx.strokeStyle = '#ff1e27';
+    ctx.lineWidth = 1.6;
+    ctx.shadowBlur = 5;
+    ctx.shadowColor = '#ff1e27';
+
+    const amp = isJarvisSpeaking ? 14 : (isListeningActive ? 10 : 6);
+    for (let x = 0; x < netCanvas.width; x += 4) {
+      const y = netCanvas.height / 2 +
+        Math.sin((x + waveOffset) * 0.06) * amp * Math.cos(x * 0.025) +
+        (Math.random() - 0.5) * 3;
+      if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    waveOffset += 4;
+    requestAnimationFrame(drawNetworkWave);
+  }
+  drawNetworkWave();
+}
