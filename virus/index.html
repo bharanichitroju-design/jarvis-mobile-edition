@@ -3,152 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>J.A.R.V.I.S // DELTA — CYBER-STARK CORE</title>
+<title>J.A.R.V.I.S - Sector Delta Core</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
-<body class="jarvis-mode-enforced">
+<body>
 
-  <!-- GLOBAL HEARTBEAT / 6TH-BOX CORE RING (PERSISTENT TRIGGER FOR HORIZONTAL CYBER-DECK) -->
-  <div id="global-heartbeat-ring"
-       class="heartbeat-ring-widget hb-small"
-       data-box-index="6"
-       data-trigger="cyber-deck-framework"
-       title="Trigger Horizontal Cyber-Deck Framework">
-    <div class="hb-outer-ring"></div>
-    <div class="hb-mid-ring"></div>
-    <div class="hb-inner-core">
-      <div class="hb-label" id="hbRingLabel">BOX 06</div>
-      <div class="hb-sub" id="hbRingSub">CYBER-DECK</div>
-    </div>
-  </div>
-
-  <!-- HORIZONTAL CYBER-DECK OVERLAY (NEW DESIGNED FRAMEWORK ON TRIGGER) -->
-  <div id="horizontal-cyber-deck-overlay" class="cyber-deck-overlay force-horizontal-deck" style="display:none;">
-    <div class="cyber-deck-frame">
-      <!-- Top Cyber-Stark Header -->
-      <div class="cyber-deck-header">
-        <div class="deck-header-left">
-          <span class="deck-status-dot"></span>
-          <span class="cyber-deck-title">ROOT@STARK-CYBERDECK // MK-V — HORIZONTAL WORKSPACE</span>
-        </div>
-        <span class="cyber-deck-jarvis-badge">JARVIS MODE: ACTIVE</span>
-        <span class="deck-clock" id="deckClock">18:32:15</span>
-        <button id="deckSfxToggleBtn" class="cyber-deck-sfx-btn">SFX: ON</button>
-        <button id="deckResetDialBtn" class="cyber-deck-reset-btn">RESET DIAL</button>
-        <button id="close-cyber-deck-btn" class="cyber-deck-close-btn">EXIT [✕]</button>
-      </div>
-
-      <!-- Main Deck Body -->
-      <div class="cyber-deck-body">
-        <!-- Left Telemetry & Hex Column -->
-        <aside class="deck-telemetry-col">
-          <div class="deck-load-box">
-            <div class="deck-mini-label">SYS LOAD</div>
-            <div class="deck-load-val" id="deckSysLoadVal">92%</div>
-            <canvas id="deckSysLoadCanvas" width="140" height="44"></canvas>
-          </div>
-          <div class="deck-hex-stream" id="deckHexStream">
-            0x8738 AEF1 204E 9095<br>
-            0x441A 5B10 198A 77C4<br>
-            0x91C2 7E0B 0341 40E7<br>
-            0xC03A 0980 88F1 6123<br>
-            0x005D 0550 7E64 60D6<br>
-            0xA1E4 3C09 01A4 8B7F<br>
-            0x2AB0 941A A2EA CE1A
-          </div>
-          <div class="deck-mode-tag">NON-STRAIGHT FRAMEWORK // AUTO-HORIZONTAL MODE</div>
-        </aside>
-
-        <!-- Center Stage: Boot Matrix / App Orbit / Selected Module Inspector -->
-        <section class="deck-center-stage">
-          <!-- Boot Matrix View -->
-          <div id="deckBootView" class="deck-boot-view">
-            <div class="deck-boot-bars">
-              <div class="deck-bar-row">
-                <span class="bar-name">NEURAL LINK</span>
-                <div class="bar-track"><div class="bar-fill" style="width: 72%;"></div></div>
-                <span class="bar-pct">72%</span>
-              </div>
-              <div class="deck-bar-row">
-                <span class="bar-name">SHIELD MATRIX</span>
-                <div class="bar-track"><div class="bar-fill" style="width: 88%;"></div></div>
-                <span class="bar-pct">88%</span>
-              </div>
-              <div class="deck-bar-row">
-                <span class="bar-name">HORIZON SYNC</span>
-                <div class="bar-track"><div class="bar-fill" style="width: 75%;"></div></div>
-                <span class="bar-pct">75%</span>
-              </div>
-            </div>
-            <div class="deck-boot-note-card">
-              <div class="deck-boot-heading">[!] HEAVY HORIZONTAL CYBER-DECK ACTIVE</div>
-              <p class="deck-boot-copy">
-                ఈ ఫ్రేమ్‌వర్క్ బై-డిఫాల్ట్ (నిలువుగా) కాకుండా ఒకేసారి అడ్డంగా (Horizontal) రన్ అవుతుంది.
-                కుడి-కింద ఉన్న <strong>CORE DIAL</strong> పై క్లిక్ చేసి విస్తరించండి — యాప్స్ ఆర్బిట్‌ను తిప్పండి, సింగిల్ క్లిక్‌తో ఇన్ఫో చూడండి, డబుల్ క్లిక్‌తో ఓపెన్ చేయండి.
-              </p>
-            </div>
-          </div>
-
-          <!-- Circular App Orbit Selector -->
-          <div id="deckOrbitView" class="deck-orbit-view" style="display:none;">
-            <div class="deck-target-bar">
-              <span id="deckActiveModuleLabel">TARGET LOCK: 3D WORKSPACE [SYS_01]</span>
-              <span id="deckGestureHint">1x Click = Info • 2x Click = Launch</span>
-            </div>
-            <div id="cyber-deck-orbit-nodes" class="cyber-deck-orbit-nodes"></div>
-          </div>
-
-          <!-- Selected Module Info Inspector -->
-          <div id="deckInspectorView" class="deck-inspector-view" style="display:none;">
-            <div class="inspector-top-row">
-              <span id="deckPreviewCode">[SYS_01]</span>
-              <span id="deckPreviewTitle" class="deck-preview-head">3D WORKSPACE</span>
-              <button id="deckTerminateInfoBtn" class="deck-terminate-btn">TERMINATE [X]</button>
-            </div>
-            <div class="inspector-grid">
-              <div class="inspector-meta">
-                <div>FRAMEWORK: <span class="hl-cyan">NON-STRAIGHT LANDSCAPE</span></div>
-                <div>VECTOR: <span id="deckVectorAngle" class="hl-cyan">0°</span> // STATUS: <span class="hl-green">ACTIVE</span></div>
-                <div class="inspector-meter-line"></div>
-              </div>
-              <div class="inspector-desc-box">
-                <p id="deckPreviewDesc" class="deck-preview-desc">
-                  Interactive 3D holographic workspace for viewing and manipulating objects and blueprints.
-                </p>
-              </div>
-            </div>
-            <div class="inspector-actions">
-              <button id="deckLaunchSelectedBtn" class="cyber-deck-launch-btn">LAUNCH MODULE</button>
-            </div>
-          </div>
-        </section>
-
-        <!-- Right Rotary Control Dial Column -->
-        <aside class="deck-dial-col">
-          <div class="deck-dial-wrapper">
-            <div class="deck-dial-ring-outer"></div>
-            <div class="deck-dial-ring-mid"></div>
-            <div class="deck-dial-ring-inner"></div>
-            <div id="deckRotaryDial" class="deck-rotary-dial" title="Rotate to cycle apps | Click once for Info | Double-click to Launch">
-              <span class="deck-dial-needle"></span>
-              <div class="deck-dial-readout" id="deckDialReadout">CORE</div>
-              <div class="deck-dial-sub" id="deckDialSub">0° // TAP TO EXPAND</div>
-            </div>
-          </div>
-        </aside>
-      </div>
-
-      <!-- Bottom Deck Footer Status -->
-      <div class="cyber-deck-footer">
-        <span id="deckFooterLeft">ORIENTATION: FORCED HORIZONTAL (THIS FRAMEWORK WAS NOT ON STRAIGHT)</span>
-        <span id="deckFooterRight">AWAITING INPUT — ROTATE DIAL OR DOUBLE-CLICK TO LAUNCH</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- TOP HEADER BAR (J.A.R.V.I.S // DELTA) -->
+  <!-- TOP HEADER BAR -->
   <header class="navbar" data-expandable="true" data-box-id="navbar">
     <div class="brand">
       <span class="brand-icon">☠</span>
@@ -171,7 +33,7 @@
       <section class="panel status-panel" data-expandable="true" data-box-id="status-panel">
         <div class="panel-header">
           <span>SYSTEM_STATUS</span>
-          <span id="status-badge">[JARVIS_ACTIVE]</span>
+          <span id="status-badge">[ONLINE]</span>
         </div>
         <ul class="log-list" id="systemLogs">
           <li>Neural Link: <span class="highlight">STANDBY</span></li>
@@ -214,26 +76,32 @@
         </div>
       </section>
 
-      <!-- 6TH BOX / HEARTBEAT KEY ANCHOR SLOT -->
-      <section class="panel decrypt-panel" data-expandable="true" data-box-id="decrypt-panel">
+      <!-- BOTTOM-LEFT PROC_RING WITH 2X RIGHT SPIN -> BLUE FLAME -> 1X INFO / 2X OPEN FRAME -->
+      <section class="panel decrypt-panel" data-expandable="true" data-box-id="decrypt-panel" id="procRingPanel">
         <div class="panel-header">
-          <span>HEARTBEAT_KEY</span>
-          <span id="procMode">BOX-06</span>
+          <span>PROC_RING</span>
+          <span id="procMode">AES-256</span>
         </div>
         <div class="decrypt-container">
-          <div class="progress-ring-wrapper" id="heartbeatKeyAnchorSlot">
-            <div class="progress-ring"></div>
-            <div class="decrypt-text" id="decryptPercent">BOX<br>06</div>
+          <div class="progress-ring-wrapper" id="procRingTrigger" title="Spin right 2 times for Blue Flame • 1 click: Info • 2 clicks: Open Real Modules">
+            <div class="blue-flame-aura" id="blueFlameAura"></div>
+            <div class="progress-ring" id="procRingDial"></div>
+            <div class="decrypt-text" id="decryptPercent">SYNC<br>30%</div>
+            <div class="ring-spin-badge" id="ringSpinBadge">0/2 R</div>
           </div>
           <div class="binary-stream" id="binaryStream">
             01101010 01100001<br>
             01110110 01101001
           </div>
         </div>
+        <div class="ring-bilingual-info" id="ringBilingualInfo">
+          <strong>తెలుగు:</strong> కుడివైపు 2 సార్లు తిప్పితే బ్లూ ఫ్లేమ్ వెలుగుతుంది; 2 సార్లు క్లిక్ చేస్తే రియల్ మాడ్యూల్స్ (3D, History, YouTube, Memory) ఓపెన్ అవుతాయి.<br>
+          <strong>English:</strong> Turn right 2 times to ignite the blue flame; double-click to open real modules (3D, History, YouTube, Memory).
+        </div>
       </section>
     </aside>
 
-    <!-- CENTER STAGE: SKULL + 3 RINGS + CIRCULAR WAVE + CHAT STREAM -->
+    <!-- CENTER STAGE: SKULL + 3 RINGS + CIRCULAR WAVE + CHAT STREAM + REAL CORE FRAME -->
     <section class="column center-col">
       <div class="panel skull-stage" id="skullContainer" data-expandable="true" data-box-id="skull-stage">
         <div class="stage-top-bar">
@@ -277,6 +145,21 @@
           </svg>
         </div>
 
+        <!-- REAL MODULES OVERLAY FRAME (3D, HISTORY, YOUTUBE, MEMORY) -->
+        <div class="real-modules-frame" id="realModulesFrame">
+          <div class="rm-header">
+            <span>BLUE_FLAME // CORE MODULES</span>
+            <button type="button" class="rm-close-btn" id="closeRealModulesFrame">CLOSE [X]</button>
+          </div>
+          <div class="rm-tabs">
+            <button type="button" class="rm-tab active" data-module="3d">3D</button>
+            <button type="button" class="rm-tab" data-module="history">HISTORY</button>
+            <button type="button" class="rm-tab" data-module="youtube">YOUTUBE</button>
+            <button type="button" class="rm-tab" data-module="memory">MEMORY</button>
+          </div>
+          <div class="rm-body" id="realModulesBody"></div>
+        </div>
+
         <p class="boss-quote">ALWAYS AT YOUR SERVICE, BOSS BHARANI</p>
       </div>
 
@@ -299,16 +182,22 @@
         </div>
 
         <div class="key-ring-stage" id="keyRingStage" title="Turn left 3 times to unlock, then drag onto any panel">
+          <!-- Outer Ambient Right-Rotating Reactor Ring -->
           <div class="key-outer-halo"></div>
 
+          <!-- Interactive Modern Key Dial -->
           <div class="key-dial-puck" id="keyDialPuck">
             <svg class="key-dial-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+              <!-- Outer Segmented Gear Ring -->
               <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="18 7 4 7" />
+              <!-- Inner Precision Track -->
               <circle cx="60" cy="60" r="39" fill="rgba(18, 3, 5, 0.92)" stroke="currentColor" stroke-width="1.5" stroke-dasharray="6 4" />
+              <!-- 4 Cardinal Notches -->
               <line x1="60" y1="4" x2="60" y2="14" stroke="currentColor" stroke-width="2.5" />
               <line x1="60" y1="106" x2="60" y2="116" stroke="currentColor" stroke-width="2.5" />
               <line x1="4" y1="60" x2="14" y2="60" stroke="currentColor" stroke-width="2.5" />
               <line x1="106" y1="60" x2="116" y2="60" stroke="currentColor" stroke-width="2.5" />
+              <!-- Modern Cyber Key Emblem in Center -->
               <circle cx="60" cy="46" r="11" fill="none" stroke="currentColor" stroke-width="2.5" />
               <circle cx="60" cy="46" r="4" fill="currentColor" />
               <path d="M60 57 L60 84 M60 71 L69 71 M60 79 L67 79" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
@@ -332,15 +221,15 @@
 
       <section class="panel voice-trigger-panel" data-expandable="true" data-box-id="voice-trigger-panel">
         <div class="panel-header">
-          <span>MIC_LINK</span>
-          <span id="voiceStatus">ACTIVE</span>
+          <span>VOICE_LINK</span>
+          <span id="voiceStatus">STANDBY</span>
         </div>
         <div class="voice-link-body">
-          <div class="voice-orb" id="mic-btn" title="Rotate 2 times + double-click to activate JARVIS mode if deactivated">
+          <div class="voice-orb" id="mic-btn" title="Toggle Continuous Voice Recognition">
             MIC<br>LINK
           </div>
           <div class="voice-meta">
-            <div>MODE: <span id="modeIndicator" class="highlight">JARVIS_ON</span></div>
+            <div>MODE: <span id="modeIndicator" class="highlight">STANDARD</span></div>
             <div>SPEECH: <span id="speechIndicator" class="highlight">IDLE</span></div>
           </div>
         </div>
