@@ -41,7 +41,6 @@ html, body {
   position: relative;
 }
 
-/* CRT Scanline Overlay */
 body::after {
   content: "";
   position: fixed;
@@ -163,7 +162,7 @@ body::after {
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.22s ease;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.22s ease, background 0.25s ease;
 }
 
 .panel::before {
@@ -209,14 +208,12 @@ body::after {
   color: var(--neon-red);
 }
 
-/* Drop Hover Highlight When Dragging Unlocked Key Dial */
 .drop-target-hover {
   border-color: var(--bright-red) !important;
   box-shadow: 0 0 18px rgba(255, 30, 39, 0.9), inset 0 0 14px rgba(255, 30, 39, 0.35) !important;
   transform: scale(1.012);
 }
 
-/* Fullscreen Expanded Box State */
 .panel.expanded-fullscreen,
 .navbar.expanded-fullscreen {
   position: fixed !important;
@@ -288,7 +285,6 @@ body::after {
   min-height: 0;
 }
 
-/* Left Column Sections */
 .status-panel {
   flex: 1.1;
 }
@@ -343,6 +339,7 @@ body::after {
 
 .decrypt-panel {
   flex: 1;
+  touch-action: none;
 }
 
 .decrypt-container {
@@ -352,26 +349,51 @@ body::after {
   justify-content: center;
   gap: 4px;
   flex: 1;
+  touch-action: none;
 }
 
 .progress-ring-wrapper {
   position: relative;
-  width: 48px;
-  height: 48px;
+  width: 54px;
+  height: 54px;
   display: flex;
   align-items: center;
   justify-content: center;
+  touch-action: none;
+  cursor: grab;
+  border-radius: 50%;
 }
 
+.progress-ring-wrapper:active {
+  cursor: grabbing;
+}
+
+/* Removed CSS spin animation so JS rotation angle is 100% responsive */
 .progress-ring {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  border: 2.5px solid var(--dark-red);
+  border: 3px solid var(--dark-red);
   border-top-color: var(--neon-red);
   border-right-color: var(--neon-red);
-  animation: spinClockwise 3s linear infinite;
   box-shadow: 0 0 8px var(--glow-red);
+  transform: rotate(var(--proc-angle, 0deg));
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+  pointer-events: none;
+}
+
+.decrypt-panel.blue-flame-mode {
+  border-color: #00f0ff !important;
+  box-shadow: 0 0 22px rgba(0, 240, 255, 0.85), inset 0 0 16px rgba(0, 255, 157, 0.25) !important;
+  background: linear-gradient(135deg, rgba(2, 24, 42, 0.96), rgba(0, 48, 72, 0.92)) !important;
+}
+
+.decrypt-panel.blue-flame-mode .progress-ring {
+  border-color: rgba(0, 240, 255, 0.25);
+  border-top-color: #00f0ff;
+  border-right-color: #00ff9d;
+  border-bottom-color: #00f0ff;
+  box-shadow: 0 0 20px #00f0ff, inset 0 0 12px #00ff9d;
 }
 
 .decrypt-text {
@@ -380,7 +402,13 @@ body::after {
   color: var(--neon-red);
   font-weight: bold;
   text-align: center;
-  line-height: 1.05;
+  line-height: 1.08;
+  pointer-events: none;
+}
+
+.decrypt-panel.blue-flame-mode .decrypt-text {
+  color: #00ff9d;
+  text-shadow: 0 0 8px #00f0ff;
 }
 
 .binary-stream {
@@ -388,6 +416,7 @@ body::after {
   color: var(--text-dim);
   text-align: center;
   line-height: 1.15;
+  pointer-events: none;
 }
 
 /* =========================================================
@@ -570,7 +599,6 @@ body::after {
   min-height: 76px;
 }
 
-/* Outer Ambient Halo Always Spinning Right (Clockwise) */
 .key-outer-halo {
   position: absolute;
   width: 82px;
@@ -583,7 +611,6 @@ body::after {
   animation: spinClockwise 9s linear infinite;
 }
 
-/* Interactive Modern Rotary Key Dial */
 .key-dial-puck {
   position: relative;
   width: 72px;
@@ -625,7 +652,6 @@ body::after {
   box-shadow: 0 0 6px rgba(255, 30, 39, 0.5);
 }
 
-/* Active / Glowing State After 3 Left Turns */
 .key-dial-puck.key-activated {
   color: #ffffff;
   background: radial-gradient(circle, rgba(255, 30, 39, 0.45) 0%, rgba(255, 30, 39, 0.1) 70%);
@@ -652,7 +678,6 @@ body::after {
   margin: 0 !important;
 }
 
-/* Docked Bottom-Right Exit Button When Box is Fullscreen */
 .key-dial-puck.docked-return {
   position: fixed !important;
   right: 18px !important;
