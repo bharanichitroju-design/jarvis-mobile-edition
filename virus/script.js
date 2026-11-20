@@ -58,20 +58,6 @@ let currentSession = {
   messages: []
 };
 
-// Command Step History for 2-Turn Back / Forward Dial Navigation
-let commandHistoryStack = ["SYSTEM_BOOT"];
-let commandHistoryIndex = 0;
-
-function recordCommandStep(label) {
-  if (!label) return;
-  const clean = String(label).trim();
-  if (!clean) return;
-  if (commandHistoryStack[commandHistoryIndex] === clean) return;
-  commandHistoryStack = commandHistoryStack.slice(0, commandHistoryIndex + 1);
-  commandHistoryStack.push(clean);
-  commandHistoryIndex = commandHistoryStack.length - 1;
-}
-
 let pendingImageData = null;
 let isJarvisSpeaking = false;
 let isListeningActive = false;
@@ -191,8 +177,7 @@ function updateTelemetryCounters() {
 }
 
 /* =========================================================
-   1.3. 6TH BOX CORE RING (IDLE SPIN -> 2x TAP BLUE FLAME -> 2x TURN RED FLAME)
-        + HORIZONTAL CYBER-DECK + 2-TURN BACK/FORWARD STEP HISTORY
+   1.3. NEW TRIGGER FRAMEWORK: 6TH BOX CORE RING -> HORIZONTAL CYBER-DECK
    ========================================================= */
 const hbRingEl = document.getElementById('global-heartbeat-ring');
 const hbRingLabelEl = document.getElementById('hbRingLabel');
@@ -207,13 +192,13 @@ const DECK_MODULES = [
     id: '3d',
     code: '[SYS_01]',
     title: '3D WORKSPACE',
-    desc: 'Interactive holographic 3D table with 3-layer ring controls. Rotate to spin/inspect, 1-click for details, 2-click to open.'
+    desc: 'Interactive holographic 3D table with 3-layer ring controls. Rotate dial to cycle modules, 1-click for details, 2-click to launch.'
   },
   {
     id: 'youtube',
     code: '[VID_02]',
     title: 'YOUTUBE STREAM',
-    desc: 'In-app holographic YouTube player. Search or play streams directly inside the Cyber-Deck workspace.'
+    desc: 'In-app holographic YouTube player. Search or play streams directly inside the workspace.'
   },
   {
     id: 'history',
@@ -241,20 +226,10 @@ const DECK_MODULES = [
   }
 ];
 
-let hbState = {
-  sizeMode: 'small',          // 'small' | 'large'
-  dockSide: 'right',          // 'right' | 'left'
-  flameState: 'idle',         // 'idle' | 'blue' | 'red'
-  turnAccumDegrees: 0,        // Accumulates rotation once blue flame is active (720 deg = 2 turns -> red flame + open)
+let hbTriggerState = {
+  isDeckActive: false,
   visualAngle: 0,
-  lastPointerAngle: null,
-  isRotating: false,
-  tapCount: 0,
-  tapTimer: null,
-  activeModuleIndex: 0,
-  lastTickStep: 0,
-  stepBackAccum: 0,
-  stepForwardAccum: 0
+  activeModuleIndex: 0
 };
 
 let deckState = {
@@ -264,13 +239,11 @@ let deckState = {
   isRotating: false,
   moved: false,
   tapCount: 0,
-  tapTimer: null,
-  stepBackAccum: 0,
-  stepForwardAccum: 0
+  tapTimer: null
 };
 
 function positionHeartbeatRingInSlot() {
-  if (!hbRingEl || hbState.sizeMode !== 'small') return;
+  if (!hbRingEl) return;
   if (hbAnchorSlotEl) {
     const rect = hbAnchorSlotEl.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) {
@@ -289,52 +262,30 @@ function positionHeartbeatRingInSlot() {
   hbRingEl.style.transform = 'none';
 }
 
-function applyHeartbeatRingLayout() {
+function updateHeartbeatTriggerUI() {
   if (!hbRingEl) return;
-
-  hbRingEl.classList.toggle('hb-blue-flame', hbState.flameState === 'blue');
-  hbRingEl.classList.toggle('hb-red-flame', hbState.flameState === 'red');
-  hbRingEl.classList.toggle('hb-activated', hbState.flameState === 'red');
-  hbRingEl.style.setProperty('--hb-angle', `${hbState.visualAngle}deg`);
-
-  if (hbState.sizeMode === 'small') {
-    hbRingEl.classList.remove('hb-large', 'hb-side-right', 'hb-side-left');
-    hbRingEl.classList.add('hb-small');
-    positionHeartbeatRingInSlot();
-  } else {
-    hbRingEl.classList.remove('hb-small');
-    hbRingEl.classList.add('hb-large');
-    hbRingEl.style.left = '';
-    hbRingEl.style.top = '';
-    hbRingEl.style.right = '';
-    hbRingEl.style.bottom = '';
-    hbRingEl.style.transform = '';
-    hbRingEl.classList.toggle('hb-side-right', hbState.dockSide === 'right');
-    hbRingEl.classList.toggle('hb-side-left', hbState.dockSide === 'left');
-  }
+  hbRingEl.classList.remove('hb-large', 'hb-side-right', 'hb-side-left');
+  hbRingEl.classList.add('hb-small');
+  hbRingEl.classList.toggle('hb-deck-triggered', hbTriggerState.isDeckActive);
+  hbRingEl.style.setProperty('--hb-angle', `${hbTriggerState.visualAngle}deg`);
+  positionHeartbeatRingInSlot();
 
   if (hbRingLabelEl && hbRingSubEl) {
-    if (hbState.flameState === 'blue') {
-      const turns = Math.min(2, Math.floor(hbState.turnAccumDegrees / 360));
-      hbRingLabelEl.textContent = `BLUE ${turns}/2`;
-      hbRingSubEl.textContent = 'TURN 2x -> RED';
-    } else if (hbState.flameState === 'red') {
-      const mod = DECK_MODULES[hbState.activeModuleIndex];
-      hbRingLabelEl.textContent = 'RED CORE';
-      hbRingSubEl.textContent = mod ? mod.title.split(' ')[0] : 'ACTIVE';
+    if (hbTriggerState.isDeckActive) {
+      hbRingLabelEl.textContent = 'DECK ON';
+      hbRingSubEl.textContent = 'ACTIVE';
     } else {
       hbRingLabelEl.textContent = 'BOX 06';
-      hbRingSubEl.textContent = '2x TAP -> BLUE';
+      hbRingSubEl.textContent = 'CYBER-DECK';
     }
   }
 }
 
-function startIdleHeartbeatRingSpin() {
+function startHeartbeatRingSpin() {
   function tick() {
-    if (!hbState.isRotating) {
-      hbState.visualAngle = (hbState.visualAngle + 0.6) % 360000;
-      hbRingEl?.style.setProperty('--hb-angle', `${hbState.visualAngle}deg`);
-    }
+    const speed = hbTriggerState.isDeckActive ? 1.1 : 0.6;
+    hbTriggerState.visualAngle = (hbTriggerState.visualAngle + speed) % 360000;
+    hbRingEl?.style.setProperty('--hb-angle', `${hbTriggerState.visualAngle}deg`);
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
@@ -355,7 +306,7 @@ function setCyberDeckViewMode(nextMode) {
 }
 
 function updateDeckInspectorContent() {
-  const mod = DECK_MODULES[hbState.activeModuleIndex] || DECK_MODULES[0];
+  const mod = DECK_MODULES[hbTriggerState.activeModuleIndex] || DECK_MODULES[0];
   const labelEl = document.getElementById('deckActiveModuleLabel');
   const codeEl = document.getElementById('deckPreviewCode');
   const titleEl = document.getElementById('deckPreviewTitle');
@@ -382,7 +333,7 @@ function updateDeckInspectorContent() {
     else subEl.textContent = '2x CLICK TO LAUNCH';
   }
   if (footerRightEl) {
-    footerRightEl.textContent = `TARGET: ${mod.title} • 2L=BACK / 2R=FWD STEP`;
+    footerRightEl.textContent = `TARGET: ${mod.title} // HORIZONTAL CYBER-DECK READY`;
   }
 }
 
@@ -399,7 +350,7 @@ function renderCyberDeckModules() {
 
   DECK_MODULES.forEach((mod, idx) => {
     const node = document.createElement('div');
-    const isSelected = idx === hbState.activeModuleIndex;
+    const isSelected = idx === hbTriggerState.activeModuleIndex;
     node.className = `deck-module-node${isSelected ? ' active-node' : ''}`;
     const angleDeg = (idx * (360 / count)) - 90 + deckState.angle;
     const rad = (angleDeg * Math.PI) / 180;
@@ -412,17 +363,16 @@ function renderCyberDeckModules() {
     // Single click on app node -> show info inspector
     node.addEventListener('click', (e) => {
       e.stopPropagation();
-      hbState.activeModuleIndex = idx;
+      hbTriggerState.activeModuleIndex = idx;
       deckState.angle = -(idx * (360 / count));
       playCyberSound('tick');
-      recordCommandStep(`INSPECT_${mod.id.toUpperCase()}`);
       setCyberDeckViewMode('inspector');
     });
 
     // Double click on app node -> open app directly
     node.addEventListener('dblclick', (e) => {
       e.stopPropagation();
-      hbState.activeModuleIndex = idx;
+      hbTriggerState.activeModuleIndex = idx;
       deckState.angle = -(idx * (360 / count));
       updateDeckInspectorContent();
       launchSelectedCyberDeckModule();
@@ -432,36 +382,32 @@ function renderCyberDeckModules() {
   });
 }
 
-function openHorizontalCyberDeck(fromRedFlame = true) {
+function openHorizontalCyberDeck() {
   if (!cyberDeckOverlayEl) return;
   cyberDeckOverlayEl.style.display = 'flex';
   cyberDeckOverlayEl.classList.add('force-horizontal-deck');
-  if (fromRedFlame) {
-    hbState.flameState = 'red';
-    hbState.sizeMode = 'large';
-  }
+  hbTriggerState.isDeckActive = true;
   setCyberDeckViewMode('boot');
-  applyHeartbeatRingLayout();
-  recordCommandStep("OPEN_CYBER_DECK");
+  updateHeartbeatTriggerUI();
   playCyberSound('deck');
-  pushSystemLog("CyberDeck", "HORIZONTAL_ACTIVE");
+  if (navigator.vibrate) navigator.vibrate([60, 35, 60]);
+  pushSystemLog("Trigger", "CYBER_DECK_OPEN");
 }
 
 function closeHorizontalCyberDeck() {
   if (!cyberDeckOverlayEl) return;
   cyberDeckOverlayEl.style.display = 'none';
   cyberDeckOverlayEl.classList.remove('force-horizontal-deck');
-  hbState.sizeMode = 'small';
-  applyHeartbeatRingLayout();
-  recordCommandStep("CLOSE_CYBER_DECK");
-  pushSystemLog("CyberDeck", "CLOSED");
+  hbTriggerState.isDeckActive = false;
+  updateHeartbeatTriggerUI();
+  playCyberSound('resize');
+  pushSystemLog("Trigger", "CYBER_DECK_CLOSED");
 }
 
 function launchSelectedCyberDeckModule() {
-  const mod = DECK_MODULES[hbState.activeModuleIndex];
+  const mod = DECK_MODULES[hbTriggerState.activeModuleIndex];
   if (!mod) return;
   playCyberSound('activate');
-  recordCommandStep(`LAUNCH_${mod.id.toUpperCase()}`);
   closeHorizontalCyberDeck();
 
   if (mod.id === '3d') {
@@ -485,235 +431,22 @@ function launchSelectedCyberDeckModule() {
   }
 }
 
-function stepCommandHistoryBack() {
-  if (commandHistoryIndex > 0) {
-    commandHistoryIndex -= 1;
-    const prevCmd = commandHistoryStack[commandHistoryIndex];
-    playCyberSound('resize');
-    pushSystemLog("StepBack", prevCmd);
-    if (prevCmd === "INSPECT_3D" || prevCmd === "INSPECT_YOUTUBE" || prevCmd === "INSPECT_HISTORY" || prevCmd === "INSPECT_MEMORY" || prevCmd === "INSPECT_GALLERY" || prevCmd === "INSPECT_JARVIS") {
-      if (cyberDeckOverlayEl?.style.display === 'flex') setCyberDeckViewMode('orbit');
-    } else if (prevCmd === "OPEN_CYBER_DECK") {
-      closeHorizontalCyberDeck();
-    } else if (document.getElementById('td-workspace-modal')?.style.display === 'flex') {
-      close3DWorkspaceModal();
-    } else if (document.getElementById('youtube-workspace-modal')?.style.display === 'flex') {
-      closeYouTubeModal();
-    } else if (historyModal && historyModal.style.display === 'block') {
-      historyModal.style.display = 'none';
-    } else if (memoryModal && memoryModal.style.display === 'block') {
-      memoryModal.style.display = 'none';
-    }
-  }
-}
-
-function stepCommandHistoryForward() {
-  if (commandHistoryIndex < commandHistoryStack.length - 1) {
-    commandHistoryIndex += 1;
-    const nextCmd = commandHistoryStack[commandHistoryIndex];
-    playCyberSound('tick');
-    pushSystemLog("StepFwd", nextCmd);
-    if (nextCmd === "OPEN_CYBER_DECK") {
-      openHorizontalCyberDeck(true);
-    } else if (nextCmd.startsWith("INSPECT_")) {
-      const id = nextCmd.replace("INSPECT_", "").toLowerCase();
-      const idx = DECK_MODULES.findIndex(m => m.id === id);
-      if (idx >= 0) {
-        hbState.activeModuleIndex = idx;
-        openHorizontalCyberDeck(true);
-        setCyberDeckViewMode('inspector');
-      }
-    } else if (nextCmd === "LAUNCH_3D") {
-      open3DWorkspaceModal();
-    } else if (nextCmd === "LAUNCH_YOUTUBE") {
-      openYouTubeModal();
-    } else if (nextCmd === "LAUNCH_HISTORY") {
-      renderHistoryFolders();
-      if (historyModal) historyModal.style.display = 'block';
-    } else if (nextCmd === "LAUNCH_MEMORY") {
-      renderCustomMemories();
-      if (memoryModal) memoryModal.style.display = 'block';
-    }
-  }
-}
-
-function processTwoTurnStepNavigation(deltaDeg, stateObj) {
-  // 2 turns = 720 degrees left (negative) -> 1 step back; 720 degrees right (positive) -> 1 step forward
-  if (deltaDeg < 0) {
-    stateObj.stepBackAccum += Math.abs(deltaDeg);
-    stateObj.stepForwardAccum = Math.max(0, stateObj.stepForwardAccum - Math.abs(deltaDeg) * 0.5);
-    if (stateObj.stepBackAccum >= 720) {
-      stateObj.stepBackAccum = 0;
-      stepCommandHistoryBack();
-    }
-  } else if (deltaDeg > 0) {
-    stateObj.stepForwardAccum += deltaDeg;
-    stateObj.stepBackAccum = Math.max(0, stateObj.stepBackAccum - deltaDeg * 0.5);
-    if (stateObj.stepForwardAccum >= 720) {
-      stateObj.stepForwardAccum = 0;
-      stepCommandHistoryForward();
-    }
-  }
-}
-
-function handleHeartbeatRotation(deltaDeg) {
-  hbState.visualAngle += deltaDeg;
-  const step = Math.floor(Math.abs(hbState.visualAngle) / 36);
-  if (step !== hbState.lastTickStep) {
-    hbState.lastTickStep = step;
-    playCyberSound('tick');
-  }
-
-  // Before double-tap blue flame: do not trigger state changes on touch/rotate
-  if (hbState.flameState === 'idle') {
-    applyHeartbeatRingLayout();
-    return;
-  }
-
-  // Once blue flame is active: rotating 2 times (720 deg) switches to red flame & opens first screen
-  if (hbState.flameState === 'blue') {
-    hbState.turnAccumDegrees += Math.abs(deltaDeg);
-    if (hbState.turnAccumDegrees >= 720) {
-      hbState.turnAccumDegrees = 720;
-      hbState.flameState = 'red';
-      hbState.sizeMode = 'large';
-      playCyberSound('activate');
-      if (navigator.vibrate) navigator.vibrate([80, 40, 100]);
-      applyHeartbeatRingLayout();
-      openHorizontalCyberDeck(true);
-      return;
-    }
-    applyHeartbeatRingLayout();
-    return;
-  }
-
-  // Once red flame is active: control active screen + 2-turn back/forward step navigation
-  const isDeckOpen = cyberDeckOverlayEl && cyberDeckOverlayEl.style.display === 'flex';
-  const is3DOpen = document.getElementById('td-workspace-modal')?.style.display === 'flex';
-
-  if (isDeckOpen) {
-    deckState.angle += deltaDeg;
-    const count = DECK_MODULES.length;
-    const norm = (((-deckState.angle) % 360) + 360) % 360;
-    hbState.activeModuleIndex = Math.round(norm / (360 / count)) % count;
-    updateDeckInspectorContent();
-    renderCyberDeckModules();
-  } else if (is3DOpen && desktopGroup3D) {
-    if (selectedObject3D) {
-      selectedObject3D.rotation.y += deltaDeg * 0.025;
-    } else {
-      desktopGroup3D.rotation.y += deltaDeg * 0.018;
-    }
-  } else if (chat) {
-    chat.scrollTop += deltaDeg * 1.2;
-  }
-
-  processTwoTurnStepNavigation(deltaDeg, hbState);
-  applyHeartbeatRingLayout();
-}
-
-function handleHeartbeatDoubleTap() {
-  if (hbState.flameState === 'idle') {
-    hbState.flameState = 'blue';
-    hbState.turnAccumDegrees = 0;
-    playCyberSound('activate');
-    if (navigator.vibrate) navigator.vibrate([60, 35, 60]);
-    pushSystemLog("Box06", "BLUE_FLAME_ON");
-    applyHeartbeatRingLayout();
-    return;
-  }
-
-  if (hbState.flameState === 'blue') {
-    // Allow direct open if already in blue flame and double-tapped again, or open deck
-    hbState.flameState = 'red';
-    hbState.sizeMode = 'large';
-    playCyberSound('deck');
-    applyHeartbeatRingLayout();
-    openHorizontalCyberDeck(true);
-    return;
-  }
-
-  // In red flame state: toggle open/expand Cyber-Deck
-  if (cyberDeckOverlayEl && cyberDeckOverlayEl.style.display === 'flex') {
-    if (deckState.mode === 'boot') {
-      setCyberDeckViewMode('orbit');
-    } else {
-      launchSelectedCyberDeckModule();
-    }
-  } else {
-    openHorizontalCyberDeck(true);
-  }
-}
-
-function initHeartbeatCoreRing() {
+function initHeartbeatTrigger() {
   if (!hbRingEl) return;
 
-  const getAngleFromCenter = (clientX, clientY) => {
-    const rect = hbRingEl.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    return (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
-  };
-
-  let downPos = { x: 0, y: 0 };
-  let moved = false;
-
-  hbRingEl.addEventListener('pointerdown', (e) => {
+  hbRingEl.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    hbState.isRotating = true;
-    moved = false;
-    downPos = { x: e.clientX, y: e.clientY };
-    hbState.lastPointerAngle = getAngleFromCenter(e.clientX, e.clientY);
-    hbRingEl.setPointerCapture(e.pointerId);
+    if (cyberDeckOverlayEl && cyberDeckOverlayEl.style.display === 'flex') {
+      closeHorizontalCyberDeck();
+    } else {
+      openHorizontalCyberDeck();
+    }
   });
 
-  hbRingEl.addEventListener('pointermove', (e) => {
-    if (!hbState.isRotating) return;
-    if (Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > 5) {
-      moved = true;
-    }
-    const curAngle = getAngleFromCenter(e.clientX, e.clientY);
-    if (hbState.lastPointerAngle !== null) {
-      let delta = curAngle - hbState.lastPointerAngle;
-      if (delta > 180) delta -= 360;
-      if (delta < -180) delta += 360;
-      if (Math.abs(delta) > 0.4) {
-        handleHeartbeatRotation(delta);
-      }
-    }
-    hbState.lastPointerAngle = curAngle;
-  });
-
-  const finishHbPointer = (e) => {
-    if (hbRingEl.hasPointerCapture(e.pointerId)) {
-      try { hbRingEl.releasePointerCapture(e.pointerId); } catch (err) {}
-    }
-    hbState.isRotating = false;
-    hbState.lastPointerAngle = null;
-
-    if (!moved) {
-      hbState.tapCount += 1;
-      clearTimeout(hbState.tapTimer);
-      hbState.tapTimer = setTimeout(() => {
-        const count = hbState.tapCount;
-        hbState.tapCount = 0;
-        if (count >= 2) {
-          handleHeartbeatDoubleTap();
-        }
-      }, 320);
-    }
-  };
-
-  hbRingEl.addEventListener('pointerup', finishHbPointer);
-  hbRingEl.addEventListener('pointercancel', finishHbPointer);
-
-  window.addEventListener('resize', () => {
-    if (hbState.sizeMode === 'small') positionHeartbeatRingInSlot();
-  });
-
-  applyHeartbeatRingLayout();
-  startIdleHeartbeatRingSpin();
+  window.addEventListener('resize', positionHeartbeatRingInSlot);
+  updateHeartbeatTriggerUI();
+  startHeartbeatRingSpin();
 }
 
 function initDeckRotaryDialControls() {
@@ -758,8 +491,8 @@ function initDeckRotaryDialControls() {
           const count = DECK_MODULES.length;
           const norm = (((-deckState.angle) % 360) + 360) % 360;
           const nextIdx = Math.round(norm / (360 / count)) % count;
-          if (nextIdx !== hbState.activeModuleIndex) {
-            hbState.activeModuleIndex = nextIdx;
+          if (nextIdx !== hbTriggerState.activeModuleIndex) {
+            hbTriggerState.activeModuleIndex = nextIdx;
             playCyberSound('tick');
           }
           updateDeckInspectorContent();
@@ -767,8 +500,6 @@ function initDeckRotaryDialControls() {
         } else {
           updateDeckInspectorContent();
         }
-
-        processTwoTurnStepNavigation(delta, deckState);
       }
     }
     deckState.lastPointerAngle = curAngle;
@@ -788,18 +519,13 @@ function initDeckRotaryDialControls() {
         const taps = deckState.tapCount;
         deckState.tapCount = 0;
         if (taps === 1) {
-          // Single click on center dial: expand to orbit / show selected app info
           playCyberSound('tick');
           if (deckState.mode === 'boot') {
             setCyberDeckViewMode('orbit');
-            recordCommandStep("EXPAND_ORBIT");
           } else {
-            const mod = DECK_MODULES[hbState.activeModuleIndex];
-            recordCommandStep(`INSPECT_${mod.id.toUpperCase()}`);
             setCyberDeckViewMode('inspector');
           }
         } else if (taps >= 2) {
-          // Double click on center dial: open selected app
           if (deckState.mode === 'boot') {
             setCyberDeckViewMode('orbit');
           } else {
@@ -820,7 +546,7 @@ function initDeckRotaryDialControls() {
   });
   document.getElementById('deckResetDialBtn')?.addEventListener('click', () => {
     deckState.angle = 0;
-    hbState.activeModuleIndex = 0;
+    hbTriggerState.activeModuleIndex = 0;
     deckRotaryDialEl.style.setProperty('--deck-dial-angle', '0deg');
     setCyberDeckViewMode('boot');
   });
@@ -1163,7 +889,6 @@ function openYouTubeModal(searchQuery = "") {
       const iframe = document.getElementById('youtube-frame');
       if (iframe) iframe.src = "https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1";
     }
-    recordCommandStep("LAUNCH_YOUTUBE");
     pushSystemLog("YouTube", "OPENED");
   }
 }
@@ -1392,7 +1117,6 @@ function open3DWorkspaceModal() {
     adjustThreeLayerRingsToViewport(vp);
     hologramRiseProgress = 0;
     init3DBoxScene();
-    recordCommandStep("LAUNCH_3D");
     pushSystemLog("3D Table", "ACTIVE");
   }
 }
@@ -1985,7 +1709,7 @@ function initCircularVibrationGraph() {
 window.addEventListener('DOMContentLoaded', () => {
   initCircularVibrationGraph();
   initKeyRingInteractions();
-  initHeartbeatCoreRing();
+  initHeartbeatTrigger();
   initDeckRotaryDialControls();
   initMicLinkGestureControls();
   ensureJarvisModeAlwaysOn();
@@ -2355,14 +2079,12 @@ function handleHardcoded(text) {
   if (query.includes("open memory") || query.includes("memory")) {
     renderCustomMemories();
     if (memoryModal) memoryModal.style.display = 'block';
-    recordCommandStep("LAUNCH_MEMORY");
     pushSystemLog("Memory", "OPENED");
     return "Opening your Memory Box, Boss.";
   }
 
   if (query.includes("open gallery") || query.includes("gallery")) {
     if (imgInput) { imgInput.removeAttribute('capture'); imgInput.click(); }
-    recordCommandStep("LAUNCH_GALLERY");
     pushSystemLog("Gallery", "OPENED");
     return "Opening Gallery to attach image, Boss.";
   }
@@ -2370,7 +2092,6 @@ function handleHardcoded(text) {
   if (query.includes("open history") || query.includes("history")) {
     renderHistoryFolders();
     if (historyModal) historyModal.style.display = 'block';
-    recordCommandStep("LAUNCH_HISTORY");
     pushSystemLog("History", "OPENED");
     return "Opening History Folders, Boss.";
   }
@@ -2627,7 +2348,6 @@ async function handleUserCommand() {
   if (!text && !pendingImageData) return;
 
   totalAccessLogs += 1;
-  recordCommandStep(text || "IMAGE_CMD");
   const currentImageData = pendingImageData;
   const timeStr = format12HourTime(new Date());
 
