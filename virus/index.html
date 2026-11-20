@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>J.A.R.V.I.S - Sector Delta Core</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body class="jarvis-mode-enforced">
+
+  <!-- GLOBAL HEARTBEAT CORE RING (PERSISTENT ACROSS ALL SCREENS & MODALS) -->
+  <div id="global-heartbeat-ring" class="heartbeat-ring-widget" title="Drag to rotate | Double-click + 2 right turns to activate | Double-click to open Horizontal Cyber-Deck | Triple-click to toggle size/dock">
+    <div class="hb-outer-ring"></div>
+    <div class="hb-mid-ring"></div>
+    <div class="hb-inner-core">
+      <div class="hb-label" id="hbRingLabel">KEY</div>
+      <div class="hb-sub" id="hbRingSub">2x CLK + 2R</div>
+    </div>
+  </div>
+
+  <!-- HORIZONTAL CYBER-DECK OVERLAY (ACTIVATED ON DOUBLE-CLICK AFTER ACTIVATION) -->
+  <div id="horizontal-cyber-deck-overlay" class="cyber-deck-overlay" style="display:none;">
+    <div class="cyber-deck-frame">
+      <div class="cyber-deck-header">
+        <span class="cyber-deck-title">⚡ CYBER-DECK // HORIZONTAL REAL-TIME WORKSPACE</span>
+        <span class="cyber-deck-jarvis-badge">JARVIS MODE: ALWAYS ACTIVE</span>
+        <button id="close-cyber-deck-btn" class="cyber-deck-close-btn">EXIT DECK [✕]</button>
+      </div>
+      <div class="cyber-deck-body">
+        <div class="cyber-deck-left">
+          <div class="deck-target-bar">
+            <span id="deckActiveModuleLabel">TARGET: 3D WORKSPACE</span>
+            <span id="deckGestureHint">Rotate Heartbeat Ring to switch • Double-click Ring to launch</span>
+          </div>
+          <div id="cyber-deck-orbit-nodes" class="cyber-deck-orbit-nodes"></div>
+        </div>
+        <div class="cyber-deck-right">
+          <div class="deck-preview-card">
+            <div class="deck-preview-head" id="deckPreviewTitle">3D WORKSPACE</div>
+            <p class="deck-preview-desc" id="deckPreviewDesc">
+              Launch your live 3D holographic workspace, YouTube stream, History log, Memory vault, or Gallery.
+            </p>
+            <button id="deckLaunchSelectedBtn" class="cyber-deck-launch-btn">LAUNCH MODULE</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP HEADER BAR -->
+  <header class="navbar" data-expandable="true" data-box-id="navbar">
+    <div class="brand">
+      <span class="brand-icon">☠</span>
+      <span>J.A.R.V.I.S // DELTA</span>
+    </div>
+    <div class="nav-breadcrumb">
+      <span>CORE</span> &gt; <span>VOICE_LINK</span> &gt; <span class="active">ACTIVE</span>
+    </div>
+    <div class="input-inline">
+      <input id="msg" type="text" placeholder="Command or speak..." autocomplete="off" />
+      <button id="execute-btn" class="exec-btn">RUN</button>
+    </div>
+  </header>
+
+  <!-- MAIN 3-COLUMN WORKSPACE -->
+  <main class="dashboard-container" id="mainGrid">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="column left-col">
+      <section class="panel status-panel" data-expandable="true" data-box-id="status-panel">
+        <div class="panel-header">
+          <span>SYSTEM_STATUS</span>
+          <span id="status-badge">[JARVIS_ACTIVE]</span>
+        </div>
+        <ul class="log-list" id="systemLogs">
+          <li>Neural Link: <span class="highlight">STANDBY</span></li>
+          <li>Voice Engine: <span class="highlight">READY</span></li>
+          <li>Memory Vault: <span class="highlight">LOCKED</span></li>
+          <li>3D Table: <span class="highlight">IDLE</span></li>
+        </ul>
+      </section>
+
+      <section class="panel telemetry-panel" data-expandable="true" data-box-id="telemetry-panel">
+        <div class="panel-header">
+          <span>CORE_METRICS</span>
+          <span>V4.0</span>
+        </div>
+        <div class="metrics-grid">
+          <div class="metric-box">
+            <div class="metric-label">TEMP</div>
+            <div class="metric-value" id="coreTemp">38.0°C</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">LOAD</div>
+            <div class="metric-value" id="loadVal">300M/s</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">LOGS</div>
+            <div class="metric-value" id="accessLogs">23,258</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">MEMORIES</div>
+            <div class="metric-value" id="memCount">0</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">3D_FILES</div>
+            <div class="metric-value" id="file3dCount">0</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">MSGS</div>
+            <div class="metric-value" id="msgCount">0</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- REPLACED PERCENTAGE CIRCLE WITH HEARTBEAT KEY ANCHOR SLOT -->
+      <section class="panel decrypt-panel" data-expandable="true" data-box-id="decrypt-panel">
+        <div class="panel-header">
+          <span>HEARTBEAT_KEY</span>
+          <span id="procMode">CORE-KEY</span>
+        </div>
+        <div class="decrypt-container">
+          <div class="progress-ring-wrapper" id="heartbeatKeyAnchorSlot">
+            <div class="progress-ring"></div>
+            <div class="decrypt-text" id="decryptPercent">KEY<br>ANCHOR</div>
+          </div>
+          <div class="binary-stream" id="binaryStream">
+            01101010 01100001<br>
+            01110110 01101001
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- CENTER STAGE: SKULL + 3 RINGS + CIRCULAR WAVE + CHAT STREAM -->
+    <section class="column center-col">
+      <div class="panel skull-stage" id="skullContainer" data-expandable="true" data-box-id="skull-stage">
+        <div class="stage-top-bar">
+          <span id="status-text">SYSTEM ONLINE</span>
+          <span class="boss-tag">BOSS BHARANI</span>
+        </div>
+
+        <div class="skull-assembly">
+          <canvas id="circularVibrationCanvas" class="vibration-circle-canvas" width="320" height="320"></canvas>
+
+          <div class="orbit-ring ring-1"></div>
+          <div class="orbit-ring ring-2"></div>
+          <div class="orbit-ring ring-3"></div>
+
+          <svg class="skull-svg" id="jarvisSkull" viewBox="0 0 240 260" xmlns="http://www.w3.org/2000/svg">
+            <g stroke="#ff1e27" stroke-width="3" fill="#1f0507">
+              <path d="M35,165 L205,235 M205,165 L35,235" stroke-width="14" stroke-linecap="round" stroke="#3d080c"/>
+              <path d="M35,165 L205,235 M205,165 L35,235" stroke-width="4" stroke-linecap="round" stroke="#ff1e27"/>
+              <circle cx="30" cy="160" r="8"/><circle cx="25" cy="172" r="8"/>
+              <circle cx="210" cy="240" r="8"/><circle cx="215" cy="228" r="8"/>
+              <circle cx="210" cy="160" r="8"/><circle cx="215" cy="172" r="8"/>
+              <circle cx="30" cy="240" r="8"/><circle cx="25" cy="228" r="8"/>
+            </g>
+            <path d="M120,20 C68,20 45,58 45,102 C45,128 58,145 72,156 L76,192 L164,192 L168,156 C182,145 195,128 195,102 C195,58 172,20 120,20 Z"
+                  fill="#170406" stroke="#ff1e27" stroke-width="3.5"/>
+            <path d="M120,25 L120,55 M95,35 L105,60 M145,35 L135,60 M75,65 L95,75 M165,65 L145,75"
+                  stroke="#ff1e27" stroke-width="1.5" opacity="0.7"/>
+            <circle cx="120" cy="62" r="10" fill="none" stroke="#ff1e27" stroke-width="2"/>
+            <ellipse cx="88" cy="108" rx="18" ry="13" fill="#330407" stroke="#ff1e27" stroke-width="2"/>
+            <circle class="eye-glow" cx="88" cy="108" r="6" fill="#ff1e27"/>
+            <ellipse cx="152" cy="108" rx="18" ry="13" fill="#330407" stroke="#ff1e27" stroke-width="2"/>
+            <circle class="eye-glow" cx="152" cy="108" r="6" fill="#ff1e27"/>
+            <polygon points="120,122 110,145 130,145" fill="#330407" stroke="#ff1e27" stroke-width="2"/>
+            <rect x="82" y="165" width="76" height="24" rx="3" fill="#0d0203" stroke="#ff1e27" stroke-width="2"/>
+            <line x1="95" y1="165" x2="95" y2="189" stroke="#ff1e27" stroke-width="2"/>
+            <line x1="108" y1="165" x2="108" y2="189" stroke="#ff1e27" stroke-width="2"/>
+            <line x1="120" y1="165" x2="120" y2="189" stroke="#ff1e27" stroke-width="2"/>
+            <line x1="132" y1="165" x2="132" y2="189" stroke="#ff1e27" stroke-width="2"/>
+            <line x1="145" y1="165" x2="145" y2="189" stroke="#ff1e27" stroke-width="2"/>
+            <line x1="82" y1="177" x2="158" y2="177" stroke="#ff1e27" stroke-width="1.5"/>
+          </svg>
+        </div>
+
+        <p class="boss-quote">ALWAYS AT YOUR SERVICE, BOSS BHARANI</p>
+      </div>
+
+      <!-- Live AI Conversation Stream -->
+      <section class="panel chat-panel" data-expandable="true" data-box-id="chat-panel">
+        <div class="panel-header">
+          <span>NEURAL_CHAT_STREAM</span>
+          <span id="voiceCommandHint">VOICE: "OPEN MEMORY / 3D / HISTORY / YOUTUBE"</span>
+        </div>
+        <div class="chat" id="chat"></div>
+      </section>
+    </section>
+
+    <!-- RIGHT SIDEBAR: KEYFRAME_FX (ROTARY KEY RING) + SIGNAL_WAVE + VOICE_LINK -->
+    <aside class="column right-col">
+      <section class="panel fx-panel" data-expandable="true" data-box-id="fx-panel">
+        <div class="panel-header">
+          <span>KEYFRAME_FX</span>
+          <span id="keyLockState">LOCKED</span>
+        </div>
+
+        <div class="key-ring-stage" id="keyRingStage" title="Turn left 3 times to unlock, then drag onto any panel">
+          <div class="key-outer-halo"></div>
+
+          <div class="key-dial-puck" id="keyDialPuck">
+            <svg class="key-dial-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="18 7 4 7" />
+              <circle cx="60" cy="60" r="39" fill="rgba(18, 3, 5, 0.92)" stroke="currentColor" stroke-width="1.5" stroke-dasharray="6 4" />
+              <line x1="60" y1="4" x2="60" y2="14" stroke="currentColor" stroke-width="2.5" />
+              <line x1="60" y1="106" x2="60" y2="116" stroke="currentColor" stroke-width="2.5" />
+              <line x1="4" y1="60" x2="14" y2="60" stroke="currentColor" stroke-width="2.5" />
+              <line x1="106" y1="60" x2="116" y2="60" stroke="currentColor" stroke-width="2.5" />
+              <circle cx="60" cy="46" r="11" fill="none" stroke="currentColor" stroke-width="2.5" />
+              <circle cx="60" cy="46" r="4" fill="currentColor" />
+              <path d="M60 57 L60 84 M60 71 L69 71 M60 79 L67 79" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+            </svg>
+            <div class="key-turn-badge" id="keyTurnBadge">0/3</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel net-panel" data-expandable="true" data-box-id="net-panel">
+        <div class="panel-header">
+          <span>SIGNAL_WAVE</span>
+          <span>LINK</span>
+        </div>
+        <div class="net-stats">
+          <div>IN: <span id="netIn" class="highlight">15.4M/s</span></div>
+          <div>OUT: <span id="netOut" class="highlight">8.2M/s</span></div>
+        </div>
+        <canvas id="networkCanvas" width="240" height="64"></canvas>
+      </section>
+
+      <section class="panel voice-trigger-panel" data-expandable="true" data-box-id="voice-trigger-panel">
+        <div class="panel-header">
+          <span>MIC_LINK</span>
+          <span id="voiceStatus">ACTIVE</span>
+        </div>
+        <div class="voice-link-body">
+          <div class="voice-orb" id="mic-btn" title="Rotate 2 times + double-click to activate JARVIS mode if deactivated">
+            MIC<br>LINK
+          </div>
+          <div class="voice-meta">
+            <div>MODE: <span id="modeIndicator" class="highlight">JARVIS_ON</span></div>
+            <div>SPEECH: <span id="speechIndicator" class="highlight">IDLE</span></div>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+  </main>
+
+  <!-- BOTTOM FOOTER BAR -->
+  <footer class="panel voice-footer" id="voicePanel" data-expandable="true" data-box-id="voice-panel">
+    <div class="voice-controls">
+      <div class="voice-orb footer-orb" id="leftOrb" onclick="document.getElementById('img-input').click()" title="Open Gallery">
+        GALLERY
+      </div>
+      <div class="equalizer-bars" id="equalizer"></div>
+      <div class="voice-orb footer-orb" id="rightOrb" onclick="if(typeof toggleJarvisMode==='function') toggleJarvisMode();" title="Toggle Jarvis Mode">
+        JARVIS<br>MODE
+      </div>
+    </div>
+  </footer>
+
+  <!-- MODAL 1: HISTORY LOG POPUP -->
+  <div id="history-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>HISTORY LOG</h2>
+        <span id="close-history" class="close-btn">&times;</span>
+      </div>
+      <div id="history-list" class="history-container"></div>
+      <button id="clear-all-history" class="btn btn-danger" style="width: 100%; margin-top: 10px;">CLEAR ALL HISTORY</button>
+    </div>
+  </div>
+
+  <!-- MODAL 2: MEMORY & FILES BOX -->
+  <div id="memory-modal" class="modal">
+    <div class="modal-content neon-flame-box">
+      <div class="modal-header">
+        <h2>MY FILES & DETAILS</h2>
+        <span id="close-memory-modal" class="close-btn">&times;</span>
+      </div>
+      <div class="memory-body">
+        <input type="text" id="memory-search-input" placeholder="Search or type new memory details here, Boss..." />
+        <textarea id="custom-memory-input" placeholder="Add detailed notes, family details, or facts here..."></textarea>
+        <button id="save-custom-memory" class="neon-btn">SAVE TO MEMORY</button>
+        <div id="saved-memory-list" class="history-container" style="margin-top: 12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <input id="img-input" type="file" accept="image/*" multiple style="display:none">
+
+  <script src="script.js"></script>
+</body>
+</html>
