@@ -3,67 +3,151 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>J.A.R.V.I.S - Sector Delta Core</title>
+<title>J.A.R.V.I.S // DELTA — CYBER-STARK CORE</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body class="jarvis-mode-enforced">
 
-  <!-- GLOBAL HEARTBEAT CORE RING (PERSISTENT ACROSS ALL SCREENS & MODALS) -->
-  <div id="global-heartbeat-ring" class="heartbeat-ring-widget" title="Drag to rotate | Double-click + 2 right turns to activate | Double-click to open Horizontal Cyber-Deck | Triple-click to toggle size/dock">
+  <!-- GLOBAL HEARTBEAT / 6TH-BOX CORE RING (PERSISTENT ACROSS ALL SCREENS & MODALS) -->
+  <div id="global-heartbeat-ring"
+       class="heartbeat-ring-widget hb-small"
+       data-box-index="6"
+       title="Double-tap for Blue Flame -> Rotate 2x for Red Flame & Screen | Click to expand control | 2L = Back step, 2R = Forward step">
     <div class="hb-outer-ring"></div>
     <div class="hb-mid-ring"></div>
     <div class="hb-inner-core">
-      <div class="hb-label" id="hbRingLabel">KEY</div>
-      <div class="hb-sub" id="hbRingSub">2x CLK + 2R</div>
+      <div class="hb-label" id="hbRingLabel">BOX 06</div>
+      <div class="hb-sub" id="hbRingSub">2x TAP -> BLUE</div>
     </div>
   </div>
 
-  <!-- LAYER 3 LIVE PURPOSE BANNER (TRIGGERS WHEN MOVING / ROTATING AN APP OR MODULE) -->
-  <div id="layer3-purpose-hud" class="layer3-purpose-hud" style="display:none;" aria-live="polite">
-    <div class="l3-hud-top">
-      <span id="l3HudTitle">LAYER 3 // APP PURPOSE</span>
-      <span id="l3HudCode" class="l3-hud-code">L3-READY</span>
-    </div>
-    <div id="l3HudPurpose" class="l3-hud-desc"></div>
-    <div id="l3HudMoveHint" class="l3-hud-hint"></div>
-  </div>
-
-  <!-- HORIZONTAL CYBER-DECK OVERLAY (ACTIVATED ON DOUBLE-CLICK AFTER ACTIVATION) -->
+  <!-- HORIZONTAL CYBER-DECK OVERLAY (GREEN / CYAN / BLUE HACKER HUD) -->
   <div id="horizontal-cyber-deck-overlay" class="cyber-deck-overlay" style="display:none;">
     <div class="cyber-deck-frame">
+      <!-- Top Cyber-Stark Header -->
       <div class="cyber-deck-header">
-        <span class="cyber-deck-title">⚡ CYBER-DECK // HORIZONTAL REAL-TIME WORKSPACE</span>
-        <span class="cyber-deck-jarvis-badge">JARVIS MODE: ALWAYS ACTIVE</span>
-        <button id="close-cyber-deck-btn" class="cyber-deck-close-btn">EXIT DECK [✕]</button>
+        <div class="deck-header-left">
+          <span class="deck-status-dot"></span>
+          <span class="cyber-deck-title">ROOT@STARK-CYBERDECK // MK-V — HORIZONTAL WORKSPACE</span>
+        </div>
+        <span class="cyber-deck-jarvis-badge">JARVIS MODE: ACTIVE</span>
+        <span class="deck-clock" id="deckClock">18:32:15</span>
+        <button id="deckSfxToggleBtn" class="cyber-deck-sfx-btn">SFX: ON</button>
+        <button id="deckResetDialBtn" class="cyber-deck-reset-btn">RESET DIAL</button>
+        <button id="close-cyber-deck-btn" class="cyber-deck-close-btn">EXIT [✕]</button>
       </div>
+
+      <!-- Main Deck Body -->
       <div class="cyber-deck-body">
-        <div class="cyber-deck-left">
-          <div class="deck-target-bar">
-            <span id="deckActiveModuleLabel">TARGET: 3D WORKSPACE</span>
-            <span id="deckGestureHint">Rotate Heartbeat Ring (L1/L2/L3) • Double-click Ring to launch</span>
+        <!-- Left Telemetry & Hex Column -->
+        <aside class="deck-telemetry-col">
+          <div class="deck-load-box">
+            <div class="deck-mini-label">SYS LOAD</div>
+            <div class="deck-load-val" id="deckSysLoadVal">92%</div>
+            <canvas id="deckSysLoadCanvas" width="140" height="44"></canvas>
           </div>
-          <div id="cyber-deck-orbit-nodes" class="cyber-deck-orbit-nodes"></div>
-        </div>
-        <div class="cyber-deck-right">
-          <div class="deck-preview-card">
-            <div class="deck-preview-head" id="deckPreviewTitle">3D WORKSPACE</div>
-            <p class="deck-preview-desc" id="deckPreviewDesc">
-              Launch your live 3D holographic workspace, YouTube stream, History log, Memory vault, or Gallery.
-            </p>
-            <div class="deck-layer3-box" id="deckLayer3Info">
-              <span class="deck-layer3-tag">LAYER 3 PURPOSE:</span>
-              <span id="deckLayer3Text">Interactive 3D hologram projection, spawning, rotation, and fullscreen view.</span>
+          <div class="deck-hex-stream" id="deckHexStream">
+            0x8738 AEF1 204E 9095<br>
+            0x441A 5B10 198A 77C4<br>
+            0x91C2 7E0B 0341 40E7<br>
+            0xC03A 0980 88F1 6123<br>
+            0x005D 0550 7E64 60D6<br>
+            0xA1E4 3C09 01A4 8B7F<br>
+            0x2AB0 941A A2EA CE1A
+          </div>
+          <div class="deck-mode-tag">NON-STRAIGHT FRAMEWORK // AUTO-HORIZONTAL MODE</div>
+        </aside>
+
+        <!-- Center Stage: Step 1 Boot Bars / Step 2 App Orbit / Step 3 Selected Module Inspector -->
+        <section class="deck-center-stage">
+          <!-- Step 1: Boot Matrix View -->
+          <div id="deckBootView" class="deck-boot-view">
+            <div class="deck-boot-bars">
+              <div class="deck-bar-row">
+                <span class="bar-name">NEURAL LINK</span>
+                <div class="bar-track"><div class="bar-fill" style="width: 72%;"></div></div>
+                <span class="bar-pct">72%</span>
+              </div>
+              <div class="deck-bar-row">
+                <span class="bar-name">SHIELD MATRIX</span>
+                <div class="bar-track"><div class="bar-fill" style="width: 88%;"></div></div>
+                <span class="bar-pct">88%</span>
+              </div>
+              <div class="deck-bar-row">
+                <span class="bar-name">HORIZON SYNC</span>
+                <div class="bar-track"><div class="bar-fill" style="width: 75%;"></div></div>
+                <span class="bar-pct">75%</span>
+              </div>
             </div>
-            <button id="deckLaunchSelectedBtn" class="cyber-deck-launch-btn">LAUNCH MODULE</button>
+            <div class="deck-boot-note-card">
+              <div class="deck-boot-heading">[!] HEAVY HORIZONTAL CYBER-DECK ACTIVE</div>
+              <p class="deck-boot-copy">
+                ఈ ఫ్రేమ్‌వర్క్ బై-డిఫాల్ట్ (నిలువుగా) కాకుండా ఒకేసారి అడ్డంగా (Horizontal) రన్ అవుతుంది.
+                కుడి-కింద ఉన్న <strong>CORE DIAL</strong> పై క్లిక్ చేసి విస్తరించండి — యాప్స్ ఆర్బిట్‌ను తిప్పండి, సింగిల్ క్లిక్‌తో ఇన్ఫో చూడండి, డబుల్ క్లిక్‌తో ఓపెన్ చేయండి.
+              </p>
+            </div>
           </div>
-        </div>
+
+          <!-- Step 2: Circular App Orbit Selector -->
+          <div id="deckOrbitView" class="deck-orbit-view" style="display:none;">
+            <div class="deck-target-bar">
+              <span id="deckActiveModuleLabel">TARGET LOCK: 3D WORKSPACE [SYS_01]</span>
+              <span id="deckGestureHint">1x Click = Info • 2x Click = Launch</span>
+            </div>
+            <div id="cyber-deck-orbit-nodes" class="cyber-deck-orbit-nodes"></div>
+          </div>
+
+          <!-- Step 3: Selected Module Info Inspector -->
+          <div id="deckInspectorView" class="deck-inspector-view" style="display:none;">
+            <div class="inspector-top-row">
+              <span id="deckPreviewCode">[SYS_01]</span>
+              <span id="deckPreviewTitle" class="deck-preview-head">3D WORKSPACE</span>
+              <button id="deckTerminateInfoBtn" class="deck-terminate-btn">TERMINATE [X]</button>
+            </div>
+            <div class="inspector-grid">
+              <div class="inspector-meta">
+                <div>FRAMEWORK: <span class="hl-cyan">NON-STRAIGHT LANDSCAPE</span></div>
+                <div>VECTOR: <span id="deckVectorAngle" class="hl-cyan">0°</span> // STATUS: <span class="hl-green">ACTIVE</span></div>
+                <div class="inspector-meter-line"></div>
+              </div>
+              <div class="inspector-desc-box">
+                <p id="deckPreviewDesc" class="deck-preview-desc">
+                  Interactive 3D holographic workspace for viewing and manipulating objects and blueprints.
+                </p>
+              </div>
+            </div>
+            <div class="inspector-actions">
+              <button id="deckLaunchSelectedBtn" class="cyber-deck-launch-btn">LAUNCH MODULE</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Right Rotary Control Dial Column -->
+        <aside class="deck-dial-col">
+          <div class="deck-dial-wrapper">
+            <div class="deck-dial-ring-outer"></div>
+            <div class="deck-dial-ring-mid"></div>
+            <div class="deck-dial-ring-inner"></div>
+            <div id="deckRotaryDial" class="deck-rotary-dial" title="Rotate to cycle apps | Click once for Info | Double-click to Launch">
+              <span class="deck-dial-needle"></span>
+              <div class="deck-dial-readout" id="deckDialReadout">CORE</div>
+              <div class="deck-dial-sub" id="deckDialSub">0° // TAP TO EXPAND</div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <!-- Bottom Deck Footer Status -->
+      <div class="cyber-deck-footer">
+        <span id="deckFooterLeft">ORIENTATION: FORCED HORIZONTAL (THIS FRAMEWORK WAS NOT ON STRAIGHT)</span>
+        <span id="deckFooterRight">AWAITING INPUT — ROTATE DIAL OR DOUBLE-CLICK TO LAUNCH</span>
       </div>
     </div>
   </div>
 
-  <!-- TOP HEADER BAR -->
+  <!-- TOP HEADER BAR (J.A.R.V.I.S // DELTA) -->
   <header class="navbar" data-expandable="true" data-box-id="navbar">
     <div class="brand">
       <span class="brand-icon">☠</span>
@@ -93,7 +177,6 @@
           <li>Voice Engine: <span class="highlight">READY</span></li>
           <li>Memory Vault: <span class="highlight">LOCKED</span></li>
           <li>3D Table: <span class="highlight">IDLE</span></li>
-          <li>Layer 3 Info: <span class="highlight">ARMED</span></li>
         </ul>
       </section>
 
@@ -130,16 +213,16 @@
         </div>
       </section>
 
-      <!-- REPLACED PERCENTAGE CIRCLE WITH HEARTBEAT KEY ANCHOR SLOT -->
+      <!-- 6TH BOX / HEARTBEAT KEY ANCHOR SLOT -->
       <section class="panel decrypt-panel" data-expandable="true" data-box-id="decrypt-panel">
         <div class="panel-header">
           <span>HEARTBEAT_KEY</span>
-          <span id="procMode">CORE-KEY</span>
+          <span id="procMode">BOX-06</span>
         </div>
         <div class="decrypt-container">
           <div class="progress-ring-wrapper" id="heartbeatKeyAnchorSlot">
             <div class="progress-ring"></div>
-            <div class="decrypt-text" id="decryptPercent">KEY<br>ANCHOR</div>
+            <div class="decrypt-text" id="decryptPercent">BOX<br>06</div>
           </div>
           <div class="binary-stream" id="binaryStream">
             01101010 01100001<br>
