@@ -9,6 +9,9 @@
   --dark-red: #66080c;
   --glow-red: rgba(255, 30, 39, 0.55);
   --cyan-holo: #00f3ff;
+  --cyber-green: #00ff9d;
+  --cyber-teal: #00d8b4;
+  --cyber-bg: #020c12;
   --text-main: #ffdede;
   --text-dim: #a65256;
   --border-color: #801116;
@@ -388,7 +391,7 @@ body::after {
 }
 
 /* =========================================================
-   5. GLOBAL HEARTBEAT CORE RING (PERSISTENT OVER ALL SCREENS)
+   5. 6TH BOX CORE RING: IDLE SPIN -> DOUBLE-TAP BLUE FLAME -> 2x TURN RED FLAME
    ========================================================= */
 .heartbeat-ring-widget {
   position: fixed;
@@ -398,17 +401,12 @@ body::after {
   align-items: center;
   justify-content: center;
   touch-action: none;
-  cursor: grab;
+  cursor: pointer;
   will-change: transform, left, top, width, height;
   transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
               height 0.28s cubic-bezier(0.22, 1, 0.36, 1),
               box-shadow 0.25s ease,
               border-color 0.25s ease;
-  animation: heartbeatPulse 1.6s infinite ease-in-out;
-}
-
-.heartbeat-ring-widget:active {
-  cursor: grabbing;
 }
 
 .heartbeat-ring-widget.hb-small {
@@ -422,14 +420,14 @@ body::after {
 }
 
 .heartbeat-ring-widget.hb-large.hb-side-right {
-  right: 14px !important;
+  right: 16px !important;
   top: 50% !important;
   left: auto !important;
   transform: translateY(-50%) !important;
 }
 
 .heartbeat-ring-widget.hb-large.hb-side-left {
-  left: 14px !important;
+  left: 16px !important;
   top: 50% !important;
   right: auto !important;
   transform: translateY(-50%) !important;
@@ -440,7 +438,7 @@ body::after {
   inset: 0;
   border-radius: 50%;
   border: 2.5px dashed var(--neon-red);
-  box-shadow: 0 0 14px var(--glow-red), inset 0 0 10px var(--glow-red);
+  box-shadow: 0 0 12px var(--glow-red), inset 0 0 8px var(--glow-red);
   transform: rotate(var(--hb-angle, 0deg));
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
 }
@@ -452,7 +450,7 @@ body::after {
   border: 1.5px solid var(--bright-red);
   border-left-color: transparent;
   border-right-color: transparent;
-  animation: spinCounter 6s linear infinite;
+  animation: spinCounter 7s linear infinite;
 }
 
 .hb-inner-core {
@@ -473,134 +471,108 @@ body::after {
 
 .hb-label {
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.48rem;
+  font-size: 0.46rem;
   font-weight: 900;
   color: #ffffff;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   text-shadow: 0 0 6px var(--neon-red);
   line-height: 1.05;
 }
 
 .hb-sub {
-  font-size: 0.34rem;
+  font-size: 0.33rem;
   color: var(--bright-red);
   margin-top: 1px;
   line-height: 1;
 }
 
 .heartbeat-ring-widget.hb-large .hb-label {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
 }
 
 .heartbeat-ring-widget.hb-large .hb-sub {
-  font-size: 0.46rem;
+  font-size: 0.45rem;
   margin-top: 3px;
 }
 
-.heartbeat-ring-widget.hb-activated .hb-outer-ring {
-  border-color: var(--cyan-holo);
-  box-shadow: 0 0 22px rgba(0, 243, 255, 0.9), inset 0 0 14px rgba(0, 243, 255, 0.65);
+/* State A: Double-Tapped -> Blue Flame Glow */
+.heartbeat-ring-widget.hb-blue-flame {
+  animation: blueFlamePulse 1.2s infinite ease-in-out;
 }
 
-.heartbeat-ring-widget.hb-activated .hb-inner-core {
+.heartbeat-ring-widget.hb-blue-flame .hb-outer-ring {
   border-color: var(--cyan-holo);
-  box-shadow: 0 0 16px rgba(0, 243, 255, 0.65);
+  box-shadow: 0 0 22px rgba(0, 243, 255, 0.95), 0 0 36px rgba(0, 140, 255, 0.75), inset 0 0 14px rgba(0, 243, 255, 0.7);
 }
 
-.heartbeat-ring-widget.hb-activated .hb-label {
+.heartbeat-ring-widget.hb-blue-flame .hb-mid-ring {
+  border-top-color: var(--cyan-holo);
+  border-bottom-color: var(--cyan-holo);
+}
+
+.heartbeat-ring-widget.hb-blue-flame .hb-inner-core {
+  background: radial-gradient(circle, rgba(0, 85, 140, 0.95) 0%, rgba(1, 18, 36, 0.98) 100%);
+  border-color: var(--cyan-holo);
+  box-shadow: 0 0 18px rgba(0, 243, 255, 0.85);
+}
+
+.heartbeat-ring-widget.hb-blue-flame .hb-label,
+.heartbeat-ring-widget.hb-blue-flame .hb-sub {
   color: var(--cyan-holo);
   text-shadow: 0 0 8px var(--cyan-holo);
 }
 
-@keyframes heartbeatPulse {
-  0%, 100% { filter: drop-shadow(0 0 6px rgba(255, 30, 39, 0.65)); }
-  18% { filter: drop-shadow(0 0 16px rgba(255, 30, 39, 1)); }
-  32% { filter: drop-shadow(0 0 8px rgba(255, 30, 39, 0.7)); }
-  48% { filter: drop-shadow(0 0 20px rgba(255, 71, 78, 1)); }
+/* State B: Rotated 2 Turns -> Red Flame Armed / Screen Open */
+.heartbeat-ring-widget.hb-red-flame,
+.heartbeat-ring-widget.hb-activated {
+  animation: redFlameRingPulse 1.15s infinite ease-in-out;
+}
+
+.heartbeat-ring-widget.hb-red-flame .hb-outer-ring,
+.heartbeat-ring-widget.hb-activated .hb-outer-ring {
+  border-color: #ff2a2a;
+  box-shadow: 0 0 24px rgba(255, 30, 39, 1), 0 0 42px rgba(255, 90, 20, 0.85), inset 0 0 16px rgba(255, 50, 30, 0.85);
+}
+
+.heartbeat-ring-widget.hb-red-flame .hb-inner-core,
+.heartbeat-ring-widget.hb-activated .hb-inner-core {
+  background: radial-gradient(circle, rgba(155, 10, 15, 0.96) 0%, rgba(25, 2, 4, 0.98) 100%);
+  border-color: #ff5544;
+  box-shadow: 0 0 20px rgba(255, 45, 35, 0.95);
+}
+
+.heartbeat-ring-widget.hb-red-flame .hb-label,
+.heartbeat-ring-widget.hb-activated .hb-label {
+  color: #ffe680;
+  text-shadow: 0 0 10px #ff1e27;
+}
+
+@keyframes blueFlamePulse {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(0, 243, 255, 0.8)); }
+  50% { filter: drop-shadow(0 0 24px rgba(0, 200, 255, 1)); }
+}
+
+@keyframes redFlameRingPulse {
+  0%, 100% { filter: drop-shadow(0 0 12px rgba(255, 30, 39, 0.85)); }
+  50% { filter: drop-shadow(0 0 26px rgba(255, 85, 30, 1)); }
 }
 
 /* =========================================================
-   5.B. LAYER 3 LIVE PURPOSE BANNER (ON-MOVE INFO DISPLAY)
-   ========================================================= */
-.layer3-purpose-hud {
-  position: fixed;
-  bottom: 86px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: min(92%, 680px);
-  background: rgba(5, 16, 30, 0.95);
-  border: 1.5px solid var(--cyan-holo);
-  box-shadow: 0 0 20px rgba(0, 243, 255, 0.45), inset 0 0 10px rgba(0, 243, 255, 0.14);
-  border-radius: 6px;
-  padding: 7px 12px;
-  z-index: 990000;
-  display: none;
-  flex-direction: column;
-  gap: 3px;
-  pointer-events: none;
-}
-
-.l3-hud-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.56rem;
-  font-weight: 700;
-  color: var(--cyan-holo);
-  letter-spacing: 0.6px;
-}
-
-.l3-hud-code {
-  color: #00ff9d;
-  font-size: 0.5rem;
-}
-
-.l3-hud-desc {
-  font-size: 0.64rem;
-  color: #e6fbff;
-  line-height: 1.3;
-}
-
-.l3-hud-hint {
-  font-size: 0.5rem;
-  color: #7eeeff;
-  opacity: 0.9;
-}
-
-.deck-layer3-box {
-  background: rgba(0, 243, 255, 0.08);
-  border-left: 2.5px solid var(--cyan-holo);
-  padding: 6px 8px;
-  border-radius: 3px;
-  font-size: 0.6rem;
-  line-height: 1.35;
-  color: #bdfaff;
-}
-
-.deck-layer3-tag {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 0.5rem;
-  font-weight: 700;
-  color: #00ff9d;
-  margin-right: 4px;
-}
-
-/* =========================================================
-   6. HORIZONTAL CYBER-DECK OVERLAY (REAL-TIME ROTARY MODULES)
+   6. HORIZONTAL CYBER-DECK OVERLAY (CYBER-STARK GREEN / CYAN HUD)
    ========================================================= */
 .cyber-deck-overlay {
   position: fixed;
   inset: 0;
   z-index: 950000;
-  background: rgba(3, 8, 16, 0.94);
+  background: rgba(1, 10, 14, 0.96);
   backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  padding: 6px;
 }
 
+/* Forced Horizontal Orientation in Portrait */
 @media (orientation: portrait) {
   .cyber-deck-overlay.force-horizontal-deck {
     width: 100vh;
@@ -618,84 +590,273 @@ body::after {
 .cyber-deck-frame {
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at 32% 50%, rgba(0, 48, 82, 0.65) 0%, rgba(2, 10, 22, 0.98) 78%);
-  border: 2px solid var(--cyan-holo);
-  box-shadow: 0 0 36px rgba(0, 243, 255, 0.55), inset 0 0 22px rgba(0, 243, 255, 0.16);
-  border-radius: 10px;
+  background:
+    radial-gradient(circle at 55% 48%, rgba(0, 255, 157, 0.08) 0%, rgba(0, 243, 255, 0.05) 42%, rgba(2, 14, 20, 0.98) 85%),
+    linear-gradient(rgba(0, 255, 157, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+  background-size: 100% 100%, 20px 20px, 20px 20px;
+  border: 1.5px solid var(--cyber-teal);
+  box-shadow: 0 0 28px rgba(0, 255, 157, 0.28), inset 0 0 18px rgba(0, 243, 255, 0.14);
+  border-radius: 6px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  color: #b8fff0;
 }
 
 .cyber-deck-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 14px;
-  background: rgba(0, 26, 48, 0.95);
-  border-bottom: 1px solid var(--cyan-holo);
-  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(2, 24, 30, 0.95);
+  border-bottom: 1px solid rgba(0, 255, 157, 0.45);
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.deck-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.deck-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cyber-green);
+  box-shadow: 0 0 8px var(--cyber-green);
+  flex-shrink: 0;
 }
 
 .cyber-deck-title {
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.72rem;
+  font-size: 0.62rem;
   font-weight: 900;
-  color: var(--cyan-holo);
-  letter-spacing: 1px;
-  text-shadow: 0 0 8px var(--cyan-holo);
+  color: var(--cyber-green);
+  letter-spacing: 0.7px;
+  text-shadow: 0 0 6px rgba(0, 255, 157, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cyber-deck-jarvis-badge {
-  font-size: 0.58rem;
-  color: #00ff9d;
-  border: 1px solid #00ff9d;
-  padding: 2px 7px;
-  border-radius: 3px;
-  background: rgba(0, 255, 157, 0.12);
+  font-size: 0.5rem;
+  color: var(--cyber-green);
+  border: 1px solid rgba(0, 255, 157, 0.65);
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: rgba(0, 255, 157, 0.1);
+  white-space: nowrap;
+}
+
+.deck-clock {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.54rem;
+  color: var(--cyan-holo);
+  white-space: nowrap;
+}
+
+.cyber-deck-sfx-btn,
+.cyber-deck-reset-btn {
+  background: rgba(0, 243, 255, 0.14);
+  border: 1px solid var(--cyan-holo);
+  color: var(--cyan-holo);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.48rem;
+  font-weight: 700;
+  padding: 3px 6px;
+  border-radius: 2px;
+  cursor: pointer;
   white-space: nowrap;
 }
 
 .cyber-deck-close-btn {
-  background: rgba(255, 30, 39, 0.25);
+  background: rgba(255, 30, 39, 0.22);
   border: 1px solid var(--neon-red);
   color: #ff6b72;
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.6rem;
+  font-size: 0.5rem;
   font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 4px;
+  padding: 3px 7px;
+  border-radius: 2px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .cyber-deck-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: 12px;
-  padding: 12px;
+  grid-template-columns: 130px 1fr 150px;
+  gap: 8px;
+  padding: 8px;
   min-height: 0;
 }
 
-.cyber-deck-left {
+/* Left Telemetry & Hex Stream */
+.deck-telemetry-col {
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(0, 243, 255, 0.35);
-  border-radius: 8px;
-  background: rgba(0, 16, 32, 0.72);
+  justify-content: space-between;
+  border: 1px solid rgba(0, 255, 157, 0.28);
+  background: rgba(1, 18, 24, 0.78);
+  padding: 6px;
+  border-radius: 4px;
+  gap: 4px;
+  min-height: 0;
+}
+
+.deck-load-box {
+  border-bottom: 1px solid rgba(0, 255, 157, 0.22);
+  padding-bottom: 4px;
+}
+
+.deck-mini-label {
+  font-size: 0.46rem;
+  color: var(--cyber-teal);
+  letter-spacing: 0.6px;
+}
+
+.deck-load-val {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 900;
+  color: var(--cyber-green);
+}
+
+#deckSysLoadCanvas {
+  width: 100%;
+  height: 30px;
+  display: block;
+}
+
+.deck-hex-stream {
+  font-size: 0.43rem;
+  line-height: 1.25;
+  color: rgba(0, 255, 157, 0.58);
+  overflow: hidden;
+  flex: 1;
+}
+
+.deck-mode-tag {
+  font-size: 0.41rem;
+  color: var(--cyan-holo);
+  border-top: 1px solid rgba(0, 243, 255, 0.22);
+  padding-top: 3px;
+  line-height: 1.2;
+}
+
+/* Center Stage: Step 1 Bars / Step 2 App Orbit / Step 3 Inspector */
+.deck-center-stage {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(0, 255, 157, 0.35);
+  background: rgba(2, 22, 28, 0.76);
+  border-radius: 4px;
   padding: 8px;
+  min-height: 0;
   position: relative;
   overflow: hidden;
+}
+
+.deck-boot-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.deck-boot-bars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  align-items: end;
+  height: 92px;
+  padding: 6px;
+  background: rgba(0, 14, 20, 0.7);
+  border: 1px solid rgba(0, 255, 157, 0.22);
+  border-radius: 3px;
+}
+
+.deck-bar-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.bar-name {
+  font-size: 0.44rem;
+  color: var(--cyber-teal);
+  text-align: center;
+}
+
+.bar-track {
+  width: 18px;
+  height: 54px;
+  background: rgba(0, 255, 157, 0.1);
+  border: 1px solid rgba(0, 255, 157, 0.45);
+  display: flex;
+  align-items: flex-end;
+  padding: 1px;
+}
+
+.bar-fill {
+  width: 100%;
+  background: linear-gradient(to top, var(--cyber-teal), var(--cyber-green));
+  box-shadow: 0 0 8px var(--cyber-green);
+}
+
+.bar-pct {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.46rem;
+  color: var(--cyber-green);
+}
+
+.deck-boot-note-card {
+  background: rgba(1, 20, 26, 0.92);
+  border: 1px solid rgba(0, 255, 157, 0.45);
+  border-left: 3px solid var(--cyber-green);
+  padding: 8px 10px;
+  border-radius: 3px;
+}
+
+.deck-boot-heading {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.56rem;
+  font-weight: 800;
+  color: var(--cyber-green);
+  margin-bottom: 4px;
+}
+
+.deck-boot-copy {
+  font-size: 0.54rem;
+  line-height: 1.4;
+  color: #c8fff2;
+}
+
+/* Step 2: App Orbit View */
+.deck-orbit-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .deck-target-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.56rem;
-  color: var(--cyan-holo);
-  border-bottom: 1px solid rgba(0, 243, 255, 0.25);
-  padding-bottom: 5px;
+  font-size: 0.5rem;
+  color: var(--cyber-green);
+  border-bottom: 1px solid rgba(0, 255, 157, 0.25);
+  padding-bottom: 4px;
   gap: 6px;
 }
 
@@ -705,92 +866,251 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 0;
 }
 
 .deck-orbit-ring-track {
   position: absolute;
-  width: 210px;
-  height: 210px;
+  width: 152px;
+  height: 152px;
   border-radius: 50%;
-  border: 1.5px dashed rgba(0, 243, 255, 0.45);
-  box-shadow: 0 0 18px rgba(0, 243, 255, 0.2);
+  border: 1.5px dashed rgba(0, 255, 157, 0.45);
+  box-shadow: 0 0 14px rgba(0, 255, 157, 0.18);
   pointer-events: none;
 }
 
 .deck-module-node {
   position: absolute;
-  width: 72px;
-  height: 72px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
-  background: rgba(0, 22, 42, 0.92);
-  border: 1.5px solid rgba(0, 243, 255, 0.5);
-  color: #bdfaff;
+  background: rgba(1, 22, 28, 0.94);
+  border: 1.5px solid rgba(0, 243, 255, 0.55);
+  color: #b8fff0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.52rem;
+  font-size: 0.42rem;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-  padding: 4px;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+  padding: 3px;
 }
 
 .deck-module-node.active-node {
-  border-color: #ffffff;
-  background: radial-gradient(circle, rgba(0, 243, 255, 0.35) 0%, rgba(0, 26, 48, 0.96) 80%);
+  border-color: var(--cyber-green);
+  background: radial-gradient(circle, rgba(0, 255, 157, 0.3) 0%, rgba(1, 28, 34, 0.98) 82%);
   color: #ffffff;
-  box-shadow: 0 0 22px rgba(0, 243, 255, 0.95);
+  box-shadow: 0 0 18px rgba(0, 255, 157, 0.9);
   transform: scale(1.16);
   z-index: 5;
 }
 
-.cyber-deck-right {
+/* Step 3: Module Inspector View */
+.deck-inspector-view {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding-right: 118px;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 0;
 }
 
-.deck-preview-card {
-  background: rgba(0, 20, 38, 0.88);
-  border: 1px solid var(--cyan-holo);
-  border-radius: 8px;
-  padding: 14px;
+.inspector-top-row {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  box-shadow: 0 0 20px rgba(0, 243, 255, 0.25);
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(0, 255, 157, 0.3);
+  padding-bottom: 4px;
+  gap: 6px;
+}
+
+#deckPreviewCode {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.52rem;
+  color: var(--cyber-green);
 }
 
 .deck-preview-head {
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.9rem;
+  font-size: 0.68rem;
   font-weight: 900;
-  color: var(--cyan-holo);
-  text-shadow: 0 0 8px var(--cyan-holo);
+  color: #ffffff;
+  text-shadow: 0 0 8px var(--cyber-green);
+}
+
+.deck-terminate-btn {
+  background: rgba(255, 30, 80, 0.2);
+  border: 1px solid #ff3366;
+  color: #ff668c;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.45rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.inspector-grid {
+  display: grid;
+  grid-template-columns: 0.85fr 1.15fr;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.inspector-meta {
+  font-size: 0.48rem;
+  line-height: 1.5;
+  color: var(--cyber-teal);
+  border: 1px solid rgba(0, 255, 157, 0.25);
+  padding: 6px;
+  border-radius: 3px;
+  background: rgba(0, 14, 20, 0.75);
+}
+
+.hl-cyan { color: var(--cyan-holo); font-weight: bold; }
+.hl-green { color: var(--cyber-green); font-weight: bold; }
+
+.inspector-desc-box {
+  border: 1px solid rgba(0, 255, 157, 0.35);
+  border-left: 3px solid var(--cyber-green);
+  padding: 6px 8px;
+  border-radius: 3px;
+  background: rgba(0, 18, 24, 0.85);
+  overflow-y: auto;
 }
 
 .deck-preview-desc {
-  font-size: 0.68rem;
-  line-height: 1.45;
-  color: #d6f9ff;
+  font-size: 0.55rem;
+  line-height: 1.4;
+  color: #d8fff6;
+}
+
+.inspector-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .cyber-deck-launch-btn {
-  background: var(--cyan-holo);
-  color: #00101f;
+  background: var(--cyber-green);
+  color: #001510;
   border: none;
-  padding: 9px 12px;
-  border-radius: 4px;
+  padding: 6px 12px;
+  border-radius: 3px;
   font-family: 'Orbitron', sans-serif;
-  font-size: 0.68rem;
+  font-size: 0.56rem;
   font-weight: 900;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   cursor: pointer;
-  box-shadow: 0 0 14px rgba(0, 243, 255, 0.7);
+  box-shadow: 0 0 12px rgba(0, 255, 157, 0.65);
+}
+
+/* Right Rotary Dial Column */
+.deck-dial-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(0, 255, 157, 0.3);
+  background: rgba(1, 18, 24, 0.82);
+  border-radius: 4px;
+  padding: 6px;
+  position: relative;
+}
+
+.deck-dial-wrapper {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deck-dial-ring-outer {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--cyber-green);
+  box-shadow: 0 0 14px rgba(0, 255, 157, 0.45);
+  pointer-events: none;
+}
+
+.deck-dial-ring-mid {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--cyan-holo);
+  pointer-events: none;
+}
+
+.deck-dial-ring-inner {
+  position: absolute;
+  inset: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 255, 157, 0.4);
+  pointer-events: none;
+}
+
+.deck-rotary-dial {
+  position: relative;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 55, 48, 0.92) 0%, rgba(1, 16, 22, 0.98) 85%);
+  border: 1.5px solid var(--cyber-green);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  touch-action: none;
+  z-index: 4;
+}
+
+.deck-dial-needle {
+  position: absolute;
+  top: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cyber-green);
+  box-shadow: 0 0 8px var(--cyber-green);
+  transform: rotate(var(--deck-dial-angle, 0deg));
+  transform-origin: 50% 38px;
+}
+
+.deck-dial-readout {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 0.56rem;
+  font-weight: 900;
+  color: var(--cyber-green);
+  line-height: 1.1;
+}
+
+.deck-dial-sub {
+  font-size: 0.36rem;
+  color: var(--cyan-holo);
+  margin-top: 2px;
+  line-height: 1.1;
+}
+
+/* Bottom Deck Footer */
+.cyber-deck-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 10px;
+  background: rgba(1, 20, 26, 0.95);
+  border-top: 1px solid rgba(0, 255, 157, 0.35);
+  font-size: 0.44rem;
+  color: var(--cyber-teal);
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 /* =========================================================
@@ -1385,4 +1705,7 @@ canvas#networkCanvas {
   .voice-controls { grid-template-columns: 84px 1fr 84px; }
   .footer-orb { width: 64px; height: 64px; font-size: 0.56rem; }
   .equalizer-bars { height: 60px; }
+  .cyber-deck-body { grid-template-columns: 185px 1fr 210px; gap: 12px; padding: 12px; }
+  .deck-dial-wrapper { width: 156px; height: 156px; }
+  .deck-rotary-dial { width: 108px; height: 108px; }
 }
