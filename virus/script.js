@@ -58,10 +58,24 @@ let currentSession = {
   messages: []
 };
 
+// Command Step History for 2-Turn Back / Forward Dial Navigation
+let commandHistoryStack = ["SYSTEM_BOOT"];
+let commandHistoryIndex = 0;
+
+function recordCommandStep(label) {
+  if (!label) return;
+  const clean = String(label).trim();
+  if (!clean) return;
+  if (commandHistoryStack[commandHistoryIndex] === clean) return;
+  commandHistoryStack = commandHistoryStack.slice(0, commandHistoryIndex + 1);
+  commandHistoryStack.push(clean);
+  commandHistoryIndex = commandHistoryStack.length - 1;
+}
+
 let pendingImageData = null;
 let isJarvisSpeaking = false;
 let isListeningActive = false;
-let strictJarvisKeywordMode = true; // JARVIS Mode always active across frameworks
+let strictJarvisKeywordMode = true;
 let workspaceFiles3D = [];
 let totalAccessLogs = 23258;
 
@@ -94,8 +108,10 @@ const savedMemoryList = document.getElementById('saved-memory-list');
    1.1. CYBER SOUND ENGINE (WEB AUDIO SYNTHESIZER)
    ========================================================= */
 let cyberAudioCtx = null;
+let cyberSfxEnabled = true;
 
 function playCyberSound(type = 'tick') {
+  if (!cyberSfxEnabled) return;
   try {
     if (!cyberAudioCtx) {
       cyberAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -175,94 +191,8 @@ function updateTelemetryCounters() {
 }
 
 /* =========================================================
-   1.3. LAYER 3 PURPOSE CODING & MOVE-TRIGGER ENGINE
-   ========================================================= */
-const LAYER3_APP_PURPOSES = {
-  '3d': {
-    code: 'L3-3D-TABLE',
-    title: '3D WORKSPACE',
-    purpose: '3D holograms, text objects, and blueprinted images spawn చేసి rotate, zoom, move, మరియు fullscreen projection చేయడానికి ఉపయోగపడుతుంది.',
-    moveHint: 'Ring తిప్పినప్పుడు 3D stage/object spin & zoom అవుతుంది; డబుల్-క్లిక్ చేస్తే fullscreen projection toggle అవుతుంది.'
-  },
-  'youtube': {
-    code: 'L3-YT-STREAM',
-    title: 'YOUTUBE STREAM',
-    purpose: 'యాప్‌లోనే direct గా YouTube వీడియోలు లేదా మ్యూజిక్/BGM సెర్చ్ చేసి ప్లే చేయడానికి ఉపయోగపడుతుంది.',
-    moveHint: 'Ring తిప్పినప్పుడు curated stream presets మారుతాయి; డబుల్-క్లిక్ చేస్తే YouTube stream open అవుతుంది.'
-  },
-  'history': {
-    code: 'L3-HIST-LOG',
-    title: 'HISTORY LOGS',
-    purpose: 'గతంలో జరిగిన Jarvis సంభాషణలు, సెషన్ ఫోల్డర్లు, మరియు ఆర్కైవ్ చేసిన చాట్ రికార్డులను చూడటానికి మరియు క్లియర్ చేయడానికి ఉపయోగపడుతుంది.',
-    moveHint: 'Ring తిప్పినప్పుడు History folders scroll అవుతాయి; డబుల్-క్లిక్ చేస్తే History modal open అవుతుంది.'
-  },
-  'memory': {
-    code: 'L3-MEM-VAULT',
-    title: 'MEMORY VAULT',
-    purpose: 'మీ ముఖ్యమైన నోట్స్, ఫ్యామిలీ వివరాలు, మరియు Jarvis కి అవసరమైన పర్సనల్ ఫ్యాక్ట్స్ ను local storage లో సేవ్ చేసి సెర్చ్ చేయడానికి ఉపయోగపడుతుంది.',
-    moveHint: 'Ring తిప్పినప్పుడు Memory records scroll అవుతాయి; డబుల్-క్లిక్ చేస్తే Memory Vault open అవుతుంది.'
-  },
-  'gallery': {
-    code: 'L3-GAL-SCAN',
-    title: 'GALLERY SCAN',
-    purpose: 'ఫోన్ గ్యాలరీ నుండి ఇమేజెస్ ఎంచుకుని Jarvis AI ద్వారా విశ్లేషించడానికి (analyze) లేదా 3D workspace లోకి పంపడానికి ఉపయోగపడుతుంది.',
-    moveHint: 'డబుల్-క్లిక్ చేస్తే Gallery file picker open అవుతుంది.'
-  },
-  'jarvis': {
-    code: 'L3-JRV-CORE',
-    title: 'JARVIS CORE',
-    purpose: 'Continuous voice recognition, text commands, AI responses, TTS speech, మరియు system telemetry ని నియంత్రించే ప్రధాన కేంద్రం.',
-    moveHint: 'Ring తిప్పినప్పుడు Neural Chat stream scroll అవుతుంది మరియు మాడ్యూల్స్ మారుతాయి.'
-  }
-};
-
-let lastAnnouncedLayer3Id = null;
-let layer3SpeakCooldown = 0;
-
-function triggerLayer3AppInfoOnMove(moduleId, allowVoice = true) {
-  const info = LAYER3_APP_PURPOSES[moduleId] || LAYER3_APP_PURPOSES['jarvis'];
-  const banner = document.getElementById('layer3-purpose-hud');
-  const titleEl = document.getElementById('l3HudTitle');
-  const codeEl = document.getElementById('l3HudCode');
-  const purposeEl = document.getElementById('l3HudPurpose');
-  const hintEl = document.getElementById('l3HudMoveHint');
-
-  if (titleEl) titleEl.textContent = `LAYER 3 // ${info.title} USE-CASE`;
-  if (codeEl) codeEl.textContent = info.code;
-  if (purposeEl) purposeEl.textContent = info.purpose;
-  if (hintEl) hintEl.textContent = info.moveHint;
-
-  if (banner) {
-    banner.style.display = 'flex';
-    clearTimeout(window.__layer3BannerTimer);
-    window.__layer3BannerTimer = setTimeout(() => {
-      banner.style.display = 'none';
-    }, 4500);
-  }
-
-  const deckL3Text = document.getElementById('deckLayer3Text');
-  const deckTitleEl = document.getElementById('deckPreviewTitle');
-  if (deckTitleEl && cyberDeckOverlayEl?.style.display === 'flex') {
-    deckTitleEl.textContent = info.title;
-  }
-  if (deckL3Text) {
-    deckL3Text.textContent = `${info.purpose} (${info.moveHint})`;
-  }
-
-  pushSystemLog("Layer3", `${info.code}: ${info.title}`);
-
-  const now = Date.now();
-  if (allowVoice && (lastAnnouncedLayer3Id !== moduleId || now - layer3SpeakCooldown > 6000)) {
-    lastAnnouncedLayer3Id = moduleId;
-    layer3SpeakCooldown = now;
-    if (!isJarvisSpeaking && typeof speak === 'function') {
-      speak(`${info.title} is used for: ${info.purpose}`);
-    }
-  }
-}
-
-/* =========================================================
-   1.4. GLOBAL HEARTBEAT CORE RING & HORIZONTAL CYBER-DECK
+   1.3. 6TH BOX CORE RING (IDLE SPIN -> 2x TAP BLUE FLAME -> 2x TURN RED FLAME)
+        + HORIZONTAL CYBER-DECK + 2-TURN BACK/FORWARD STEP HISTORY
    ========================================================= */
 const hbRingEl = document.getElementById('global-heartbeat-ring');
 const hbRingLabelEl = document.getElementById('hbRingLabel');
@@ -270,53 +200,73 @@ const hbRingSubEl = document.getElementById('hbRingSub');
 const hbAnchorSlotEl = document.getElementById('heartbeatKeyAnchorSlot');
 const cyberDeckOverlayEl = document.getElementById('horizontal-cyber-deck-overlay');
 const cyberDeckNodesEl = document.getElementById('cyber-deck-orbit-nodes');
+const deckRotaryDialEl = document.getElementById('deckRotaryDial');
 
 const DECK_MODULES = [
   {
     id: '3d',
+    code: '[SYS_01]',
     title: '3D WORKSPACE',
-    desc: 'Interactive holographic 3D table. Rotate Heartbeat Ring to spin 3D stage or cycle files, double-click Ring to zoom/toggle view.'
+    desc: 'Interactive holographic 3D table with 3-layer ring controls. Rotate to spin/inspect, 1-click for details, 2-click to open.'
   },
   {
     id: 'youtube',
+    code: '[VID_02]',
     title: 'YOUTUBE STREAM',
-    desc: 'In-app holographic YouTube player. Rotate Heartbeat Ring to scrub/switch streams or double-click to launch.'
+    desc: 'In-app holographic YouTube player. Search or play streams directly inside the Cyber-Deck workspace.'
   },
   {
     id: 'history',
+    code: '[LOG_03]',
     title: 'HISTORY LOGS',
-    desc: 'Archived JARVIS neural sessions. Rotate Heartbeat Ring to scroll folders or double-click to open.'
+    desc: 'Archived JARVIS neural sessions and saved conversation records. Inspect past sessions or clear logs.'
   },
   {
     id: 'memory',
+    code: '[MEM_04]',
     title: 'MEMORY VAULT',
-    desc: 'Stored personal notes & Boss directives. Rotate Heartbeat Ring to scan entries or double-click to open.'
+    desc: 'Stored personal notes, details, and Boss directives in local memory storage.'
   },
   {
     id: 'gallery',
+    code: '[GAL_05]',
     title: 'GALLERY SCAN',
-    desc: 'Upload images directly into JARVIS neural analyzer or 3D hologram projection table.'
+    desc: 'Select images from phone gallery to analyze with JARVIS AI or project into the 3D workspace.'
   },
   {
     id: 'jarvis',
+    code: '[AI_06]',
     title: 'JARVIS CORE',
-    desc: 'Continuous voice & AI command matrix (Always Active across all screens).'
+    desc: 'Continuous voice and AI command matrix active across the Cyber-Deck and Delta HUD.'
   }
 ];
 
 let hbState = {
-  sizeMode: 'small',
-  dockSide: 'right',
-  doubleClickPrimed: false,
-  isActivated: false,
-  rightTurnDegrees: 0,
+  sizeMode: 'small',          // 'small' | 'large'
+  dockSide: 'right',          // 'right' | 'left'
+  flameState: 'idle',         // 'idle' | 'blue' | 'red'
+  turnAccumDegrees: 0,        // Accumulates rotation once blue flame is active (720 deg = 2 turns -> red flame + open)
   visualAngle: 0,
   lastPointerAngle: null,
   isRotating: false,
   tapCount: 0,
   tapTimer: null,
   activeModuleIndex: 0,
-  lastTickStep: 0
+  lastTickStep: 0,
+  stepBackAccum: 0,
+  stepForwardAccum: 0
+};
+
+let deckState = {
+  mode: 'boot',               // 'boot' | 'orbit' | 'inspector'
+  angle: 0,
+  lastPointerAngle: null,
+  isRotating: false,
+  moved: false,
+  tapCount: 0,
+  tapTimer: null,
+  stepBackAccum: 0,
+  stepForwardAccum: 0
 };
 
 function positionHeartbeatRingInSlot() {
@@ -339,14 +289,12 @@ function positionHeartbeatRingInSlot() {
   hbRingEl.style.transform = 'none';
 }
 
-function chooseOptimalLargeSide() {
-  return 'right';
-}
-
 function applyHeartbeatRingLayout() {
   if (!hbRingEl) return;
 
-  hbRingEl.classList.toggle('hb-activated', hbState.isActivated);
+  hbRingEl.classList.toggle('hb-blue-flame', hbState.flameState === 'blue');
+  hbRingEl.classList.toggle('hb-red-flame', hbState.flameState === 'red');
+  hbRingEl.classList.toggle('hb-activated', hbState.flameState === 'red');
   hbRingEl.style.setProperty('--hb-angle', `${hbState.visualAngle}deg`);
 
   if (hbState.sizeMode === 'small') {
@@ -361,24 +309,80 @@ function applyHeartbeatRingLayout() {
     hbRingEl.style.right = '';
     hbRingEl.style.bottom = '';
     hbRingEl.style.transform = '';
-    hbState.dockSide = chooseOptimalLargeSide();
     hbRingEl.classList.toggle('hb-side-right', hbState.dockSide === 'right');
     hbRingEl.classList.toggle('hb-side-left', hbState.dockSide === 'left');
   }
 
   if (hbRingLabelEl && hbRingSubEl) {
-    if (hbState.isActivated) {
-      const activeMod = DECK_MODULES[hbState.activeModuleIndex];
-      hbRingLabelEl.textContent = activeMod ? activeMod.id.toUpperCase() : 'ACTIVE';
-      hbRingSubEl.textContent = hbState.sizeMode === 'large' ? '3x SMALL | ROTATE' : '2x LARGE | DECK';
-    } else if (hbState.doubleClickPrimed) {
-      const turns = Math.min(2, Math.floor(hbState.rightTurnDegrees / 360));
-      hbRingLabelEl.textContent = `TURN ${turns}/2`;
-      hbRingSubEl.textContent = 'ROTATE RIGHT';
+    if (hbState.flameState === 'blue') {
+      const turns = Math.min(2, Math.floor(hbState.turnAccumDegrees / 360));
+      hbRingLabelEl.textContent = `BLUE ${turns}/2`;
+      hbRingSubEl.textContent = 'TURN 2x -> RED';
+    } else if (hbState.flameState === 'red') {
+      const mod = DECK_MODULES[hbState.activeModuleIndex];
+      hbRingLabelEl.textContent = 'RED CORE';
+      hbRingSubEl.textContent = mod ? mod.title.split(' ')[0] : 'ACTIVE';
     } else {
-      hbRingLabelEl.textContent = 'KEY';
-      hbRingSubEl.textContent = '2x CLK + 2R';
+      hbRingLabelEl.textContent = 'BOX 06';
+      hbRingSubEl.textContent = '2x TAP -> BLUE';
     }
+  }
+}
+
+function startIdleHeartbeatRingSpin() {
+  function tick() {
+    if (!hbState.isRotating) {
+      hbState.visualAngle = (hbState.visualAngle + 0.6) % 360000;
+      hbRingEl?.style.setProperty('--hb-angle', `${hbState.visualAngle}deg`);
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+function setCyberDeckViewMode(nextMode) {
+  deckState.mode = nextMode;
+  const bootView = document.getElementById('deckBootView');
+  const orbitView = document.getElementById('deckOrbitView');
+  const inspectorView = document.getElementById('deckInspectorView');
+
+  if (bootView) bootView.style.display = nextMode === 'boot' ? 'flex' : 'none';
+  if (orbitView) orbitView.style.display = nextMode === 'orbit' ? 'flex' : 'none';
+  if (inspectorView) inspectorView.style.display = nextMode === 'inspector' ? 'flex' : 'none';
+
+  updateDeckInspectorContent();
+  renderCyberDeckModules();
+}
+
+function updateDeckInspectorContent() {
+  const mod = DECK_MODULES[hbState.activeModuleIndex] || DECK_MODULES[0];
+  const labelEl = document.getElementById('deckActiveModuleLabel');
+  const codeEl = document.getElementById('deckPreviewCode');
+  const titleEl = document.getElementById('deckPreviewTitle');
+  const descEl = document.getElementById('deckPreviewDesc');
+  const vecEl = document.getElementById('deckVectorAngle');
+  const readoutEl = document.getElementById('deckDialReadout');
+  const subEl = document.getElementById('deckDialSub');
+  const footerRightEl = document.getElementById('deckFooterRight');
+
+  const normDeg = Math.round(((deckState.angle % 360) + 360) % 360);
+
+  if (labelEl) labelEl.textContent = `TARGET LOCK: ${mod.title} ${mod.code}`;
+  if (codeEl) codeEl.textContent = mod.code;
+  if (titleEl) titleEl.textContent = mod.title;
+  if (descEl) descEl.textContent = mod.desc;
+  if (vecEl) vecEl.textContent = `${normDeg}°`;
+
+  if (readoutEl) {
+    readoutEl.textContent = deckState.mode === 'boot' ? 'CORE' : mod.title.split(' ')[0];
+  }
+  if (subEl) {
+    if (deckState.mode === 'boot') subEl.textContent = `${normDeg}° // CLICK TO EXPAND`;
+    else if (deckState.mode === 'orbit') subEl.textContent = '1x INFO • 2x OPEN';
+    else subEl.textContent = '2x CLICK TO LAUNCH';
+  }
+  if (footerRightEl) {
+    footerRightEl.textContent = `TARGET: ${mod.title} • 2L=BACK / 2R=FWD STEP`;
   }
 }
 
@@ -391,51 +395,54 @@ function renderCyberDeckModules() {
   cyberDeckNodesEl.appendChild(track);
 
   const count = DECK_MODULES.length;
-  const radius = 92;
+  const radius = 66;
 
   DECK_MODULES.forEach((mod, idx) => {
     const node = document.createElement('div');
     const isSelected = idx === hbState.activeModuleIndex;
     node.className = `deck-module-node${isSelected ? ' active-node' : ''}`;
-    const angleDeg = (idx * (360 / count)) - 90 + (hbState.visualAngle * 0.25);
+    const angleDeg = (idx * (360 / count)) - 90 + deckState.angle;
     const rad = (angleDeg * Math.PI) / 180;
     const x = Math.cos(rad) * radius;
     const y = Math.sin(rad) * radius;
 
     node.style.transform = `translate(${x}px, ${y}px)${isSelected ? ' scale(1.16)' : ''}`;
-    node.innerHTML = `<span>${mod.title}</span>`;
-    node.addEventListener('click', () => {
+    node.innerHTML = `<span>${mod.title.replace(' ', '<br>')}</span>`;
+
+    // Single click on app node -> show info inspector
+    node.addEventListener('click', (e) => {
+      e.stopPropagation();
       hbState.activeModuleIndex = idx;
+      deckState.angle = -(idx * (360 / count));
       playCyberSound('tick');
-      renderCyberDeckModules();
-      triggerLayer3AppInfoOnMove(mod.id, true);
+      recordCommandStep(`INSPECT_${mod.id.toUpperCase()}`);
+      setCyberDeckViewMode('inspector');
     });
+
+    // Double click on app node -> open app directly
+    node.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      hbState.activeModuleIndex = idx;
+      deckState.angle = -(idx * (360 / count));
+      updateDeckInspectorContent();
+      launchSelectedCyberDeckModule();
+    });
+
     cyberDeckNodesEl.appendChild(node);
   });
-
-  const activeMod = DECK_MODULES[hbState.activeModuleIndex];
-  const labelEl = document.getElementById('deckActiveModuleLabel');
-  const titleEl = document.getElementById('deckPreviewTitle');
-  const descEl = document.getElementById('deckPreviewDesc');
-  const l3TextEl = document.getElementById('deckLayer3Text');
-  if (activeMod) {
-    if (labelEl) labelEl.textContent = `TARGET: ${activeMod.title}`;
-    if (titleEl) titleEl.textContent = activeMod.title;
-    if (descEl) descEl.textContent = activeMod.desc;
-    const l3Info = LAYER3_APP_PURPOSES[activeMod.id];
-    if (l3TextEl && l3Info) {
-      l3TextEl.textContent = `${l3Info.purpose} (${l3Info.moveHint})`;
-    }
-  }
 }
 
-function openHorizontalCyberDeck() {
+function openHorizontalCyberDeck(fromRedFlame = true) {
   if (!cyberDeckOverlayEl) return;
   cyberDeckOverlayEl.style.display = 'flex';
   cyberDeckOverlayEl.classList.add('force-horizontal-deck');
-  hbState.sizeMode = 'large';
+  if (fromRedFlame) {
+    hbState.flameState = 'red';
+    hbState.sizeMode = 'large';
+  }
+  setCyberDeckViewMode('boot');
   applyHeartbeatRingLayout();
-  renderCyberDeckModules();
+  recordCommandStep("OPEN_CYBER_DECK");
   playCyberSound('deck');
   pushSystemLog("CyberDeck", "HORIZONTAL_ACTIVE");
 }
@@ -444,6 +451,9 @@ function closeHorizontalCyberDeck() {
   if (!cyberDeckOverlayEl) return;
   cyberDeckOverlayEl.style.display = 'none';
   cyberDeckOverlayEl.classList.remove('force-horizontal-deck');
+  hbState.sizeMode = 'small';
+  applyHeartbeatRingLayout();
+  recordCommandStep("CLOSE_CYBER_DECK");
   pushSystemLog("CyberDeck", "CLOSED");
 }
 
@@ -451,6 +461,7 @@ function launchSelectedCyberDeckModule() {
   const mod = DECK_MODULES[hbState.activeModuleIndex];
   if (!mod) return;
   playCyberSound('activate');
+  recordCommandStep(`LAUNCH_${mod.id.toUpperCase()}`);
   closeHorizontalCyberDeck();
 
   if (mod.id === '3d') {
@@ -474,131 +485,163 @@ function launchSelectedCyberDeckModule() {
   }
 }
 
-function controlActiveScreenWithHeartbeatRotation(deltaDeg) {
+function stepCommandHistoryBack() {
+  if (commandHistoryIndex > 0) {
+    commandHistoryIndex -= 1;
+    const prevCmd = commandHistoryStack[commandHistoryIndex];
+    playCyberSound('resize');
+    pushSystemLog("StepBack", prevCmd);
+    if (prevCmd === "INSPECT_3D" || prevCmd === "INSPECT_YOUTUBE" || prevCmd === "INSPECT_HISTORY" || prevCmd === "INSPECT_MEMORY" || prevCmd === "INSPECT_GALLERY" || prevCmd === "INSPECT_JARVIS") {
+      if (cyberDeckOverlayEl?.style.display === 'flex') setCyberDeckViewMode('orbit');
+    } else if (prevCmd === "OPEN_CYBER_DECK") {
+      closeHorizontalCyberDeck();
+    } else if (document.getElementById('td-workspace-modal')?.style.display === 'flex') {
+      close3DWorkspaceModal();
+    } else if (document.getElementById('youtube-workspace-modal')?.style.display === 'flex') {
+      closeYouTubeModal();
+    } else if (historyModal && historyModal.style.display === 'block') {
+      historyModal.style.display = 'none';
+    } else if (memoryModal && memoryModal.style.display === 'block') {
+      memoryModal.style.display = 'none';
+    }
+  }
+}
+
+function stepCommandHistoryForward() {
+  if (commandHistoryIndex < commandHistoryStack.length - 1) {
+    commandHistoryIndex += 1;
+    const nextCmd = commandHistoryStack[commandHistoryIndex];
+    playCyberSound('tick');
+    pushSystemLog("StepFwd", nextCmd);
+    if (nextCmd === "OPEN_CYBER_DECK") {
+      openHorizontalCyberDeck(true);
+    } else if (nextCmd.startsWith("INSPECT_")) {
+      const id = nextCmd.replace("INSPECT_", "").toLowerCase();
+      const idx = DECK_MODULES.findIndex(m => m.id === id);
+      if (idx >= 0) {
+        hbState.activeModuleIndex = idx;
+        openHorizontalCyberDeck(true);
+        setCyberDeckViewMode('inspector');
+      }
+    } else if (nextCmd === "LAUNCH_3D") {
+      open3DWorkspaceModal();
+    } else if (nextCmd === "LAUNCH_YOUTUBE") {
+      openYouTubeModal();
+    } else if (nextCmd === "LAUNCH_HISTORY") {
+      renderHistoryFolders();
+      if (historyModal) historyModal.style.display = 'block';
+    } else if (nextCmd === "LAUNCH_MEMORY") {
+      renderCustomMemories();
+      if (memoryModal) memoryModal.style.display = 'block';
+    }
+  }
+}
+
+function processTwoTurnStepNavigation(deltaDeg, stateObj) {
+  // 2 turns = 720 degrees left (negative) -> 1 step back; 720 degrees right (positive) -> 1 step forward
+  if (deltaDeg < 0) {
+    stateObj.stepBackAccum += Math.abs(deltaDeg);
+    stateObj.stepForwardAccum = Math.max(0, stateObj.stepForwardAccum - Math.abs(deltaDeg) * 0.5);
+    if (stateObj.stepBackAccum >= 720) {
+      stateObj.stepBackAccum = 0;
+      stepCommandHistoryBack();
+    }
+  } else if (deltaDeg > 0) {
+    stateObj.stepForwardAccum += deltaDeg;
+    stateObj.stepBackAccum = Math.max(0, stateObj.stepBackAccum - deltaDeg * 0.5);
+    if (stateObj.stepForwardAccum >= 720) {
+      stateObj.stepForwardAccum = 0;
+      stepCommandHistoryForward();
+    }
+  }
+}
+
+function handleHeartbeatRotation(deltaDeg) {
   hbState.visualAngle += deltaDeg;
-  const step = Math.floor(Math.abs(hbState.visualAngle) / 30);
+  const step = Math.floor(Math.abs(hbState.visualAngle) / 36);
   if (step !== hbState.lastTickStep) {
     hbState.lastTickStep = step;
     playCyberSound('tick');
   }
 
-  // 1. Unlocking sequence: Double-clicked first + 2 full right rotations (720 deg)
-  if (hbState.doubleClickPrimed && !hbState.isActivated) {
-    if (deltaDeg > 0) {
-      hbState.rightTurnDegrees += deltaDeg;
-      if (hbState.rightTurnDegrees >= 720) {
-        hbState.rightTurnDegrees = 720;
-        hbState.isActivated = true;
-        hbState.doubleClickPrimed = false;
-        playCyberSound('activate');
-        if (navigator.vibrate) navigator.vibrate([70, 40, 90]);
-        pushSystemLog("HeartbeatRing", "ACTIVATED");
-        const activeMod = DECK_MODULES[hbState.activeModuleIndex];
-        if (activeMod) triggerLayer3AppInfoOnMove(activeMod.id, true);
-      }
+  // Before double-tap blue flame: do not trigger state changes on touch/rotate
+  if (hbState.flameState === 'idle') {
+    applyHeartbeatRingLayout();
+    return;
+  }
+
+  // Once blue flame is active: rotating 2 times (720 deg) switches to red flame & opens first screen
+  if (hbState.flameState === 'blue') {
+    hbState.turnAccumDegrees += Math.abs(deltaDeg);
+    if (hbState.turnAccumDegrees >= 720) {
+      hbState.turnAccumDegrees = 720;
+      hbState.flameState = 'red';
+      hbState.sizeMode = 'large';
+      playCyberSound('activate');
+      if (navigator.vibrate) navigator.vibrate([80, 40, 100]);
+      applyHeartbeatRingLayout();
+      openHorizontalCyberDeck(true);
+      return;
     }
     applyHeartbeatRingLayout();
     return;
   }
 
-  // 2. Active screen control across all screens & modals + Layer 3 Info on Move
-  const isCyberDeckOpen = cyberDeckOverlayEl && cyberDeckOverlayEl.style.display === 'flex';
+  // Once red flame is active: control active screen + 2-turn back/forward step navigation
+  const isDeckOpen = cyberDeckOverlayEl && cyberDeckOverlayEl.style.display === 'flex';
   const is3DOpen = document.getElementById('td-workspace-modal')?.style.display === 'flex';
-  const isYouTubeOpen = document.getElementById('youtube-workspace-modal')?.style.display === 'flex';
-  const isHistoryOpen = historyModal && historyModal.style.display === 'block';
-  const isMemoryOpen = memoryModal && memoryModal.style.display === 'block';
 
-  if (isCyberDeckOpen) {
-    if (Math.abs(deltaDeg) > 6) {
-      const dir = deltaDeg >= 0 ? 1 : -1;
-      hbState.activeModuleIndex = (hbState.activeModuleIndex + dir + DECK_MODULES.length) % DECK_MODULES.length;
-      const mod = DECK_MODULES[hbState.activeModuleIndex];
-      if (mod) triggerLayer3AppInfoOnMove(mod.id, true);
-    }
+  if (isDeckOpen) {
+    deckState.angle += deltaDeg;
+    const count = DECK_MODULES.length;
+    const norm = (((-deckState.angle) % 360) + 360) % 360;
+    hbState.activeModuleIndex = Math.round(norm / (360 / count)) % count;
+    updateDeckInspectorContent();
     renderCyberDeckModules();
   } else if (is3DOpen && desktopGroup3D) {
     if (selectedObject3D) {
       selectedObject3D.rotation.y += deltaDeg * 0.025;
-      const scaleChange = 1 + (deltaDeg * 0.004);
-      const nextScale = Math.max(0.25, Math.min(4.5, selectedObject3D.scale.x * scaleChange));
-      selectedObject3D.scale.set(nextScale, nextScale, nextScale);
     } else {
       desktopGroup3D.rotation.y += deltaDeg * 0.018;
-      if (camera3DBox) {
-        camera3DBox.position.z = Math.max(15, Math.min(110, camera3DBox.position.z - deltaDeg * 0.08));
-      }
     }
-    triggerLayer3AppInfoOnMove('3d', false);
-  } else if (isYouTubeOpen) {
-    const ytInput = document.getElementById('youtube-search-input');
-    if (ytInput && Math.abs(deltaDeg) > 12) {
-      const presets = [
-        "Iron Man HUD Technology",
-        "Cyberpunk Synthwave Mix",
-        "Quantum Computing Documentary",
-        "Lofi Hip Hop Radio"
-      ];
-      const idx = Math.abs(Math.floor(hbState.visualAngle / 90)) % presets.length;
-      ytInput.value = presets[idx];
-    }
-    triggerLayer3AppInfoOnMove('youtube', false);
-  } else if (isHistoryOpen && historyList) {
-    historyList.scrollTop += deltaDeg * 1.4;
-    triggerLayer3AppInfoOnMove('history', false);
-  } else if (isMemoryOpen && savedMemoryList) {
-    savedMemoryList.scrollTop += deltaDeg * 1.4;
-    triggerLayer3AppInfoOnMove('memory', false);
   } else if (chat) {
-    chat.scrollTop += deltaDeg * 1.4;
-    if (Math.abs(deltaDeg) > 10) {
-      const dir = deltaDeg >= 0 ? 1 : -1;
-      hbState.activeModuleIndex = (hbState.activeModuleIndex + dir + DECK_MODULES.length) % DECK_MODULES.length;
-      const mod = DECK_MODULES[hbState.activeModuleIndex];
-      if (mod) triggerLayer3AppInfoOnMove(mod.id, true);
-    }
+    chat.scrollTop += deltaDeg * 1.2;
   }
 
+  processTwoTurnStepNavigation(deltaDeg, hbState);
   applyHeartbeatRingLayout();
 }
 
-function handleHeartbeatRingMultiTap(count) {
-  if (count === 2) {
-    if (!hbState.isActivated) {
-      hbState.doubleClickPrimed = true;
-      hbState.rightTurnDegrees = 0;
-      playCyberSound('tick');
-      pushSystemLog("HeartbeatRing", "PRIMED_ROTATE_2R");
-      applyHeartbeatRingLayout();
-      return;
-    }
+function handleHeartbeatDoubleTap() {
+  if (hbState.flameState === 'idle') {
+    hbState.flameState = 'blue';
+    hbState.turnAccumDegrees = 0;
+    playCyberSound('activate');
+    if (navigator.vibrate) navigator.vibrate([60, 35, 60]);
+    pushSystemLog("Box06", "BLUE_FLAME_ON");
+    applyHeartbeatRingLayout();
+    return;
+  }
 
-    const isCyberDeckOpen = cyberDeckOverlayEl && cyberDeckOverlayEl.style.display === 'flex';
-    const is3DOpen = document.getElementById('td-workspace-modal')?.style.display === 'flex';
+  if (hbState.flameState === 'blue') {
+    // Allow direct open if already in blue flame and double-tapped again, or open deck
+    hbState.flameState = 'red';
+    hbState.sizeMode = 'large';
+    playCyberSound('deck');
+    applyHeartbeatRingLayout();
+    openHorizontalCyberDeck(true);
+    return;
+  }
 
-    if (hbState.sizeMode === 'small') {
-      hbState.sizeMode = 'large';
-      playCyberSound('resize');
-      openHorizontalCyberDeck();
-    } else if (isCyberDeckOpen) {
-      launchSelectedCyberDeckModule();
-    } else if (is3DOpen && workspaceFiles3D.length > 0) {
-      const activeLabels = workspaceFiles3D.filter(f => !f.isDeleted).map(f => f.label.toLowerCase());
-      const projLayer = document.getElementById('fullscreen-projection-layer');
-      if (projLayer && projLayer.style.display === 'flex') {
-        closeFullscreenProjection();
-      } else if (activeLabels.length > 0) {
-        handleFullscreenFiles(activeLabels, false);
-      }
+  // In red flame state: toggle open/expand Cyber-Deck
+  if (cyberDeckOverlayEl && cyberDeckOverlayEl.style.display === 'flex') {
+    if (deckState.mode === 'boot') {
+      setCyberDeckViewMode('orbit');
     } else {
-      openHorizontalCyberDeck();
+      launchSelectedCyberDeckModule();
     }
-  } else if (count >= 3) {
-    if (hbState.sizeMode === 'large') {
-      hbState.sizeMode = 'small';
-      playCyberSound('resize');
-      pushSystemLog("HeartbeatRing", "MINIMIZED_SMALL");
-      applyHeartbeatRingLayout();
-    }
+  } else {
+    openHorizontalCyberDeck(true);
   }
 }
 
@@ -612,73 +655,188 @@ function initHeartbeatCoreRing() {
     return (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
   };
 
-  let pointerDownPos = { x: 0, y: 0 };
-  let movedDuringPointer = false;
+  let downPos = { x: 0, y: 0 };
+  let moved = false;
 
   hbRingEl.addEventListener('pointerdown', (e) => {
     e.preventDefault();
     e.stopPropagation();
     hbState.isRotating = true;
-    movedDuringPointer = false;
-    pointerDownPos = { x: e.clientX, y: e.clientY };
+    moved = false;
+    downPos = { x: e.clientX, y: e.clientY };
     hbState.lastPointerAngle = getAngleFromCenter(e.clientX, e.clientY);
     hbRingEl.setPointerCapture(e.pointerId);
   });
 
   hbRingEl.addEventListener('pointermove', (e) => {
     if (!hbState.isRotating) return;
-    const dist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
-    if (dist > 6) movedDuringPointer = true;
-
-    const currentAngle = getAngleFromCenter(e.clientX, e.clientY);
+    if (Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y) > 5) {
+      moved = true;
+    }
+    const curAngle = getAngleFromCenter(e.clientX, e.clientY);
     if (hbState.lastPointerAngle !== null) {
-      let delta = currentAngle - hbState.lastPointerAngle;
+      let delta = curAngle - hbState.lastPointerAngle;
       if (delta > 180) delta -= 360;
       if (delta < -180) delta += 360;
-      if (Math.abs(delta) > 0.5) {
-        controlActiveScreenWithHeartbeatRotation(delta);
+      if (Math.abs(delta) > 0.4) {
+        handleHeartbeatRotation(delta);
       }
     }
-    hbState.lastPointerAngle = currentAngle;
+    hbState.lastPointerAngle = curAngle;
   });
 
-  const endHeartbeatPointer = (e) => {
+  const finishHbPointer = (e) => {
     if (hbRingEl.hasPointerCapture(e.pointerId)) {
       try { hbRingEl.releasePointerCapture(e.pointerId); } catch (err) {}
     }
     hbState.isRotating = false;
     hbState.lastPointerAngle = null;
 
-    if (!movedDuringPointer) {
+    if (!moved) {
       hbState.tapCount += 1;
       clearTimeout(hbState.tapTimer);
       hbState.tapTimer = setTimeout(() => {
-        const taps = hbState.tapCount;
+        const count = hbState.tapCount;
         hbState.tapCount = 0;
-        if (taps >= 2) {
-          handleHeartbeatRingMultiTap(taps);
+        if (count >= 2) {
+          handleHeartbeatDoubleTap();
         }
       }, 320);
     }
   };
 
-  hbRingEl.addEventListener('pointerup', endHeartbeatPointer);
-  hbRingEl.addEventListener('pointercancel', endHeartbeatPointer);
-
-  const closeDeckBtn = document.getElementById('close-cyber-deck-btn');
-  const launchDeckBtn = document.getElementById('deckLaunchSelectedBtn');
-  if (closeDeckBtn) closeDeckBtn.addEventListener('click', closeHorizontalCyberDeck);
-  if (launchDeckBtn) launchDeckBtn.addEventListener('click', launchSelectedCyberDeckModule);
+  hbRingEl.addEventListener('pointerup', finishHbPointer);
+  hbRingEl.addEventListener('pointercancel', finishHbPointer);
 
   window.addEventListener('resize', () => {
     if (hbState.sizeMode === 'small') positionHeartbeatRingInSlot();
   });
 
   applyHeartbeatRingLayout();
+  startIdleHeartbeatRingSpin();
+}
+
+function initDeckRotaryDialControls() {
+  if (!deckRotaryDialEl) return;
+
+  const getDialAngle = (clientX, clientY) => {
+    const rect = deckRotaryDialEl.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
+  };
+
+  let startX = 0;
+  let startY = 0;
+
+  deckRotaryDialEl.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    deckState.isRotating = true;
+    deckState.moved = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    deckState.lastPointerAngle = getDialAngle(e.clientX, e.clientY);
+    deckRotaryDialEl.setPointerCapture(e.pointerId);
+  });
+
+  deckRotaryDialEl.addEventListener('pointermove', (e) => {
+    if (!deckState.isRotating) return;
+    if (Math.hypot(e.clientX - startX, e.clientY - startY) > 5) {
+      deckState.moved = true;
+    }
+    const curAngle = getDialAngle(e.clientX, e.clientY);
+    if (deckState.lastPointerAngle !== null) {
+      let delta = curAngle - deckState.lastPointerAngle;
+      if (delta > 180) delta -= 360;
+      if (delta < -180) delta += 360;
+      if (Math.abs(delta) > 0.4) {
+        deckState.angle += delta;
+        deckRotaryDialEl.style.setProperty('--deck-dial-angle', `${deckState.angle}deg`);
+
+        if (deckState.mode !== 'boot') {
+          const count = DECK_MODULES.length;
+          const norm = (((-deckState.angle) % 360) + 360) % 360;
+          const nextIdx = Math.round(norm / (360 / count)) % count;
+          if (nextIdx !== hbState.activeModuleIndex) {
+            hbState.activeModuleIndex = nextIdx;
+            playCyberSound('tick');
+          }
+          updateDeckInspectorContent();
+          renderCyberDeckModules();
+        } else {
+          updateDeckInspectorContent();
+        }
+
+        processTwoTurnStepNavigation(delta, deckState);
+      }
+    }
+    deckState.lastPointerAngle = curAngle;
+  });
+
+  const endDeckDialPointer = (e) => {
+    if (deckRotaryDialEl.hasPointerCapture(e.pointerId)) {
+      try { deckRotaryDialEl.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+    deckState.isRotating = false;
+    deckState.lastPointerAngle = null;
+
+    if (!deckState.moved) {
+      deckState.tapCount += 1;
+      clearTimeout(deckState.tapTimer);
+      deckState.tapTimer = setTimeout(() => {
+        const taps = deckState.tapCount;
+        deckState.tapCount = 0;
+        if (taps === 1) {
+          // Single click on center dial: expand to orbit / show selected app info
+          playCyberSound('tick');
+          if (deckState.mode === 'boot') {
+            setCyberDeckViewMode('orbit');
+            recordCommandStep("EXPAND_ORBIT");
+          } else {
+            const mod = DECK_MODULES[hbState.activeModuleIndex];
+            recordCommandStep(`INSPECT_${mod.id.toUpperCase()}`);
+            setCyberDeckViewMode('inspector');
+          }
+        } else if (taps >= 2) {
+          // Double click on center dial: open selected app
+          if (deckState.mode === 'boot') {
+            setCyberDeckViewMode('orbit');
+          } else {
+            launchSelectedCyberDeckModule();
+          }
+        }
+      }, 280);
+    }
+  };
+
+  deckRotaryDialEl.addEventListener('pointerup', endDeckDialPointer);
+  deckRotaryDialEl.addEventListener('pointercancel', endDeckDialPointer);
+
+  document.getElementById('close-cyber-deck-btn')?.addEventListener('click', closeHorizontalCyberDeck);
+  document.getElementById('deckLaunchSelectedBtn')?.addEventListener('click', launchSelectedCyberDeckModule);
+  document.getElementById('deckTerminateInfoBtn')?.addEventListener('click', () => {
+    setCyberDeckViewMode('orbit');
+  });
+  document.getElementById('deckResetDialBtn')?.addEventListener('click', () => {
+    deckState.angle = 0;
+    hbState.activeModuleIndex = 0;
+    deckRotaryDialEl.style.setProperty('--deck-dial-angle', '0deg');
+    setCyberDeckViewMode('boot');
+  });
+  document.getElementById('deckSfxToggleBtn')?.addEventListener('click', (e) => {
+    cyberSfxEnabled = !cyberSfxEnabled;
+    e.currentTarget.textContent = cyberSfxEnabled ? 'SFX: ON' : 'SFX: OFF';
+  });
+
+  setInterval(() => {
+    const clk = document.getElementById('deckClock');
+    if (clk) clk.textContent = new Date().toTimeString().slice(0, 8);
+  }, 1000);
 }
 
 /* =========================================================
-   1.5. KEY RING (AUTO RIGHT SPIN -> 3 LEFT TURNS GLOW -> DRAG FULLSCREEN)
+   1.4. KEY RING (AUTO RIGHT SPIN -> 3 LEFT TURNS GLOW -> DRAG FULLSCREEN)
    ========================================================= */
 const keyDialPuckEl = document.getElementById('keyDialPuck');
 const keyRingStageEl = document.getElementById('keyRingStage');
@@ -953,7 +1111,7 @@ function initKeyRingInteractions() {
 }
 
 /* =========================================================
-   1.6. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL
+   1.5. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL
    ========================================================= */
 function ensureYouTubeModalExists() {
   let modal = document.getElementById('youtube-workspace-modal');
@@ -1005,8 +1163,8 @@ function openYouTubeModal(searchQuery = "") {
       const iframe = document.getElementById('youtube-frame');
       if (iframe) iframe.src = "https://www.youtube.com/embed/jfKfPfyJRdk?autoplay=1";
     }
+    recordCommandStep("LAUNCH_YOUTUBE");
     pushSystemLog("YouTube", "OPENED");
-    triggerLayer3AppInfoOnMove('youtube', true);
   }
 }
 
@@ -1045,7 +1203,7 @@ function loadYouTubeSearch(query) {
 }
 
 /* =========================================================
-   1.7. MAP POINTING PIN & BLUE HOLOGRAPHIC BLUEPRINT GENERATOR
+   1.6. MAP POINTING PIN & BLUE HOLOGRAPHIC BLUEPRINT GENERATOR
    ========================================================= */
 function createMapPinCanvas(fileLabel) {
   const canvas = document.createElement('canvas');
@@ -1103,7 +1261,7 @@ function attachMapPinToMesh(mesh, fileLabel) {
 }
 
 /* =========================================================
-   1.8. IN-APP 3D WORKSPACE MODAL & HOLOGRAM ENGINE
+   1.7. IN-APP 3D WORKSPACE MODAL & 3-LAYER RING ADJUSTMENT
    ========================================================= */
 let scene3DBox, camera3DBox, renderer3DBox, desktopGroup3D;
 let loadedObjects3D = [];
@@ -1132,6 +1290,30 @@ function playTrashSound3D() {
   } catch (e) {}
 }
 
+function adjustThreeLayerRingsToViewport(viewport) {
+  if (!viewport) return;
+  const minDim = Math.min(viewport.clientWidth || 300, viewport.clientHeight || 300);
+  const layer1 = document.getElementById('td-layer-ring-1');
+  const layer2 = document.getElementById('td-layer-ring-2');
+  const layer3 = document.getElementById('td-layer-ring-3');
+
+  if (layer1) {
+    const s1 = Math.max(120, Math.round(minDim * 0.72));
+    layer1.style.width = `${s1}px`;
+    layer1.style.height = `${s1}px`;
+  }
+  if (layer2) {
+    const s2 = Math.max(92, Math.round(minDim * 0.54));
+    layer2.style.width = `${s2}px`;
+    layer2.style.height = `${s2}px`;
+  }
+  if (layer3) {
+    const s3 = Math.max(66, Math.round(minDim * 0.36));
+    layer3.style.width = `${s3}px`;
+    layer3.style.height = `${s3}px`;
+  }
+}
+
 function ensure3DModalExists() {
   let modal = document.getElementById('td-workspace-modal');
   if (!modal) {
@@ -1141,12 +1323,16 @@ function ensure3DModalExists() {
 
     modal.innerHTML = `
       <div style="width:96%; max-width:1100px; height:92vh; background:#000f1e; border:2px solid #00ffff; box-shadow:0 0 40px rgba(0,255,255,0.7); display:flex; flex-direction:column; border-radius:12px; overflow:hidden; font-family:monospace; position:relative;">
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 18px; background:rgba(0,30,60,0.95); border-bottom:1px solid #00ffff; z-index:10;">
-          <span id="td-hud-status" style="color:#00ffff; font-weight:bold; font-size:12px; letter-spacing:1px;">3D WORKSPACE EXPANDED (Heartbeat Ring Rotate = Orbit/Zoom | 1-Finger Rotate)</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(0,30,60,0.95); border-bottom:1px solid #00ffff; z-index:10;">
+          <span id="td-hud-status" style="color:#00ffff; font-weight:bold; font-size:12px; letter-spacing:1px;">3D WORKSPACE // 3-LAYER RING MATRIX</span>
           <button id="close-td-box" style="background:none; border:none; color:#ff3366; font-size:20px; font-weight:bold; cursor:pointer;">✕</button>
         </div>
 
-        <div id="td-box-viewport" style="flex:1; width:100%; background:#010814; position:relative; overflow:hidden;"></div>
+        <div id="td-box-viewport" style="flex:1; width:100%; background:#010814; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+          <div id="td-layer-ring-1" style="position:absolute; border-radius:50%; border:2px dashed rgba(0,255,255,0.55); pointer-events:none; z-index:2; animation:spinClockwise 18s linear infinite;"></div>
+          <div id="td-layer-ring-2" style="position:absolute; border-radius:50%; border:1.5px solid rgba(0,255,157,0.5); border-left-color:transparent; border-right-color:transparent; pointer-events:none; z-index:2; animation:spinCounter 11s linear infinite;"></div>
+          <div id="td-layer-ring-3" style="position:absolute; border-radius:50%; border:1.5px dotted rgba(0,243,255,0.75); pointer-events:none; z-index:2; animation:spinClockwise 6s linear infinite;"></div>
+        </div>
 
         <div id="fullscreen-projection-layer" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(1,8,20,0.96); z-index:50; flex-direction:column; justify-content:space-between; padding:18px; box-sizing:border-box;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #00ffff; padding-bottom:10px;">
@@ -1184,18 +1370,30 @@ function ensure3DModalExists() {
       document.getElementById('td-file-input').click();
     });
     document.getElementById('td-file-input').addEventListener('change', handle3DBlueprintUpload);
+
+    window.addEventListener('resize', () => {
+      const vp = document.getElementById('td-box-viewport');
+      adjustThreeLayerRingsToViewport(vp);
+      if (renderer3DBox && camera3DBox && vp && vp.clientWidth > 0 && vp.clientHeight > 0) {
+        camera3DBox.aspect = vp.clientWidth / vp.clientHeight;
+        camera3DBox.updateProjectionMatrix();
+        renderer3DBox.setSize(vp.clientWidth, vp.clientHeight);
+      }
+    });
   }
 }
 
 function open3DWorkspaceModal() {
   ensure3DModalExists();
   const modal = document.getElementById('td-workspace-modal');
+  const vp = document.getElementById('td-box-viewport');
   if (modal) {
     modal.style.display = 'flex';
+    adjustThreeLayerRingsToViewport(vp);
     hologramRiseProgress = 0;
     init3DBoxScene();
+    recordCommandStep("LAUNCH_3D");
     pushSystemLog("3D Table", "ACTIVE");
-    triggerLayer3AppInfoOnMove('3d', true);
   }
 }
 
@@ -1209,7 +1407,13 @@ function close3DWorkspaceModal() {
 
 function init3DBoxScene() {
   const viewport = document.getElementById('td-box-viewport');
-  if (!viewport || viewport.hasChildNodes() || typeof THREE === 'undefined') return;
+  if (!viewport || typeof THREE === 'undefined') return;
+  adjustThreeLayerRingsToViewport(viewport);
+
+  if (renderer3DBox && renderer3DBox.domElement) {
+    renderer3DBox.setSize(viewport.clientWidth, viewport.clientHeight);
+    return;
+  }
 
   scene3DBox = new THREE.Scene();
   scene3DBox.background = new THREE.Color(0x010814);
@@ -1221,6 +1425,8 @@ function init3DBoxScene() {
   renderer3DBox = new THREE.WebGLRenderer({ antialias: true });
   renderer3DBox.setSize(viewport.clientWidth, viewport.clientHeight);
   renderer3DBox.setPixelRatio(window.devicePixelRatio);
+  renderer3DBox.domElement.style.position = 'relative';
+  renderer3DBox.domElement.style.zIndex = '1';
   viewport.appendChild(renderer3DBox.domElement);
 
   scene3DBox.add(new THREE.AmbientLight(0x00ffff, 0.8));
@@ -1431,7 +1637,7 @@ function updateAll3DFilesMode(makeNormal) {
 }
 
 /* =========================================================
-   1.9. FULLSCREEN PROJECTION LAYER & 3D TOUCH CONTROLS
+   1.8. FULLSCREEN PROJECTION LAYER & 3D TOUCH CONTROLS
    ========================================================= */
 let activeFullscreenFilesState = [];
 let fullscreenFilesNaturalMap = {};
@@ -1601,8 +1807,7 @@ function setup3DInteractions(viewport) {
       selectedObject3D = intersects[0].object;
       const outline = selectedObject3D.getObjectByName("outline");
       if (outline) outline.visible = true;
-      if (hud) hud.innerText = "OBJECT MODE (Heartbeat Ring Rotate = Spin/Zoom | 1-Finger Place)";
-      triggerLayer3AppInfoOnMove('3d', false);
+      if (hud) hud.innerText = "OBJECT MODE (1-Finger Place | 2-Finger Scale)";
     } else {
       deselect3D();
     }
@@ -1614,7 +1819,7 @@ function setup3DInteractions(viewport) {
       if (outline) outline.visible = false;
       selectedObject3D = null;
       const hud = document.getElementById('td-hud-status');
-      if (hud) hud.innerText = "3D WORKSPACE (Heartbeat Ring Rotate = Orbit/Zoom | 1-Finger Rotate)";
+      if (hud) hud.innerText = "3D WORKSPACE // 3-LAYER RING MATRIX";
     }
   }
 
@@ -1662,7 +1867,6 @@ function setup3DInteractions(viewport) {
         desktopGroup3D.rotation.x += dy * 0.008;
         desktopGroup3D.rotation.x = Math.max(-Math.PI / 12, Math.min(Math.PI / 2, desktopGroup3D.rotation.x));
       }
-      triggerLayer3AppInfoOnMove('3d', false);
     } else if (curTouches.length === 2) {
       const currentPinchDist = getPinchDist(curTouches[0], curTouches[1]);
       if (initialPinchDist) {
@@ -1676,7 +1880,6 @@ function setup3DInteractions(viewport) {
           initialPinchDist = currentPinchDist;
         }
       }
-      triggerLayer3AppInfoOnMove('3d', false);
     }
     touches3D = curTouches;
   }, { passive: false });
@@ -1704,7 +1907,6 @@ function setup3DInteractions(viewport) {
       desktopGroup3D.rotation.y += dx * 0.008;
       desktopGroup3D.rotation.x += dy * 0.008;
     }
-    triggerLayer3AppInfoOnMove('3d', false);
     prevMousePos3D = { x: e.clientX, y: e.clientY };
   });
 
@@ -1784,6 +1986,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initCircularVibrationGraph();
   initKeyRingInteractions();
   initHeartbeatCoreRing();
+  initDeckRotaryDialControls();
   initMicLinkGestureControls();
   ensureJarvisModeAlwaysOn();
   updateTelemetryCounters();
@@ -2152,23 +2355,23 @@ function handleHardcoded(text) {
   if (query.includes("open memory") || query.includes("memory")) {
     renderCustomMemories();
     if (memoryModal) memoryModal.style.display = 'block';
+    recordCommandStep("LAUNCH_MEMORY");
     pushSystemLog("Memory", "OPENED");
-    triggerLayer3AppInfoOnMove('memory', true);
     return "Opening your Memory Box, Boss.";
   }
 
   if (query.includes("open gallery") || query.includes("gallery")) {
     if (imgInput) { imgInput.removeAttribute('capture'); imgInput.click(); }
+    recordCommandStep("LAUNCH_GALLERY");
     pushSystemLog("Gallery", "OPENED");
-    triggerLayer3AppInfoOnMove('gallery', true);
     return "Opening Gallery to attach image, Boss.";
   }
 
   if (query.includes("open history") || query.includes("history")) {
     renderHistoryFolders();
     if (historyModal) historyModal.style.display = 'block';
+    recordCommandStep("LAUNCH_HISTORY");
     pushSystemLog("History", "OPENED");
-    triggerLayer3AppInfoOnMove('history', true);
     return "Opening History Folders, Boss.";
   }
 
@@ -2424,6 +2627,7 @@ async function handleUserCommand() {
   if (!text && !pendingImageData) return;
 
   totalAccessLogs += 1;
+  recordCommandStep(text || "IMAGE_CMD");
   const currentImageData = pendingImageData;
   const timeStr = format12HourTime(new Date());
 
