@@ -90,15 +90,6 @@ const customMemoryInput = document.getElementById('custom-memory-input');
 const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
-// Bottom-Left PROC_RING & Real Modules Frame Elements
-const procRingTriggerEl = document.getElementById('procRingTrigger');
-const procRingDialEl = document.getElementById('procRingDial');
-const ringSpinBadgeEl = document.getElementById('ringSpinBadge');
-const ringBilingualInfoEl = document.getElementById('ringBilingualInfo');
-const realModulesFrameEl = document.getElementById('realModulesFrame');
-const realModulesBodyEl = document.getElementById('realModulesBody');
-const closeRealModulesFrameEl = document.getElementById('closeRealModulesFrame');
-
 /* =========================================================
    1.1. SYSTEM LOGS & TELEMETRY COUNTERS
    ========================================================= */
@@ -128,205 +119,647 @@ function updateTelemetryCounters() {
 }
 
 /* =========================================================
-   1.1B. BOTTOM-LEFT PROC_RING (2X RIGHT SPIN -> BLUE FLAME -> 1X INFO / 2X OPEN FRAME)
+   1.1B. PROC_RING (BOTTOM-LEFT): 2 RIGHT TURNS -> BLUE FLAME -> 2 DOUBLE CLICKS OPENS CYBER-STARK
    ========================================================= */
+const decryptPanelEl = document.querySelector('.decrypt-panel');
+const progressRingWrapperEl = document.querySelector('.progress-ring-wrapper');
+const progressRingEl = document.querySelector('.progress-ring');
+const procModeEl = document.getElementById('procMode');
 const REQUIRED_RIGHT_DEGREES = 360 * 2; // 2 clockwise (right) turns
 
 let procRingState = {
   rightAccumulated: 0,
-  manualAngle: 0,
+  visualAngle: 0,
   lastPointerAngle: null,
-  isSpinningRight: false,
-  isBlueFlameLit: false,
-  movedDuringDrag: false,
-  lastTapTime: 0
+  isTurningRight: false,
+  isBlueFlame: false,
+  doubleClickCount: 0,
+  lastClickTime: 0
 };
 
-function updateProcRingHUD() {
-  const turnsDone = Math.min(2, Math.floor(procRingState.rightAccumulated / 360));
-  if (procRingTriggerEl) {
-    procRingTriggerEl.classList.toggle('blue-flame-active', procRingState.isBlueFlameLit);
-  }
-  if (procRingDialEl) {
-    procRingDialEl.style.transform = `rotate(${procRingState.manualAngle}deg)`;
-  }
-  if (ringSpinBadgeEl) {
-    ringSpinBadgeEl.textContent = procRingState.isBlueFlameLit ? "BLUE FLAME" : `${turnsDone}/2 R`;
-  }
-}
-
 function getPointerAngleFromProcRing(clientX, clientY) {
-  if (!procRingTriggerEl) return 0;
-  const rect = procRingTriggerEl.getBoundingClientRect();
+  const target = progressRingWrapperEl || decryptPanelEl;
+  if (!target) return 0;
+  const rect = target.getBoundingClientRect();
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
   return (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
 }
 
-function showBilingualRingInfo() {
-  if (ringBilingualInfoEl) {
-    ringBilingualInfoEl.classList.add('visible');
+function applyBlueFlameVisuals() {
+  if (decryptPanelEl) {
+    decryptPanelEl.style.borderColor = '#00f0ff';
+    decryptPanelEl.style.boxShadow = '0 0 22px rgba(0, 240, 255, 0.85), inset 0 0 16px rgba(0, 255, 157, 0.25)';
+    decryptPanelEl.style.background = 'linear-gradient(135deg, rgba(2, 24, 42, 0.95), rgba(0, 48, 72, 0.9))';
   }
-  const infoMsg = "తెలుగు: PROC_RING ని కుడివైపు 2 సార్లు తిప్పితే బ్లూ ఫ్లేమ్ వెలుగుతుంది; 2 సార్లు క్లిక్ చేస్తే 3D, History, YouTube, Memory ఫ్రేమ్ ఓపెన్ అవుతుంది. | English: Turn right twice to ignite the blue flame; double-click to open the 3D, History, YouTube, and Memory frame.";
-  addMessage(`Jarvis: ${infoMsg}`, 'ai');
-  currentSession.messages.push({ role: 'model', text: infoMsg, time: format12HourTime(new Date()) });
-  saveSessions();
-  pushSystemLog("PROC_RING", "INFO_SHOWN");
-}
-
-function renderRealModuleTab(moduleKey) {
-  if (!realModulesBodyEl) return;
-
-  document.querySelectorAll('.rm-tab').forEach(btn => {
-    btn.classList.toggle('active', btn.getAttribute('data-module') === moduleKey);
-  });
-
-  if (moduleKey === '3d') {
-    const activeCount = workspaceFiles3D.filter(f => !f.isDeleted).length;
-    realModulesBodyEl.innerHTML = `
-      <div style="margin-bottom:4px; color:#00d8ff; font-weight:bold;">3D HOLOGRAPHIC WORKSPACE</div>
-      <div style="margin-bottom:6px;">Active 3D Objects: <b>${activeCount}</b> • Supports 1-finger rotate, 2-finger move/zoom, and blueprint projection.</div>
-      <button type="button" id="rmLaunch3DBtn" style="background:#00d8ff; color:#00101d; border:none; padding:4px 8px; border-radius:2px; font-weight:bold; cursor:pointer; font-size:0.48rem;">LAUNCH 3D TABLE</button>
-    `;
-    const launchBtn = document.getElementById('rmLaunch3DBtn');
-    if (launchBtn) launchBtn.addEventListener('click', open3DWorkspaceModal);
-  } else if (moduleKey === 'history') {
-    const totalSessions = SESSIONS.length + (currentSession.messages.length > 0 ? 1 : 0);
-    realModulesBodyEl.innerHTML = `
-      <div style="margin-bottom:4px; color:#00d8ff; font-weight:bold;">SESSION HISTORY ARCHIVE</div>
-      <div style="margin-bottom:6px;">Saved Sessions: <b>${totalSessions}</b> • Current Messages: <b>${currentSession.messages.length}</b>.</div>
-      <button type="button" id="rmLaunchHistoryBtn" style="background:#00d8ff; color:#00101d; border:none; padding:4px 8px; border-radius:2px; font-weight:bold; cursor:pointer; font-size:0.48rem;">OPEN HISTORY LOG</button>
-    `;
-    const histBtn = document.getElementById('rmLaunchHistoryBtn');
-    if (histBtn) {
-      histBtn.addEventListener('click', () => {
-        renderHistoryFolders();
-        if (historyModal) historyModal.style.display = 'block';
-      });
-    }
-  } else if (moduleKey === 'youtube') {
-    realModulesBodyEl.innerHTML = `
-      <div style="margin-bottom:4px; color:#00d8ff; font-weight:bold;">YOUTUBE HOLOGRAPHIC STREAM</div>
-      <div style="margin-bottom:6px;">Stream videos, search queries, or play music directly inside the holographic frame.</div>
-      <button type="button" id="rmLaunchYouTubeBtn" style="background:#00d8ff; color:#00101d; border:none; padding:4px 8px; border-radius:2px; font-weight:bold; cursor:pointer; font-size:0.48rem;">OPEN YOUTUBE STREAM</button>
-    `;
-    const ytBtn = document.getElementById('rmLaunchYouTubeBtn');
-    if (ytBtn) ytBtn.addEventListener('click', () => openYouTubeModal());
-  } else if (moduleKey === 'memory') {
-    const memCount = getCustomMemories().length;
-    realModulesBodyEl.innerHTML = `
-      <div style="margin-bottom:4px; color:#00d8ff; font-weight:bold;">LOCAL MEMORY VAULT</div>
-      <div style="margin-bottom:6px;">Stored Custom Memories: <b>${memCount}</b> • Search, add notes, or manage saved details.</div>
-      <button type="button" id="rmLaunchMemoryBtn" style="background:#00d8ff; color:#00101d; border:none; padding:4px 8px; border-radius:2px; font-weight:bold; cursor:pointer; font-size:0.48rem;">OPEN MEMORY VAULT</button>
-    `;
-    const memBtn = document.getElementById('rmLaunchMemoryBtn');
-    if (memBtn) {
-      memBtn.addEventListener('click', () => {
-        renderCustomMemories();
-        if (memoryModal) memoryModal.style.display = 'block';
-      });
-    }
+  if (progressRingEl) {
+    progressRingEl.style.borderColor = 'rgba(0, 240, 255, 0.25)';
+    progressRingEl.style.borderTopColor = '#00f0ff';
+    progressRingEl.style.borderRightColor = '#00ff9d';
+    progressRingEl.style.boxShadow = '0 0 18px #00f0ff, inset 0 0 10px #00ff9d';
+  }
+  if (procModeEl) {
+    procModeEl.textContent = 'BLUE-FLAME';
+    procModeEl.style.color = '#00f0ff';
   }
 }
 
-function openRealModulesFrame(defaultTab = '3d') {
-  if (!realModulesFrameEl) return;
-  realModulesFrameEl.classList.add('open');
-  renderRealModuleTab(defaultTab);
-  pushSystemLog("BlueFlameFrame", `OPENED_${defaultTab.toUpperCase()}`);
-}
+function initProcRingBlueFlameTrigger() {
+  if (!decryptPanelEl) return;
 
-function closeRealModulesFrame() {
-  if (!realModulesFrameEl) return;
-  realModulesFrameEl.classList.remove('open');
-  pushSystemLog("BlueFlameFrame", "CLOSED");
-}
+  const targetEl = progressRingWrapperEl || decryptPanelEl;
 
-function initProcRingInteractions() {
-  if (!procRingTriggerEl) return;
-
-  procRingTriggerEl.addEventListener('pointerdown', (e) => {
+  targetEl.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
-    procRingState.isSpinningRight = true;
-    procRingState.movedDuringDrag = false;
+    procRingState.isTurningRight = true;
     procRingState.lastPointerAngle = getPointerAngleFromProcRing(e.clientX, e.clientY);
-    try { procRingTriggerEl.setPointerCapture(e.pointerId); } catch (err) {}
   });
 
-  procRingTriggerEl.addEventListener('pointermove', (e) => {
-    if (!procRingState.isSpinningRight) return;
-    const curAngle = getPointerAngleFromProcRing(e.clientX, e.clientY);
+  window.addEventListener('pointermove', (e) => {
+    if (!procRingState.isTurningRight || procRingState.isBlueFlame) return;
+    const currentAngle = getPointerAngleFromProcRing(e.clientX, e.clientY);
     if (procRingState.lastPointerAngle !== null) {
-      let delta = curAngle - procRingState.lastPointerAngle;
+      let delta = currentAngle - procRingState.lastPointerAngle;
       if (delta > 180) delta -= 360;
       if (delta < -180) delta += 360;
 
-      if (Math.abs(delta) > 1.5) {
-        procRingState.movedDuringDrag = true;
-      }
-
-      procRingState.manualAngle += delta;
-
       // Clockwise (right) rotation produces positive delta
-      if (delta > 0 && !procRingState.isBlueFlameLit) {
+      if (delta > 0) {
         procRingState.rightAccumulated += delta;
+        procRingState.visualAngle = (procRingState.visualAngle + delta) % 360000;
+        if (progressRingEl) {
+          progressRingEl.style.transform = `rotate(${procRingState.visualAngle}deg)`;
+        }
         if (procRingState.rightAccumulated >= REQUIRED_RIGHT_DEGREES) {
           procRingState.rightAccumulated = REQUIRED_RIGHT_DEGREES;
-          procRingState.isBlueFlameLit = true;
-          pushSystemLog("PROC_RING", "BLUE_FLAME_ON");
-          if (navigator.vibrate) navigator.vibrate([60, 30, 90]);
+          procRingState.isBlueFlame = true;
+          procRingState.isTurningRight = false;
+          applyBlueFlameVisuals();
+          pushSystemLog("ProcRing", "BLUE_FLAME_READY");
+          if (navigator.vibrate) navigator.vibrate([60, 40, 60]);
         }
       }
-      updateProcRingHUD();
     }
-    procRingState.lastPointerAngle = curAngle;
+    procRingState.lastPointerAngle = currentAngle;
   });
 
-  const endProcSpin = (e) => {
-    if (procRingTriggerEl.hasPointerCapture(e.pointerId)) {
-      try { procRingTriggerEl.releasePointerCapture(e.pointerId); } catch (err) {}
-    }
-    procRingState.isSpinningRight = false;
+  const endProcTurn = () => {
+    procRingState.isTurningRight = false;
     procRingState.lastPointerAngle = null;
   };
+  window.addEventListener('pointerup', endProcTurn);
+  window.addEventListener('pointercancel', endProcTurn);
 
-  procRingTriggerEl.addEventListener('pointerup', endProcSpin);
-  procRingTriggerEl.addEventListener('pointercancel', endProcSpin);
-
-  procRingTriggerEl.addEventListener('click', (e) => {
+  // Track 2 double-clicks when in Blue Flame mode
+  decryptPanelEl.addEventListener('dblclick', (e) => {
     e.stopPropagation();
-    if (procRingState.movedDuringDrag) return;
+    if (!procRingState.isBlueFlame) return;
+
     const now = Date.now();
-    if (now - procRingState.lastTapTime < 350) {
-      procRingState.lastTapTime = 0;
-      openRealModulesFrame('3d');
+    if (now - procRingState.lastClickTime <= 1200) {
+      procRingState.doubleClickCount += 1;
+    } else {
+      procRingState.doubleClickCount = 1;
+    }
+    procRingState.lastClickTime = now;
+
+    pushSystemLog("BlueFlame", `DBL_CLICK_${procRingState.doubleClickCount}/2`);
+
+    if (procRingState.doubleClickCount >= 2) {
+      procRingState.doubleClickCount = 0;
+      openCyberStarkModal();
+    }
+  });
+}
+
+/* =========================================================
+   1.1C. CYBER-STARK HOLO-OS MODAL ENGINE (MODEL FRAMEWORK)
+   ========================================================= */
+let cyberStarkInitialized = false;
+
+function openCyberStarkModal() {
+  const csModal = document.getElementById('cyberStarkModal');
+  if (!csModal) return;
+
+  // Close current interface / active modals cleanly before opening new interface
+  if (typeof close3DWorkspaceModal === 'function') close3DWorkspaceModal();
+  if (typeof closeFullscreenProjection === 'function') closeFullscreenProjection();
+  if (typeof closeYouTubeModal === 'function') closeYouTubeModal();
+  if (historyModal) historyModal.style.display = 'none';
+  if (memoryModal) memoryModal.style.display = 'none';
+
+  csModal.classList.add('open');
+  csModal.setAttribute('aria-hidden', 'false');
+
+  if (!cyberStarkInitialized) {
+    initCyberStarkFramework(csModal);
+    cyberStarkInitialized = true;
+  } else if (typeof csModal._resizeParticles === 'function') {
+    csModal._resizeParticles();
+  }
+
+  pushSystemLog("HoloOS", "CYBER_STARK_OPEN");
+  if (typeof speak === 'function') {
+    speak("Opening Cyber-Stark interface, Boss.");
+  }
+}
+
+function closeCyberStarkModal() {
+  const csModal = document.getElementById('cyberStarkModal');
+  if (!csModal) return;
+  csModal.classList.remove('open');
+  csModal.setAttribute('aria-hidden', 'true');
+  pushSystemLog("HoloOS", "CYBER_STARK_CLOSED");
+}
+
+function initCyberStarkFramework(root) {
+  const CyberAudio = (() => {
+    let ctx = null;
+    let sfxOn = true;
+
+    function init() {
+      if (!sfxOn) return null;
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) ctx = new AC();
+      }
+      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+      return ctx;
+    }
+
+    function tone(freq = 820, dur = 0.06, wave = 'sine', gainPeak = 0.12) {
+      const a = init();
+      if (!a) return;
+      const t = a.currentTime;
+      const osc = a.createOscillator();
+      const g = a.createGain();
+      osc.type = wave;
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.38, t + dur);
+
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(gainPeak, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+
+      osc.connect(g);
+      g.connect(a.destination);
+      osc.start(t);
+      osc.stop(t + dur + 0.01);
+    }
+
+    function powerSweep(open = true) {
+      const a = init();
+      if (!a) return;
+      const t = a.currentTime;
+      const osc = a.createOscillator();
+      const filter = a.createBiquadFilter();
+      const g = a.createGain();
+
+      osc.type = 'sawtooth';
+      filter.type = 'bandpass';
+      filter.Q.value = 4;
+      filter.frequency.setValueAtTime(open ? 260 : 1500, t);
+      filter.frequency.exponentialRampToValueAtTime(open ? 1600 : 240, t + 0.28);
+
+      osc.frequency.setValueAtTime(open ? 190 : 580, t);
+      osc.frequency.exponentialRampToValueAtTime(open ? 720 : 170, t + 0.28);
+
+      g.gain.setValueAtTime(0.001, t);
+      g.gain.linearRampToValueAtTime(0.12, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0008, t + 0.29);
+
+      osc.connect(filter);
+      filter.connect(g);
+      g.connect(a.destination);
+      osc.start(t);
+      osc.stop(t + 0.3);
+    }
+
+    function gearTick(step = 0) {
+      tone(540 + (step % 6) * 75, 0.032, 'triangle', 0.075);
+    }
+
+    function executeChime() {
+      const a = init();
+      if (!a) return;
+      [659.25, 987.77, 1318.51].forEach((f, idx) => {
+        const t = a.currentTime + idx * 0.05;
+        const osc = a.createOscillator();
+        const g = a.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, t);
+        g.gain.setValueAtTime(0.001, t);
+        g.gain.linearRampToValueAtTime(0.11, t + 0.012);
+        g.gain.exponentialRampToValueAtTime(0.0008, t + 0.14);
+        osc.connect(g);
+        g.connect(a.destination);
+        osc.start(t);
+        osc.stop(t + 0.15);
+      });
+    }
+
+    return {
+      tone,
+      powerSweep,
+      gearTick,
+      executeChime,
+      setOn(val) { sfxOn = val; },
+      isOn() { return sfxOn; }
+    };
+  })();
+
+  const APPS = [
+    {
+      code: 'SYS_01',
+      name: 'AI',
+      tag: 'Neural Core',
+      purpose: 'AI (Artificial Intelligence) యాప్ రోజువారీ పనులను ఆటోమేట్ చేయడానికి, ప్రశ్నలకు తక్షణ సమాధానాలు ఇవ్వడానికి మరియు వాయిస్/టెక్స్ట్ కమాండ్లతో సిస్టమ్‌ను కంట్రోల్ చేయడానికి ఉపయోగపడుతుంది.'
+    },
+    {
+      code: 'SOC_02',
+      name: 'Instagram',
+      tag: 'Visual Feed',
+      purpose: 'Instagram అనేది ఫోటోలు, రీల్స్, వీడియోలు మరియు స్టోరీలను షేర్ చేయడానికి, క్రియేటర్స్ మరియు ఫ్రెండ్స్‌తో కనెక్ట్ అవ్వడానికి ఉపయోగపడే సోషల్ మీడియా యాప్.'
+    },
+    {
+      code: 'VID_03',
+      name: 'YouTube',
+      tag: 'Stream Hub',
+      purpose: 'YouTube అనేది ఎడ్యుకేషనల్ వీడియోలు, కోడింగ్ ట్యుటోరియల్స్, సినిమాలు, షార్ట్స్ మరియు లైవ్ స్ట్రీమ్స్ చూడటానికి అలాగే మన వీడియోలను అప్‌లోడ్ చేయడానికి ఉపయోగపడుతుంది.'
+    },
+    {
+      code: 'COM_04',
+      name: 'WhatsApp',
+      tag: 'Encrypted Chat',
+      purpose: 'WhatsApp అనేది వేగవంతమైన టెక్స్ట్ మెసేజింగ్, వాయిస్/వీడియో కాల్స్ మరియు డాక్యుమెంట్స్ లేదా మీడియా ఫైల్స్ పంపుకోవడానికి ఉపయోగపడే కమ్యూనికేషన్ యాప్.'
+    },
+    {
+      code: 'NET_05',
+      name: 'Facebook',
+      tag: 'Global Grid',
+      purpose: 'Facebook అనేది స్నేహితులు, కుటుంబ సభ్యులు మరియు కమ్యూనిటీ గ్రూపులతో పోస్టులు, ఫోటోలు, ఈవెంట్స్ మరియు వార్తలు పంచుకోవడానికి ఉపయోగపడే సోషల్ నెట్‌వర్క్.'
+    },
+    {
+      code: 'GEM_06',
+      name: 'AI Gemini',
+      tag: 'Google AI Engine',
+      purpose: 'AI Gemini అనేది కోడింగ్, రీసెర్చ్, ప్రాబ్లమ్ సాల్వింగ్, కంటెంట్ క్రియేషన్ మరియు మల్టీమోడల్ టాస్క్‌లలో అడ్వాన్స్‌డ్ సహాయం అందించే Google AI అసిస్టెంట్.'
+    }
+  ];
+
+  const cyberCursor = root.querySelector('#cyberCursor');
+  const parallaxLayer = root.querySelector('#parallaxLayer');
+  const particleCanvas = root.querySelector('#particleCanvas');
+  const resourceCanvas = root.querySelector('#resourceCanvas');
+  const loadPct = root.querySelector('#loadPct');
+  const alertToast = root.querySelector('#alertToast');
+  const alertHead = root.querySelector('#alertHead');
+  const alertBody = root.querySelector('#alertBody');
+  const hexStream = root.querySelector('#hexStream');
+  const terminalIntro = root.querySelector('#terminalIntro');
+  const ringZone = root.querySelector('#ringZone');
+  const orbitTrack = root.querySelector('#orbitTrack');
+  const targetTitle = root.querySelector('#targetTitle');
+  const targetSub = root.querySelector('#targetSub');
+  const cyberDial = root.querySelector('#cyberDial');
+  const dialRotorOuter = root.querySelector('#dialRotorOuter');
+  const dialMainTxt = root.querySelector('#dialMainTxt');
+  const dialSubTxt = root.querySelector('#dialSubTxt');
+  const appModal = root.querySelector('#appModal');
+  const modalHeading = root.querySelector('#modalHeading');
+  const modalContent = root.querySelector('#modalContent');
+  const modalTelemetry = root.querySelector('#modalTelemetry');
+  const modalCloseBtn = root.querySelector('#modalCloseBtn');
+  const minDialBtn = root.querySelector('#minDialBtn');
+  const closeCyberStarkBtn = root.querySelector('#closeCyberStarkBtn');
+  const sfxToggle = root.querySelector('#sfxToggle');
+  const statusLine = root.querySelector('#statusLine');
+  const sysClock = root.querySelector('#sysClock');
+
+  let toastTimer = null;
+  function triggerAlert(head, msg) {
+    if (!alertToast || !alertHead || !alertBody) return;
+    alertHead.textContent = head;
+    alertBody.textContent = msg;
+    alertToast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => alertToast.classList.remove('show'), 2600);
+  }
+
+  setInterval(() => {
+    if (sysClock) sysClock.textContent = new Date().toTimeString().slice(0, 8);
+  }, 1000);
+
+  function updatePointerVisuals(x, y) {
+    if (cyberCursor) {
+      cyberCursor.style.left = `${x}px`;
+      cyberCursor.style.top = `${y}px`;
+    }
+    if (parallaxLayer) {
+      const px = ((x / window.innerWidth) - 0.5) * -14;
+      const py = ((y / window.innerHeight) - 0.5) * -14;
+      parallaxLayer.style.transform = `translate(${px}px, ${py}px)`;
+    }
+  }
+
+  window.addEventListener('mousemove', (e) => updatePointerVisuals(e.clientX, e.clientY));
+  window.addEventListener('touchmove', (e) => {
+    if (e.touches && e.touches[0]) {
+      updatePointerVisuals(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: true });
+
+  const pCtx = particleCanvas ? particleCanvas.getContext('2d') : null;
+  let particles = [];
+
+  function resizeParticles() {
+    if (!particleCanvas) return;
+    particleCanvas.width = particleCanvas.offsetWidth || window.innerWidth;
+    particleCanvas.height = particleCanvas.offsetHeight || window.innerHeight;
+    if (particles.length === 0) {
+      particles = Array.from({ length: 42 }, () => ({
+        x: Math.random() * particleCanvas.width,
+        y: Math.random() * particleCanvas.height,
+        r: Math.random() * 2 + 0.8,
+        vx: (Math.random() - 0.5) * 0.65,
+        vy: (Math.random() - 0.5) * 0.65,
+        color: Math.random() > 0.45 ? '#00f0ff' : '#00ff9d'
+      }));
+    }
+  }
+
+  function drawParticles() {
+    if (pCtx && particleCanvas) {
+      pCtx.clearRect(0, 0, particleCanvas.width, particleCanvas.height);
+      particles.forEach((pt) => {
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        if (pt.x < 0) pt.x = particleCanvas.width;
+        if (pt.x > particleCanvas.width) pt.x = 0;
+        if (pt.y < 0) pt.y = particleCanvas.height;
+        if (pt.y > particleCanvas.height) pt.y = 0;
+
+        pCtx.beginPath();
+        pCtx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+        pCtx.fillStyle = pt.color;
+        pCtx.shadowBlur = 10;
+        pCtx.shadowColor = pt.color;
+        pCtx.fill();
+      });
+    }
+    requestAnimationFrame(drawParticles);
+  }
+
+  root._resizeParticles = resizeParticles;
+  window.addEventListener('resize', resizeParticles);
+  resizeParticles();
+  drawParticles();
+
+  const rCtx = resourceCanvas ? resourceCanvas.getContext('2d') : null;
+  const historyVals = Array.from({ length: 24 }, () => 35 + Math.random() * 45);
+
+  function stepResourceGraph() {
+    if (!rCtx || !resourceCanvas || !loadPct) return;
+    const nextVal = Math.max(18, Math.min(92, historyVals[historyVals.length - 1] + (Math.random() - 0.5) * 22));
+    historyVals.push(nextVal);
+    historyVals.shift();
+    loadPct.textContent = `${Math.round(nextVal)}%`;
+
+    rCtx.clearRect(0, 0, resourceCanvas.width, resourceCanvas.height);
+    rCtx.beginPath();
+    historyVals.forEach((v, idx) => {
+      const x = (idx / (historyVals.length - 1)) * resourceCanvas.width;
+      const y = resourceCanvas.height - (v / 100) * (resourceCanvas.height - 6) - 3;
+      if (idx === 0) rCtx.moveTo(x, y);
+      else rCtx.lineTo(x, y);
+    });
+    rCtx.strokeStyle = '#00ff9d';
+    rCtx.lineWidth = 1.6;
+    rCtx.shadowBlur = 6;
+    rCtx.shadowColor = '#00ff9d';
+    rCtx.stroke();
+  }
+  setInterval(stepResourceGraph, 450);
+  stepResourceGraph();
+
+  function pushHexLine() {
+    if (!hexStream) return;
+    const hex = Array.from({ length: 4 }, () =>
+      Math.floor(Math.random() * 0xffff).toString(16).padStart(4, '0').toUpperCase()
+    ).join(' ');
+    const line = document.createElement('div');
+    line.textContent = `0x${hex}`;
+    hexStream.prepend(line);
+    if (hexStream.children.length > 24) {
+      hexStream.removeChild(hexStream.lastChild);
+    }
+  }
+  setInterval(pushHexLine, 260);
+  for (let i = 0; i < 16; i++) pushHexLine();
+
+  let expanded = false;
+  let angleDeg = 0;
+  let activeIdx = 0;
+  let lastTickBucket = 0;
+  const radius = 102;
+  const nodes = [];
+
+  function initOrbitNodes() {
+    if (!orbitTrack) return;
+    orbitTrack.innerHTML = '';
+    nodes.length = 0;
+    const count = APPS.length;
+
+    APPS.forEach((app, idx) => {
+      const el = document.createElement('div');
+      el.className = 'holo-app-node';
+      el.innerHTML = `
+        <div class="n-code">${app.code}</div>
+        <div class="n-title">${app.name}</div>
+        <div class="n-sub">${app.tag}</div>
+      `;
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        angleDeg = -((360 / count) * idx);
+        updateOrbit();
+        CyberAudio.tone(860, 0.05);
+        triggerAlert('[TARGET LOCK]', `${app.name} aligned in ring frame.`);
+      });
+
+      el.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        activeIdx = idx;
+        updateOrbit();
+        launchApp(app);
+      });
+
+      orbitTrack.appendChild(el);
+      nodes.push({ el, app });
+    });
+
+    updateOrbit();
+  }
+
+  function updateOrbit() {
+    const count = APPS.length;
+    const norm = ((angleDeg % 360) + 360) % 360;
+    const step = 360 / count;
+    activeIdx = Math.round(((360 - norm) % 360) / step) % count;
+
+    const bucket = Math.floor(norm / 18);
+    if (bucket !== lastTickBucket && expanded) {
+      lastTickBucket = bucket;
+      CyberAudio.gearTick(bucket);
+    }
+
+    nodes.forEach(({ el }, i) => {
+      const theta = ((360 / count) * i - 90 + angleDeg) * (Math.PI / 180);
+      const x = Math.cos(theta) * radius;
+      const y = Math.sin(theta) * radius;
+      el.style.transform = `translate(${x}px, ${y}px)`;
+      el.classList.toggle('targeted', i === activeIdx);
+    });
+
+    if (dialRotorOuter) dialRotorOuter.style.transform = `rotate(${angleDeg}deg)`;
+
+    const current = APPS[activeIdx];
+    if (targetTitle) targetTitle.textContent = `TARGET LOCK: ${current.name} [${current.code}]`;
+    if (targetSub) targetSub.textContent = `${current.tag} • Double-click right dial to execute`;
+
+    if (expanded) {
+      if (dialMainTxt) dialMainTxt.textContent = current.name;
+      if (dialSubTxt) dialSubTxt.textContent = `${Math.round(norm)}° // DBL-CLICK`;
+    }
+  }
+
+  function openDial() {
+    if (expanded || !cyberDial) return;
+    expanded = true;
+    cyberDial.classList.add('expanded');
+    if (terminalIntro) terminalIntro.style.display = 'none';
+    if (ringZone) ringZone.classList.add('active');
+    CyberAudio.powerSweep(true);
+    updateOrbit();
+    triggerAlert('[ORBIT ONLINE]', 'Floating app ring deployed on left stage.');
+    if (statusLine) statusLine.textContent = 'DIAL ONLINE — ROTATE TO TARGET APP, DOUBLE-CLICK DIAL TO LAUNCH';
+  }
+
+  function closeDial() {
+    expanded = false;
+    if (appModal) appModal.classList.remove('open');
+    if (cyberDial) cyberDial.classList.remove('expanded');
+    if (ringZone) ringZone.classList.remove('active');
+    if (terminalIntro) terminalIntro.style.display = 'block';
+    if (dialMainTxt) dialMainTxt.textContent = 'CORE';
+    if (dialSubTxt) dialSubTxt.textContent = 'TAP TO BOOT';
+    CyberAudio.powerSweep(false);
+    triggerAlert('[STANDBY]', 'Core dial minimized to corner.');
+    if (statusLine) statusLine.textContent = 'DIAL MINIMIZED // HORIZONTAL STANDBY';
+  }
+
+  function launchApp(app = APPS[activeIdx]) {
+    const norm = Math.round(((angleDeg % 360) + 360) % 360);
+    if (modalHeading) modalHeading.textContent = `[${app.code}] ${app.name.toUpperCase()} — ${app.tag.toUpperCase()}`;
+    if (modalContent) {
+      modalContent.innerHTML = `
+        <p><b>SELECTED MODULE:</b> ${app.name}</p>
+        <div class="purpose-card">
+          <b>ఈ యాప్ దేనికి ఉపయోగపడుతుంది:</b><br />
+          ${app.purpose}
+        </div>
+        <p style="margin-top:7px;font-size:9.5px;color:#8eeaff;">
+          SYSTEM NOTE: Heavy Non-Straight Landscape Hacker HUD Framework.
+        </p>
+      `;
+    }
+    if (modalTelemetry) modalTelemetry.textContent = `VECTOR: ${norm}° // STATUS: ACTIVE`;
+    if (appModal) appModal.classList.add('open');
+    CyberAudio.executeChime();
+    triggerAlert('[MODULE OPENED]', `${app.name} telemetry loaded.`);
+    if (statusLine) statusLine.textContent = `EXECUTED MODULE: ${app.name}`;
+  }
+
+  let isDragging = false;
+  let startAng = 0;
+
+  function computeAngle(clientX, clientY) {
+    const rect = cyberDial.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    return Math.atan2(clientY - cy, clientX - cx) * (180 / Math.PI);
+  }
+
+  function handleDown(e) {
+    const pt = e.touches ? e.touches[0] : e;
+    if (!expanded) {
+      openDial();
       return;
     }
-    procRingState.lastTapTime = now;
-    showBilingualRingInfo();
-  });
+    isDragging = true;
+    startAng = computeAngle(pt.clientX, pt.clientY) - angleDeg;
+    CyberAudio.tone(680, 0.045);
+  }
 
-  procRingTriggerEl.addEventListener('dblclick', (e) => {
-    e.stopPropagation();
-    openRealModulesFrame('3d');
-  });
+  function handleMove(e) {
+    if (!isDragging || !expanded) return;
+    const pt = e.touches ? e.touches[0] : e;
+    angleDeg = computeAngle(pt.clientX, pt.clientY) - startAng;
+    updateOrbit();
+  }
 
-  document.querySelectorAll('.rm-tab').forEach(tabBtn => {
-    tabBtn.addEventListener('click', (e) => {
+  function handleUp() {
+    isDragging = false;
+  }
+
+  if (cyberDial) {
+    cyberDial.addEventListener('mousedown', handleDown);
+    cyberDial.addEventListener('touchstart', handleDown, { passive: true });
+    cyberDial.addEventListener('dblclick', (e) => {
       e.stopPropagation();
-      const mod = tabBtn.getAttribute('data-module');
-      if (mod) renderRealModuleTab(mod);
+      if (!expanded) openDial();
+      launchApp(APPS[activeIdx]);
     });
-  });
 
-  if (closeRealModulesFrameEl) {
-    closeRealModulesFrameEl.addEventListener('click', (e) => {
-      e.stopPropagation();
-      closeRealModulesFrame();
+    let lastTapTime = 0;
+    cyberDial.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTapTime < 300 && expanded) {
+        e.preventDefault();
+        launchApp(APPS[activeIdx]);
+      }
+      lastTapTime = now;
     });
   }
 
-  updateProcRingHUD();
+  window.addEventListener('mousemove', handleMove);
+  window.addEventListener('mouseup', handleUp);
+  window.addEventListener('touchmove', handleMove, { passive: true });
+  window.addEventListener('touchend', handleUp);
+
+  if (modalCloseBtn) {
+    modalCloseBtn.addEventListener('click', () => {
+      if (appModal) appModal.classList.remove('open');
+      CyberAudio.tone(420, 0.08);
+    });
+  }
+
+  if (minDialBtn) minDialBtn.addEventListener('click', closeDial);
+  if (closeCyberStarkBtn) closeCyberStarkBtn.addEventListener('click', closeCyberStarkModal);
+
+  if (sfxToggle) {
+    sfxToggle.addEventListener('click', () => {
+      const next = !CyberAudio.isOn();
+      CyberAudio.setOn(next);
+      sfxToggle.textContent = next ? 'SFX: ON' : 'SFX: OFF';
+      sfxToggle.classList.toggle('active', next);
+      if (next) CyberAudio.tone(900, 0.06);
+      triggerAlert('[AUDIO SYNC]', next ? 'Sci-Fi sound effects enabled.' : 'Sound effects muted.');
+    });
+  }
+
+  initOrbitNodes();
+  triggerAlert('[BOOT COMPLETE]', 'Non-straight horizontal cyber-deck online.');
 }
 
 /* =========================================================
@@ -551,6 +984,7 @@ function initKeyRingInteractions() {
         keyState.manualOffset += delta;
         applyKeyVisualAngle();
 
+        // Counter-clockwise (left) rotation produces negative delta
         if (delta < 0) {
           keyState.leftAccumulated += Math.abs(delta);
           if (keyState.leftAccumulated >= REQUIRED_LEFT_DEGREES) {
@@ -1428,7 +1862,7 @@ function initCircularVibrationGraph() {
 window.addEventListener('DOMContentLoaded', () => {
   initCircularVibrationGraph();
   initKeyRingInteractions();
-  initProcRingInteractions();
+  initProcRingBlueFlameTrigger();
   updateTelemetryCounters();
 
   setTimeout(() => {
@@ -1656,7 +2090,7 @@ function handleHardcoded(text) {
     return "Jarvis Mode activated, Boss.";
   }
 
-  if (query.includes("jarvis mode off") || query.includes("jarvis off") || query.includes("close jarvis") || query === "normal mode") {
+  if (query.includes("jarvis mode off") || query === "jarvis off" || query === "close jarvis" || query === "normal mode") {
     setJarvisModeState(false, false);
     return "Jarvis Mode deactivated, Boss.";
   }
@@ -1672,9 +2106,10 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("go back") || query.includes("back")) {
-    if (realModulesFrameEl && realModulesFrameEl.classList.contains('open')) {
-      closeRealModulesFrame();
-      return "Closed real modules frame, Boss.";
+    const csModal = document.getElementById('cyberStarkModal');
+    if (csModal && csModal.classList.contains('open')) {
+      closeCyberStarkModal();
+      return "Exited Cyber-Stark interface, Boss.";
     }
 
     if (keyState.expandedPanel) {
@@ -1706,7 +2141,7 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("go to home") || query.includes("go home") || query.includes("home")) {
-    closeRealModulesFrame();
+    closeCyberStarkModal();
     resetKeyAndCollapsePanel();
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
