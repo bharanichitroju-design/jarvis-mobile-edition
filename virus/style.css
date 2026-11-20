@@ -391,7 +391,7 @@ body::after {
 }
 
 /* =========================================================
-   5. 6TH BOX CORE RING: IDLE SPIN -> DOUBLE-TAP BLUE FLAME -> 2x TURN RED FLAME
+   5. 6TH BOX CORE RING TRIGGER (HORIZONTAL CYBER-DECK LAUNCHER)
    ========================================================= */
 .heartbeat-ring-widget {
   position: fixed;
@@ -400,7 +400,7 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  touch-action: none;
+  touch-action: manipulation;
   cursor: pointer;
   will-change: transform, left, top, width, height;
   transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
@@ -495,66 +495,35 @@ body::after {
   margin-top: 3px;
 }
 
-/* State A: Double-Tapped -> Blue Flame Glow */
-.heartbeat-ring-widget.hb-blue-flame {
-  animation: blueFlamePulse 1.2s infinite ease-in-out;
+.heartbeat-ring-widget.hb-deck-triggered {
+  animation: cyberDeckTriggerPulse 1.2s infinite ease-in-out;
 }
 
-.heartbeat-ring-widget.hb-blue-flame .hb-outer-ring {
-  border-color: var(--cyan-holo);
-  box-shadow: 0 0 22px rgba(0, 243, 255, 0.95), 0 0 36px rgba(0, 140, 255, 0.75), inset 0 0 14px rgba(0, 243, 255, 0.7);
+.heartbeat-ring-widget.hb-deck-triggered .hb-outer-ring {
+  border-color: var(--cyber-green);
+  box-shadow: 0 0 22px rgba(0, 255, 157, 0.9), 0 0 36px rgba(0, 243, 255, 0.65), inset 0 0 14px rgba(0, 255, 157, 0.65);
 }
 
-.heartbeat-ring-widget.hb-blue-flame .hb-mid-ring {
+.heartbeat-ring-widget.hb-deck-triggered .hb-mid-ring {
   border-top-color: var(--cyan-holo);
-  border-bottom-color: var(--cyan-holo);
+  border-bottom-color: var(--cyber-green);
 }
 
-.heartbeat-ring-widget.hb-blue-flame .hb-inner-core {
-  background: radial-gradient(circle, rgba(0, 85, 140, 0.95) 0%, rgba(1, 18, 36, 0.98) 100%);
-  border-color: var(--cyan-holo);
-  box-shadow: 0 0 18px rgba(0, 243, 255, 0.85);
+.heartbeat-ring-widget.hb-deck-triggered .hb-inner-core {
+  background: radial-gradient(circle, rgba(0, 68, 56, 0.95) 0%, rgba(1, 18, 24, 0.98) 100%);
+  border-color: var(--cyber-green);
+  box-shadow: 0 0 18px rgba(0, 255, 157, 0.85);
 }
 
-.heartbeat-ring-widget.hb-blue-flame .hb-label,
-.heartbeat-ring-widget.hb-blue-flame .hb-sub {
-  color: var(--cyan-holo);
-  text-shadow: 0 0 8px var(--cyan-holo);
+.heartbeat-ring-widget.hb-deck-triggered .hb-label,
+.heartbeat-ring-widget.hb-deck-triggered .hb-sub {
+  color: var(--cyber-green);
+  text-shadow: 0 0 8px var(--cyber-green);
 }
 
-/* State B: Rotated 2 Turns -> Red Flame Armed / Screen Open */
-.heartbeat-ring-widget.hb-red-flame,
-.heartbeat-ring-widget.hb-activated {
-  animation: redFlameRingPulse 1.15s infinite ease-in-out;
-}
-
-.heartbeat-ring-widget.hb-red-flame .hb-outer-ring,
-.heartbeat-ring-widget.hb-activated .hb-outer-ring {
-  border-color: #ff2a2a;
-  box-shadow: 0 0 24px rgba(255, 30, 39, 1), 0 0 42px rgba(255, 90, 20, 0.85), inset 0 0 16px rgba(255, 50, 30, 0.85);
-}
-
-.heartbeat-ring-widget.hb-red-flame .hb-inner-core,
-.heartbeat-ring-widget.hb-activated .hb-inner-core {
-  background: radial-gradient(circle, rgba(155, 10, 15, 0.96) 0%, rgba(25, 2, 4, 0.98) 100%);
-  border-color: #ff5544;
-  box-shadow: 0 0 20px rgba(255, 45, 35, 0.95);
-}
-
-.heartbeat-ring-widget.hb-red-flame .hb-label,
-.heartbeat-ring-widget.hb-activated .hb-label {
-  color: #ffe680;
-  text-shadow: 0 0 10px #ff1e27;
-}
-
-@keyframes blueFlamePulse {
-  0%, 100% { filter: drop-shadow(0 0 10px rgba(0, 243, 255, 0.8)); }
-  50% { filter: drop-shadow(0 0 24px rgba(0, 200, 255, 1)); }
-}
-
-@keyframes redFlameRingPulse {
-  0%, 100% { filter: drop-shadow(0 0 12px rgba(255, 30, 39, 0.85)); }
-  50% { filter: drop-shadow(0 0 26px rgba(255, 85, 30, 1)); }
+@keyframes cyberDeckTriggerPulse {
+  0%, 100% { filter: drop-shadow(0 0 10px rgba(0, 255, 157, 0.75)); }
+  50% { filter: drop-shadow(0 0 22px rgba(0, 243, 255, 0.95)); }
 }
 
 /* =========================================================
@@ -749,7 +718,7 @@ body::after {
   line-height: 1.2;
 }
 
-/* Center Stage: Step 1 Bars / Step 2 App Orbit / Step 3 Inspector */
+/* Center Stage: Boot Bars / App Orbit / Inspector */
 .deck-center-stage {
   display: flex;
   flex-direction: column;
@@ -841,7 +810,7 @@ body::after {
   color: #c8fff2;
 }
 
-/* Step 2: App Orbit View */
+/* App Orbit View */
 .deck-orbit-view {
   flex: 1;
   display: flex;
@@ -909,7 +878,7 @@ body::after {
   z-index: 5;
 }
 
-/* Step 3: Module Inspector View */
+/* Module Inspector View */
 .deck-inspector-view {
   flex: 1;
   display: flex;
