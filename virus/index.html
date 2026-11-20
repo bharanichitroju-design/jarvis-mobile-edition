@@ -76,32 +76,25 @@
         </div>
       </section>
 
-      <!-- BOTTOM-LEFT PROC_RING WITH 2X RIGHT SPIN -> BLUE FLAME -> 1X INFO / 2X OPEN FRAME -->
-      <section class="panel decrypt-panel" data-expandable="true" data-box-id="decrypt-panel" id="procRingPanel">
+      <section class="panel decrypt-panel" data-expandable="true" data-box-id="decrypt-panel">
         <div class="panel-header">
           <span>PROC_RING</span>
           <span id="procMode">AES-256</span>
         </div>
         <div class="decrypt-container">
-          <div class="progress-ring-wrapper" id="procRingTrigger" title="Spin right 2 times for Blue Flame • 1 click: Info • 2 clicks: Open Real Modules">
-            <div class="blue-flame-aura" id="blueFlameAura"></div>
-            <div class="progress-ring" id="procRingDial"></div>
+          <div class="progress-ring-wrapper">
+            <div class="progress-ring"></div>
             <div class="decrypt-text" id="decryptPercent">SYNC<br>30%</div>
-            <div class="ring-spin-badge" id="ringSpinBadge">0/2 R</div>
           </div>
           <div class="binary-stream" id="binaryStream">
             01101010 01100001<br>
             01110110 01101001
           </div>
         </div>
-        <div class="ring-bilingual-info" id="ringBilingualInfo">
-          <strong>తెలుగు:</strong> కుడివైపు 2 సార్లు తిప్పితే బ్లూ ఫ్లేమ్ వెలుగుతుంది; 2 సార్లు క్లిక్ చేస్తే రియల్ మాడ్యూల్స్ (3D, History, YouTube, Memory) ఓపెన్ అవుతాయి.<br>
-          <strong>English:</strong> Turn right 2 times to ignite the blue flame; double-click to open real modules (3D, History, YouTube, Memory).
-        </div>
       </section>
     </aside>
 
-    <!-- CENTER STAGE: SKULL + 3 RINGS + CIRCULAR WAVE + CHAT STREAM + REAL CORE FRAME -->
+    <!-- CENTER STAGE: SKULL + 3 RINGS + CIRCULAR WAVE + CHAT STREAM -->
     <section class="column center-col">
       <div class="panel skull-stage" id="skullContainer" data-expandable="true" data-box-id="skull-stage">
         <div class="stage-top-bar">
@@ -143,21 +136,6 @@
             <line x1="145" y1="165" x2="145" y2="189" stroke="#ff1e27" stroke-width="2"/>
             <line x1="82" y1="177" x2="158" y2="177" stroke="#ff1e27" stroke-width="1.5"/>
           </svg>
-        </div>
-
-        <!-- REAL MODULES OVERLAY FRAME (3D, HISTORY, YOUTUBE, MEMORY) -->
-        <div class="real-modules-frame" id="realModulesFrame">
-          <div class="rm-header">
-            <span>BLUE_FLAME // CORE MODULES</span>
-            <button type="button" class="rm-close-btn" id="closeRealModulesFrame">CLOSE [X]</button>
-          </div>
-          <div class="rm-tabs">
-            <button type="button" class="rm-tab active" data-module="3d">3D</button>
-            <button type="button" class="rm-tab" data-module="history">HISTORY</button>
-            <button type="button" class="rm-tab" data-module="youtube">YOUTUBE</button>
-            <button type="button" class="rm-tab" data-module="memory">MEMORY</button>
-          </div>
-          <div class="rm-body" id="realModulesBody"></div>
         </div>
 
         <p class="boss-quote">ALWAYS AT YOUR SERVICE, BOSS BHARANI</p>
@@ -250,6 +228,132 @@
       </div>
     </div>
   </footer>
+
+  <!-- MODEL FRAMEWORK OVERLAY (CYBER-STARK // HEAVY NON-STRAIGHT LANDSCAPE HOLO-OS) -->
+  <div id="cyberStarkModal" class="cyber-stark-modal" aria-hidden="true">
+    <div class="cyber-cursor" id="cyberCursor"></div>
+
+    <div class="viewport-wrapper" id="viewportWrapper">
+      <div class="parallax-layer" id="parallaxLayer"></div>
+      <canvas id="particleCanvas"></canvas>
+      <div class="scanlines"></div>
+
+      <div class="holo-deck">
+        <div class="corner tl"></div>
+        <div class="corner tr"></div>
+        <div class="corner bl"></div>
+        <div class="corner br"></div>
+
+        <!-- Pop-up Alert Toast -->
+        <div class="alert-toast" id="alertToast">
+          <div class="a-head" id="alertHead">[ALERT // SYS]</div>
+          <div id="alertBody">Cyber HUD initialized.</div>
+        </div>
+
+        <!-- Top HUD Bar -->
+        <div class="top-bar">
+          <div class="sys-id">
+            <span class="pulse-dot"></span>
+            <span>ROOT@STARK-CYBERDECK // MK-V</span>
+          </div>
+
+          <div class="non-straight-tag">
+            NON-STRAIGHT FRAMEWORK // AUTO-HORIZONTAL MODE
+          </div>
+
+          <div class="top-actions">
+            <span id="sysClock">16:34:00</span>
+            <button class="cyber-btn active" id="sfxToggle">SFX: ON</button>
+            <button class="cyber-btn" id="minDialBtn">RESET DIAL</button>
+            <button class="cyber-btn" id="closeCyberStarkBtn">CLOSE [X]</button>
+          </div>
+        </div>
+
+        <!-- Horizontal Main Stage -->
+        <div class="stage-area">
+          <!-- Left Cyber Workspace -->
+          <div class="left-zone">
+            <!-- Hex Telemetry Stream + Real-Time Resource Graph -->
+            <div class="left-telemetry-col">
+              <div class="hex-stream" id="hexStream"></div>
+              <div class="resource-graph-box">
+                <div class="graph-label">
+                  <span>SYS LOAD</span>
+                  <span id="loadPct">42%</span>
+                </div>
+                <canvas id="resourceCanvas" width="116" height="36"></canvas>
+              </div>
+            </div>
+
+            <!-- Initial Terminal Box with Animated Progress Bars -->
+            <div class="terminal-intro" id="terminalIntro">
+              <h3>[!] HEAVY HORIZONTAL CYBER-DECK ACTIVE</h3>
+              <p>
+                ఈ ఫ్రేమ్‌వర్క్ స్ట్రెయిట్ (నిలువుగా) లేకుండా <b>ఓపెన్ చేయగానే అడ్డంగా (Horizontal)</b> రన్ అవుతుంది.<br />
+                కుడి-కింద ఉన్న <b>CORE DIAL</b> పై ట్యాప్ చేయండి → అది విస్తరించి ఎడమ వైపు గాలిలో తేలుతున్న యాప్ ఆర్బిట్‌ను యాక్టివేట్ చేస్తుంది.
+              </p>
+              <div class="prog-group">
+                <div class="prog-item">
+                  <div class="prog-head"><span>NEURAL LINK</span><span>92%</span></div>
+                  <div class="prog-bar"><div class="prog-fill" style="width:92%"></div></div>
+                </div>
+                <div class="prog-item">
+                  <div class="prog-head"><span>SHIELD MATRIX</span><span>88%</span></div>
+                  <div class="prog-bar"><div class="prog-fill b2"></div></div>
+                </div>
+                <div class="prog-item">
+                  <div class="prog-head"><span>HORIZON SYNC</span><span>95%</span></div>
+                  <div class="prog-bar"><div class="prog-fill b3"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Floating Orbit Ring of Apps -->
+            <div class="ring-zone" id="ringZone">
+              <div class="target-hud">
+                <div class="target-hud-title" id="targetTitle">TARGET LOCK: AI</div>
+                <div class="target-hud-sub" id="targetSub">Spin dial • Double-click dial to execute</div>
+              </div>
+              <div class="orbit-track" id="orbitTrack"></div>
+            </div>
+
+            <!-- App Details Viewer -->
+            <div class="app-modal" id="appModal">
+              <div class="modal-top">
+                <div class="modal-heading" id="modalHeading">MODULE EXECUTED</div>
+                <button class="modal-close" id="modalCloseBtn">TERMINATE [X]</button>
+              </div>
+              <div class="modal-content" id="modalContent"></div>
+              <div>
+                <div class="modal-prog"><div class="modal-prog-bar"></div></div>
+                <div class="modal-bottom">
+                  <span>FRAMEWORK: NON-STRAIGHT LANDSCAPE</span>
+                  <span id="modalTelemetry">VECTOR: 0° // SYNC OK</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Heavy Multi-Ring Hacker Dial (Right Side) -->
+          <div class="cyber-dial" id="cyberDial" title="Tap to expand; Drag to rotate; Double-click to open app">
+            <div class="dial-layer layer-outer" id="dialRotorOuter"></div>
+            <div class="dial-layer layer-mid"></div>
+            <div class="dial-layer layer-inner"></div>
+            <div class="dial-center-readout">
+              <div class="dial-main-txt" id="dialMainTxt">CORE</div>
+              <div class="dial-sub-txt" id="dialSubTxt">TAP TO BOOT</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Status Strip -->
+        <div class="bottom-bar">
+          <span>ORIENTATION: FORCED HORIZONTAL (THIS FRAMEWORK WAS NOT ON STRAIGHT)</span>
+          <span class="status-live" id="statusLine">AWAITING INPUT — TAP BOTTOM-RIGHT CORE DIAL</span>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL 1: HISTORY LOG POPUP -->
   <div id="history-modal" class="modal">
