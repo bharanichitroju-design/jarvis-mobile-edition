@@ -61,7 +61,7 @@ let currentSession = {
 let pendingImageData = null;
 let isJarvisSpeaking = false;
 let isListeningActive = false;
-let strictJarvisKeywordMode = true;
+let strictJarvisKeywordMode = false;
 let workspaceFiles3D = [];
 let totalAccessLogs = 23258;
 
@@ -90,66 +90,17 @@ const customMemoryInput = document.getElementById('custom-memory-input');
 const saveCustomMemory = document.getElementById('save-custom-memory');
 const savedMemoryList = document.getElementById('saved-memory-list');
 
-/* =========================================================
-   1.1. CYBER SOUND ENGINE (WEB AUDIO SYNTHESIZER)
-   ========================================================= */
-let cyberAudioCtx = null;
-let cyberSfxEnabled = true;
-
-function playCyberSound(type = 'tick') {
-  if (!cyberSfxEnabled) return;
-  try {
-    if (!cyberAudioCtx) {
-      cyberAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (cyberAudioCtx.state === 'suspended') {
-      cyberAudioCtx.resume();
-    }
-
-    const now = cyberAudioCtx.currentTime;
-    const osc = cyberAudioCtx.createOscillator();
-    const gain = cyberAudioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(cyberAudioCtx.destination);
-
-    if (type === 'tick') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(680, now);
-      osc.frequency.exponentialRampToValueAtTime(920, now + 0.045);
-      gain.gain.setValueAtTime(0.08, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-      osc.start(now);
-      osc.stop(now + 0.05);
-    } else if (type === 'activate') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(240, now);
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.28);
-      gain.gain.setValueAtTime(0.16, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
-      osc.start(now);
-      osc.stop(now + 0.3);
-    } else if (type === 'deck') {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(320, now);
-      osc.frequency.exponentialRampToValueAtTime(1140, now + 0.36);
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
-      osc.start(now);
-      osc.stop(now + 0.38);
-    } else if (type === 'resize') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(520, now);
-      osc.frequency.exponentialRampToValueAtTime(310, now + 0.14);
-      gain.gain.setValueAtTime(0.14, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-      osc.start(now);
-      osc.stop(now + 0.15);
-    }
-  } catch (e) {}
-}
+// Bottom-Left PROC_RING & Real Modules Frame Elements
+const procRingTriggerEl = document.getElementById('procRingTrigger');
+const procRingDialEl = document.getElementById('procRingDial');
+const ringSpinBadgeEl = document.getElementById('ringSpinBadge');
+const ringBilingualInfoEl = document.getElementById('ringBilingualInfo');
+const realModulesFrameEl = document.getElementById('realModulesFrame');
+const realModulesBodyEl = document.getElementById('realModulesBody');
+const closeRealModulesFrameEl = document.getElementById('closeRealModulesFrame');
 
 /* =========================================================
-   1.2. SYSTEM LOGS & TELEMETRY COUNTERS
+   1.1. SYSTEM LOGS & TELEMETRY COUNTERS
    ========================================================= */
 function pushSystemLog(label, value) {
   if (!systemLogs) return;
@@ -177,399 +128,216 @@ function updateTelemetryCounters() {
 }
 
 /* =========================================================
-   1.3. NEW TRIGGER FRAMEWORK: 6TH BOX CORE RING -> HORIZONTAL CYBER-DECK
+   1.1B. BOTTOM-LEFT PROC_RING (2X RIGHT SPIN -> BLUE FLAME -> 1X INFO / 2X OPEN FRAME)
    ========================================================= */
-const hbRingEl = document.getElementById('global-heartbeat-ring');
-const hbRingLabelEl = document.getElementById('hbRingLabel');
-const hbRingSubEl = document.getElementById('hbRingSub');
-const hbAnchorSlotEl = document.getElementById('heartbeatKeyAnchorSlot');
-const cyberDeckOverlayEl = document.getElementById('horizontal-cyber-deck-overlay');
-const cyberDeckNodesEl = document.getElementById('cyber-deck-orbit-nodes');
-const deckRotaryDialEl = document.getElementById('deckRotaryDial');
+const REQUIRED_RIGHT_DEGREES = 360 * 2; // 2 clockwise (right) turns
 
-const DECK_MODULES = [
-  {
-    id: '3d',
-    code: '[SYS_01]',
-    title: '3D WORKSPACE',
-    desc: 'Interactive holographic 3D table with 3-layer ring controls. Rotate dial to cycle modules, 1-click for details, 2-click to launch.'
-  },
-  {
-    id: 'youtube',
-    code: '[VID_02]',
-    title: 'YOUTUBE STREAM',
-    desc: 'In-app holographic YouTube player. Search or play streams directly inside the workspace.'
-  },
-  {
-    id: 'history',
-    code: '[LOG_03]',
-    title: 'HISTORY LOGS',
-    desc: 'Archived JARVIS neural sessions and saved conversation records. Inspect past sessions or clear logs.'
-  },
-  {
-    id: 'memory',
-    code: '[MEM_04]',
-    title: 'MEMORY VAULT',
-    desc: 'Stored personal notes, details, and Boss directives in local memory storage.'
-  },
-  {
-    id: 'gallery',
-    code: '[GAL_05]',
-    title: 'GALLERY SCAN',
-    desc: 'Select images from phone gallery to analyze with JARVIS AI or project into the 3D workspace.'
-  },
-  {
-    id: 'jarvis',
-    code: '[AI_06]',
-    title: 'JARVIS CORE',
-    desc: 'Continuous voice and AI command matrix active across the Cyber-Deck and Delta HUD.'
-  }
-];
-
-let hbTriggerState = {
-  isDeckActive: false,
-  visualAngle: 0,
-  activeModuleIndex: 0
-};
-
-let deckState = {
-  mode: 'boot',               // 'boot' | 'orbit' | 'inspector'
-  angle: 0,
+let procRingState = {
+  rightAccumulated: 0,
+  manualAngle: 0,
   lastPointerAngle: null,
-  isRotating: false,
-  moved: false,
-  tapCount: 0,
-  tapTimer: null
+  isSpinningRight: false,
+  isBlueFlameLit: false,
+  movedDuringDrag: false,
+  lastTapTime: 0
 };
 
-function positionHeartbeatRingInSlot() {
-  if (!hbRingEl) return;
-  if (hbAnchorSlotEl) {
-    const rect = hbAnchorSlotEl.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      hbRingEl.style.left = `${rect.left + (rect.width - 58) / 2}px`;
-      hbRingEl.style.top = `${rect.top + (rect.height - 58) / 2}px`;
-      hbRingEl.style.right = 'auto';
-      hbRingEl.style.bottom = 'auto';
-      hbRingEl.style.transform = 'none';
-      return;
-    }
+function updateProcRingHUD() {
+  const turnsDone = Math.min(2, Math.floor(procRingState.rightAccumulated / 360));
+  if (procRingTriggerEl) {
+    procRingTriggerEl.classList.toggle('blue-flame-active', procRingState.isBlueFlameLit);
   }
-  hbRingEl.style.left = '14px';
-  hbRingEl.style.bottom = '92px';
-  hbRingEl.style.top = 'auto';
-  hbRingEl.style.right = 'auto';
-  hbRingEl.style.transform = 'none';
-}
-
-function updateHeartbeatTriggerUI() {
-  if (!hbRingEl) return;
-  hbRingEl.classList.remove('hb-large', 'hb-side-right', 'hb-side-left');
-  hbRingEl.classList.add('hb-small');
-  hbRingEl.classList.toggle('hb-deck-triggered', hbTriggerState.isDeckActive);
-  hbRingEl.style.setProperty('--hb-angle', `${hbTriggerState.visualAngle}deg`);
-  positionHeartbeatRingInSlot();
-
-  if (hbRingLabelEl && hbRingSubEl) {
-    if (hbTriggerState.isDeckActive) {
-      hbRingLabelEl.textContent = 'DECK ON';
-      hbRingSubEl.textContent = 'ACTIVE';
-    } else {
-      hbRingLabelEl.textContent = 'BOX 06';
-      hbRingSubEl.textContent = 'CYBER-DECK';
-    }
+  if (procRingDialEl) {
+    procRingDialEl.style.transform = `rotate(${procRingState.manualAngle}deg)`;
+  }
+  if (ringSpinBadgeEl) {
+    ringSpinBadgeEl.textContent = procRingState.isBlueFlameLit ? "BLUE FLAME" : `${turnsDone}/2 R`;
   }
 }
 
-function startHeartbeatRingSpin() {
-  function tick() {
-    const speed = hbTriggerState.isDeckActive ? 1.1 : 0.6;
-    hbTriggerState.visualAngle = (hbTriggerState.visualAngle + speed) % 360000;
-    hbRingEl?.style.setProperty('--hb-angle', `${hbTriggerState.visualAngle}deg`);
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
+function getPointerAngleFromProcRing(clientX, clientY) {
+  if (!procRingTriggerEl) return 0;
+  const rect = procRingTriggerEl.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  return (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
 }
 
-function setCyberDeckViewMode(nextMode) {
-  deckState.mode = nextMode;
-  const bootView = document.getElementById('deckBootView');
-  const orbitView = document.getElementById('deckOrbitView');
-  const inspectorView = document.getElementById('deckInspectorView');
-
-  if (bootView) bootView.style.display = nextMode === 'boot' ? 'flex' : 'none';
-  if (orbitView) orbitView.style.display = nextMode === 'orbit' ? 'flex' : 'none';
-  if (inspectorView) inspectorView.style.display = nextMode === 'inspector' ? 'flex' : 'none';
-
-  updateDeckInspectorContent();
-  renderCyberDeckModules();
+function showBilingualRingInfo() {
+  if (ringBilingualInfoEl) {
+    ringBilingualInfoEl.classList.add('visible');
+  }
+  const infoMsg = "తెలుగు: PROC_RING ని కుడివైపు 2 సార్లు తిప్పితే బ్లూ ఫ్లేమ్ వెలుగుతుంది; 2 సార్లు క్లిక్ చేస్తే 3D, History, YouTube, Memory ఫ్రేమ్ ఓపెన్ అవుతుంది. | English: Turn right twice to ignite the blue flame; double-click to open the 3D, History, YouTube, and Memory frame.";
+  addMessage(`Jarvis: ${infoMsg}`, 'ai');
+  currentSession.messages.push({ role: 'model', text: infoMsg, time: format12HourTime(new Date()) });
+  saveSessions();
+  pushSystemLog("PROC_RING", "INFO_SHOWN");
 }
 
-function updateDeckInspectorContent() {
-  const mod = DECK_MODULES[hbTriggerState.activeModuleIndex] || DECK_MODULES[0];
-  const labelEl = document.getElementById('deckActiveModuleLabel');
-  const codeEl = document.getElementById('deckPreviewCode');
-  const titleEl = document.getElementById('deckPreviewTitle');
-  const descEl = document.getElementById('deckPreviewDesc');
-  const vecEl = document.getElementById('deckVectorAngle');
-  const readoutEl = document.getElementById('deckDialReadout');
-  const subEl = document.getElementById('deckDialSub');
-  const footerRightEl = document.getElementById('deckFooterRight');
+function renderRealModuleTab(moduleKey) {
+  if (!realModulesBodyEl) return;
 
-  const normDeg = Math.round(((deckState.angle % 360) + 360) % 360);
-
-  if (labelEl) labelEl.textContent = `TARGET LOCK: ${mod.title} ${mod.code}`;
-  if (codeEl) codeEl.textContent = mod.code;
-  if (titleEl) titleEl.textContent = mod.title;
-  if (descEl) descEl.textContent = mod.desc;
-  if (vecEl) vecEl.textContent = `${normDeg}°`;
-
-  if (readoutEl) {
-    readoutEl.textContent = deckState.mode === 'boot' ? 'CORE' : mod.title.split(' ')[0];
-  }
-  if (subEl) {
-    if (deckState.mode === 'boot') subEl.textContent = `${normDeg}° // CLICK TO EXPAND`;
-    else if (deckState.mode === 'orbit') subEl.textContent = '1x INFO • 2x OPEN';
-    else subEl.textContent = '2x CLICK TO LAUNCH';
-  }
-  if (footerRightEl) {
-    footerRightEl.textContent = `TARGET: ${mod.title} // HORIZONTAL CYBER-DECK READY`;
-  }
-}
-
-function renderCyberDeckModules() {
-  if (!cyberDeckNodesEl) return;
-  cyberDeckNodesEl.innerHTML = '';
-
-  const track = document.createElement('div');
-  track.className = 'deck-orbit-ring-track';
-  cyberDeckNodesEl.appendChild(track);
-
-  const count = DECK_MODULES.length;
-  const radius = 66;
-
-  DECK_MODULES.forEach((mod, idx) => {
-    const node = document.createElement('div');
-    const isSelected = idx === hbTriggerState.activeModuleIndex;
-    node.className = `deck-module-node${isSelected ? ' active-node' : ''}`;
-    const angleDeg = (idx * (360 / count)) - 90 + deckState.angle;
-    const rad = (angleDeg * Math.PI) / 180;
-    const x = Math.cos(rad) * radius;
-    const y = Math.sin(rad) * radius;
-
-    node.style.transform = `translate(${x}px, ${y}px)${isSelected ? ' scale(1.16)' : ''}`;
-    node.innerHTML = `<span>${mod.title.replace(' ', '<br>')}</span>`;
-
-    // Single click on app node -> show info inspector
-    node.addEventListener('click', (e) => {
-      e.stopPropagation();
-      hbTriggerState.activeModuleIndex = idx;
-      deckState.angle = -(idx * (360 / count));
-      playCyberSound('tick');
-      setCyberDeckViewMode('inspector');
-    });
-
-    // Double click on app node -> open app directly
-    node.addEventListener('dblclick', (e) => {
-      e.stopPropagation();
-      hbTriggerState.activeModuleIndex = idx;
-      deckState.angle = -(idx * (360 / count));
-      updateDeckInspectorContent();
-      launchSelectedCyberDeckModule();
-    });
-
-    cyberDeckNodesEl.appendChild(node);
+  document.querySelectorAll('.rm-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-module') === moduleKey);
   });
-}
 
-function openHorizontalCyberDeck() {
-  if (!cyberDeckOverlayEl) return;
-  cyberDeckOverlayEl.style.display = 'flex';
-  cyberDeckOverlayEl.classList.add('force-horizontal-deck');
-  hbTriggerState.isDeckActive = true;
-  setCyberDeckViewMode('boot');
-  updateHeartbeatTriggerUI();
-  playCyberSound('deck');
-  if (navigator.vibrate) navigator.vibrate([60, 35, 60]);
-  pushSystemLog("Trigger", "CYBER_DECK_OPEN");
-}
-
-function closeHorizontalCyberDeck() {
-  if (!cyberDeckOverlayEl) return;
-  cyberDeckOverlayEl.style.display = 'none';
-  cyberDeckOverlayEl.classList.remove('force-horizontal-deck');
-  hbTriggerState.isDeckActive = false;
-  updateHeartbeatTriggerUI();
-  playCyberSound('resize');
-  pushSystemLog("Trigger", "CYBER_DECK_CLOSED");
-}
-
-function launchSelectedCyberDeckModule() {
-  const mod = DECK_MODULES[hbTriggerState.activeModuleIndex];
-  if (!mod) return;
-  playCyberSound('activate');
-  closeHorizontalCyberDeck();
-
-  if (mod.id === '3d') {
-    open3DWorkspaceModal();
-  } else if (mod.id === 'youtube') {
-    openYouTubeModal();
-  } else if (mod.id === 'history') {
-    renderHistoryFolders();
-    if (historyModal) historyModal.style.display = 'block';
-  } else if (mod.id === 'memory') {
-    renderCustomMemories();
-    if (memoryModal) memoryModal.style.display = 'block';
-  } else if (mod.id === 'gallery') {
-    if (imgInput) {
-      imgInput.removeAttribute('capture');
-      imgInput.click();
+  if (moduleKey === '3d') {
+    const activeCount = workspaceFiles3D.filter(f => !f.isDeleted).length;
+    realModulesBodyEl.innerHTML = `
+      <div style="margin-bottom:4px; color:#00d8ff; font-weight:bold;">3D HOLOGRAPHIC WORKSPACE</div>
+      <div style="margin-bottom:6px;">Active 3D Objects: <b>${activeCount}</b> • Supports 1-finger rotate, 2-finger move/zoom, and blueprint projection.</div>
+      <button type="button" id="rmLaunch3DBtn" style="background:#00d8ff; color:#00101d; border:none; padding:4px 8px; border-radius:2px; font-weight:bold; cursor:pointer; font-size:0.48rem;">LAUNCH 3D TABLE</button>
+    `;
+    const launchBtn = document.getElementById('rmLaunch3DBtn');
+    if (launchBtn) launchBtn.addEventListener('click', open3DWorkspaceModal);
+  } else if (moduleKey === 'history') {
+    const totalSessions = SESSIONS.length + (currentSession.messages.length > 0 ? 1 : 0);
+    realModulesBodyEl.innerHTML = `
+      <div style="margin-bottom:4px; color:#00d8ff; font-weight:bold;">SESSION HISTORY ARCHIVE</div>
+      <div style="margin-bottom:6px;">Saved Sessions: <b>${totalSessions}</b> • Current Messages: <b>${currentSession.messages.length}</b>.</div>
+      <button type="button" id="rmLaunchHistoryBtn" style="background:#00d8ff; color:#00101d; border:none; padding:4px 8px; border-radius:2px; font-weight:bold; cursor:pointer; font-size:0.48rem;">OPEN HISTORY LOG</button>
+    `;
+    const histBtn = document.getElementById('rmLaunchHistoryBtn');
+    if (histBtn) {
+      histBtn.addEventListener('click', () => {
+        renderHistoryFolders();
+        if (historyModal) historyModal.style.display = 'block';
+      });
     }
-  } else if (mod.id === 'jarvis') {
-    ensureJarvisModeAlwaysOn();
-    speak("Jarvis Core is online and active, Boss.");
+  } else if (moduleKey === 'youtube') {
+    realModulesBodyEl.innerHTML = `
+      <div style="margin-bottom:4px; color:#00d8ff; font-weight:bold;">YOUTUBE HOLOGRAPHIC STREAM</div>
+      <div style="margin-bottom:6px;">Stream videos, search queries, or play music directly inside the holographic frame.</div>
+      <button type="button" id="rmLaunchYouTubeBtn" style="background:#00d8ff; color:#00101d; border:none; padding:4px 8px; border-radius:2px; font-weight:bold; cursor:pointer; font-size:0.48rem;">OPEN YOUTUBE STREAM</button>
+    `;
+    const ytBtn = document.getElementById('rmLaunchYouTubeBtn');
+    if (ytBtn) ytBtn.addEventListener('click', () => openYouTubeModal());
+  } else if (moduleKey === 'memory') {
+    const memCount = getCustomMemories().length;
+    realModulesBodyEl.innerHTML = `
+      <div style="margin-bottom:4px; color:#00d8ff; font-weight:bold;">LOCAL MEMORY VAULT</div>
+      <div style="margin-bottom:6px;">Stored Custom Memories: <b>${memCount}</b> • Search, add notes, or manage saved details.</div>
+      <button type="button" id="rmLaunchMemoryBtn" style="background:#00d8ff; color:#00101d; border:none; padding:4px 8px; border-radius:2px; font-weight:bold; cursor:pointer; font-size:0.48rem;">OPEN MEMORY VAULT</button>
+    `;
+    const memBtn = document.getElementById('rmLaunchMemoryBtn');
+    if (memBtn) {
+      memBtn.addEventListener('click', () => {
+        renderCustomMemories();
+        if (memoryModal) memoryModal.style.display = 'block';
+      });
+    }
   }
 }
 
-function initHeartbeatTrigger() {
-  if (!hbRingEl) return;
+function openRealModulesFrame(defaultTab = '3d') {
+  if (!realModulesFrameEl) return;
+  realModulesFrameEl.classList.add('open');
+  renderRealModuleTab(defaultTab);
+  pushSystemLog("BlueFlameFrame", `OPENED_${defaultTab.toUpperCase()}`);
+}
 
-  hbRingEl.addEventListener('click', (e) => {
-    e.preventDefault();
+function closeRealModulesFrame() {
+  if (!realModulesFrameEl) return;
+  realModulesFrameEl.classList.remove('open');
+  pushSystemLog("BlueFlameFrame", "CLOSED");
+}
+
+function initProcRingInteractions() {
+  if (!procRingTriggerEl) return;
+
+  procRingTriggerEl.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
-    if (cyberDeckOverlayEl && cyberDeckOverlayEl.style.display === 'flex') {
-      closeHorizontalCyberDeck();
-    } else {
-      openHorizontalCyberDeck();
-    }
+    procRingState.isSpinningRight = true;
+    procRingState.movedDuringDrag = false;
+    procRingState.lastPointerAngle = getPointerAngleFromProcRing(e.clientX, e.clientY);
+    try { procRingTriggerEl.setPointerCapture(e.pointerId); } catch (err) {}
   });
 
-  window.addEventListener('resize', positionHeartbeatRingInSlot);
-  updateHeartbeatTriggerUI();
-  startHeartbeatRingSpin();
-}
-
-function initDeckRotaryDialControls() {
-  if (!deckRotaryDialEl) return;
-
-  const getDialAngle = (clientX, clientY) => {
-    const rect = deckRotaryDialEl.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    return (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
-  };
-
-  let startX = 0;
-  let startY = 0;
-
-  deckRotaryDialEl.addEventListener('pointerdown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    deckState.isRotating = true;
-    deckState.moved = false;
-    startX = e.clientX;
-    startY = e.clientY;
-    deckState.lastPointerAngle = getDialAngle(e.clientX, e.clientY);
-    deckRotaryDialEl.setPointerCapture(e.pointerId);
-  });
-
-  deckRotaryDialEl.addEventListener('pointermove', (e) => {
-    if (!deckState.isRotating) return;
-    if (Math.hypot(e.clientX - startX, e.clientY - startY) > 5) {
-      deckState.moved = true;
-    }
-    const curAngle = getDialAngle(e.clientX, e.clientY);
-    if (deckState.lastPointerAngle !== null) {
-      let delta = curAngle - deckState.lastPointerAngle;
+  procRingTriggerEl.addEventListener('pointermove', (e) => {
+    if (!procRingState.isSpinningRight) return;
+    const curAngle = getPointerAngleFromProcRing(e.clientX, e.clientY);
+    if (procRingState.lastPointerAngle !== null) {
+      let delta = curAngle - procRingState.lastPointerAngle;
       if (delta > 180) delta -= 360;
       if (delta < -180) delta += 360;
-      if (Math.abs(delta) > 0.4) {
-        deckState.angle += delta;
-        deckRotaryDialEl.style.setProperty('--deck-dial-angle', `${deckState.angle}deg`);
 
-        if (deckState.mode !== 'boot') {
-          const count = DECK_MODULES.length;
-          const norm = (((-deckState.angle) % 360) + 360) % 360;
-          const nextIdx = Math.round(norm / (360 / count)) % count;
-          if (nextIdx !== hbTriggerState.activeModuleIndex) {
-            hbTriggerState.activeModuleIndex = nextIdx;
-            playCyberSound('tick');
-          }
-          updateDeckInspectorContent();
-          renderCyberDeckModules();
-        } else {
-          updateDeckInspectorContent();
+      if (Math.abs(delta) > 1.5) {
+        procRingState.movedDuringDrag = true;
+      }
+
+      procRingState.manualAngle += delta;
+
+      // Clockwise (right) rotation produces positive delta
+      if (delta > 0 && !procRingState.isBlueFlameLit) {
+        procRingState.rightAccumulated += delta;
+        if (procRingState.rightAccumulated >= REQUIRED_RIGHT_DEGREES) {
+          procRingState.rightAccumulated = REQUIRED_RIGHT_DEGREES;
+          procRingState.isBlueFlameLit = true;
+          pushSystemLog("PROC_RING", "BLUE_FLAME_ON");
+          if (navigator.vibrate) navigator.vibrate([60, 30, 90]);
         }
       }
+      updateProcRingHUD();
     }
-    deckState.lastPointerAngle = curAngle;
+    procRingState.lastPointerAngle = curAngle;
   });
 
-  const endDeckDialPointer = (e) => {
-    if (deckRotaryDialEl.hasPointerCapture(e.pointerId)) {
-      try { deckRotaryDialEl.releasePointerCapture(e.pointerId); } catch (err) {}
+  const endProcSpin = (e) => {
+    if (procRingTriggerEl.hasPointerCapture(e.pointerId)) {
+      try { procRingTriggerEl.releasePointerCapture(e.pointerId); } catch (err) {}
     }
-    deckState.isRotating = false;
-    deckState.lastPointerAngle = null;
-
-    if (!deckState.moved) {
-      deckState.tapCount += 1;
-      clearTimeout(deckState.tapTimer);
-      deckState.tapTimer = setTimeout(() => {
-        const taps = deckState.tapCount;
-        deckState.tapCount = 0;
-        if (taps === 1) {
-          playCyberSound('tick');
-          if (deckState.mode === 'boot') {
-            setCyberDeckViewMode('orbit');
-          } else {
-            setCyberDeckViewMode('inspector');
-          }
-        } else if (taps >= 2) {
-          if (deckState.mode === 'boot') {
-            setCyberDeckViewMode('orbit');
-          } else {
-            launchSelectedCyberDeckModule();
-          }
-        }
-      }, 280);
-    }
+    procRingState.isSpinningRight = false;
+    procRingState.lastPointerAngle = null;
   };
 
-  deckRotaryDialEl.addEventListener('pointerup', endDeckDialPointer);
-  deckRotaryDialEl.addEventListener('pointercancel', endDeckDialPointer);
+  procRingTriggerEl.addEventListener('pointerup', endProcSpin);
+  procRingTriggerEl.addEventListener('pointercancel', endProcSpin);
 
-  document.getElementById('close-cyber-deck-btn')?.addEventListener('click', closeHorizontalCyberDeck);
-  document.getElementById('deckLaunchSelectedBtn')?.addEventListener('click', launchSelectedCyberDeckModule);
-  document.getElementById('deckTerminateInfoBtn')?.addEventListener('click', () => {
-    setCyberDeckViewMode('orbit');
-  });
-  document.getElementById('deckResetDialBtn')?.addEventListener('click', () => {
-    deckState.angle = 0;
-    hbTriggerState.activeModuleIndex = 0;
-    deckRotaryDialEl.style.setProperty('--deck-dial-angle', '0deg');
-    setCyberDeckViewMode('boot');
-  });
-  document.getElementById('deckSfxToggleBtn')?.addEventListener('click', (e) => {
-    cyberSfxEnabled = !cyberSfxEnabled;
-    e.currentTarget.textContent = cyberSfxEnabled ? 'SFX: ON' : 'SFX: OFF';
+  procRingTriggerEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (procRingState.movedDuringDrag) return;
+    const now = Date.now();
+    if (now - procRingState.lastTapTime < 350) {
+      procRingState.lastTapTime = 0;
+      openRealModulesFrame('3d');
+      return;
+    }
+    procRingState.lastTapTime = now;
+    showBilingualRingInfo();
   });
 
-  setInterval(() => {
-    const clk = document.getElementById('deckClock');
-    if (clk) clk.textContent = new Date().toTimeString().slice(0, 8);
-  }, 1000);
+  procRingTriggerEl.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    openRealModulesFrame('3d');
+  });
+
+  document.querySelectorAll('.rm-tab').forEach(tabBtn => {
+    tabBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const mod = tabBtn.getAttribute('data-module');
+      if (mod) renderRealModuleTab(mod);
+    });
+  });
+
+  if (closeRealModulesFrameEl) {
+    closeRealModulesFrameEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeRealModulesFrame();
+    });
+  }
+
+  updateProcRingHUD();
 }
 
 /* =========================================================
-   1.4. KEY RING (AUTO RIGHT SPIN -> 3 LEFT TURNS GLOW -> DRAG FULLSCREEN)
+   1.2. KEY RING (AUTO RIGHT SPIN -> 3 LEFT TURNS GLOW -> DRAG FULLSCREEN)
    ========================================================= */
 const keyDialPuckEl = document.getElementById('keyDialPuck');
 const keyRingStageEl = document.getElementById('keyRingStage');
 const keyTurnBadgeEl = document.getElementById('keyTurnBadge');
 const keyLockStateEl = document.getElementById('keyLockState');
 
-const REQUIRED_LEFT_DEGREES = 360 * 3;
+const REQUIRED_LEFT_DEGREES = 360 * 3; // 3 full counter-clockwise (left) turns
 
 let keyState = {
   autoAngle: 0,
@@ -789,7 +557,6 @@ function initKeyRingInteractions() {
             keyState.leftAccumulated = REQUIRED_LEFT_DEGREES;
             keyState.isKeyActive = true;
             keyState.isTurningKey = false;
-            playCyberSound('activate');
             pushSystemLog("Key", "ACTIVATED_GLOW");
             if (navigator.vibrate) navigator.vibrate([70, 40, 70]);
           }
@@ -837,7 +604,7 @@ function initKeyRingInteractions() {
 }
 
 /* =========================================================
-   1.5. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL
+   1.3. IN-APP YOUTUBE HOLOGRAPHIC WORKSPACE MODAL
    ========================================================= */
 function ensureYouTubeModalExists() {
   let modal = document.getElementById('youtube-workspace-modal');
@@ -928,7 +695,7 @@ function loadYouTubeSearch(query) {
 }
 
 /* =========================================================
-   1.6. MAP POINTING PIN & BLUE HOLOGRAPHIC BLUEPRINT GENERATOR
+   1.4. MAP POINTING PIN & BLUE HOLOGRAPHIC BLUEPRINT GENERATOR
    ========================================================= */
 function createMapPinCanvas(fileLabel) {
   const canvas = document.createElement('canvas');
@@ -986,7 +753,7 @@ function attachMapPinToMesh(mesh, fileLabel) {
 }
 
 /* =========================================================
-   1.7. IN-APP 3D WORKSPACE MODAL & 3-LAYER RING ADJUSTMENT
+   1.5. IN-APP 3D WORKSPACE MODAL & HOLOGRAM ENGINE
    ========================================================= */
 let scene3DBox, camera3DBox, renderer3DBox, desktopGroup3D;
 let loadedObjects3D = [];
@@ -1015,30 +782,6 @@ function playTrashSound3D() {
   } catch (e) {}
 }
 
-function adjustThreeLayerRingsToViewport(viewport) {
-  if (!viewport) return;
-  const minDim = Math.min(viewport.clientWidth || 300, viewport.clientHeight || 300);
-  const layer1 = document.getElementById('td-layer-ring-1');
-  const layer2 = document.getElementById('td-layer-ring-2');
-  const layer3 = document.getElementById('td-layer-ring-3');
-
-  if (layer1) {
-    const s1 = Math.max(120, Math.round(minDim * 0.72));
-    layer1.style.width = `${s1}px`;
-    layer1.style.height = `${s1}px`;
-  }
-  if (layer2) {
-    const s2 = Math.max(92, Math.round(minDim * 0.54));
-    layer2.style.width = `${s2}px`;
-    layer2.style.height = `${s2}px`;
-  }
-  if (layer3) {
-    const s3 = Math.max(66, Math.round(minDim * 0.36));
-    layer3.style.width = `${s3}px`;
-    layer3.style.height = `${s3}px`;
-  }
-}
-
 function ensure3DModalExists() {
   let modal = document.getElementById('td-workspace-modal');
   if (!modal) {
@@ -1048,16 +791,12 @@ function ensure3DModalExists() {
 
     modal.innerHTML = `
       <div style="width:96%; max-width:1100px; height:92vh; background:#000f1e; border:2px solid #00ffff; box-shadow:0 0 40px rgba(0,255,255,0.7); display:flex; flex-direction:column; border-radius:12px; overflow:hidden; font-family:monospace; position:relative;">
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; background:rgba(0,30,60,0.95); border-bottom:1px solid #00ffff; z-index:10;">
-          <span id="td-hud-status" style="color:#00ffff; font-weight:bold; font-size:12px; letter-spacing:1px;">3D WORKSPACE // 3-LAYER RING MATRIX</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 18px; background:rgba(0,30,60,0.95); border-bottom:1px solid #00ffff; z-index:10;">
+          <span id="td-hud-status" style="color:#00ffff; font-weight:bold; font-size:12px; letter-spacing:1px;">3D WORKSPACE EXPANDED (1-Finger Rotate | 2-Finger Move & Pinch Zoom)</span>
           <button id="close-td-box" style="background:none; border:none; color:#ff3366; font-size:20px; font-weight:bold; cursor:pointer;">✕</button>
         </div>
 
-        <div id="td-box-viewport" style="flex:1; width:100%; background:#010814; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center;">
-          <div id="td-layer-ring-1" style="position:absolute; border-radius:50%; border:2px dashed rgba(0,255,255,0.55); pointer-events:none; z-index:2; animation:spinClockwise 18s linear infinite;"></div>
-          <div id="td-layer-ring-2" style="position:absolute; border-radius:50%; border:1.5px solid rgba(0,255,157,0.5); border-left-color:transparent; border-right-color:transparent; pointer-events:none; z-index:2; animation:spinCounter 11s linear infinite;"></div>
-          <div id="td-layer-ring-3" style="position:absolute; border-radius:50%; border:1.5px dotted rgba(0,243,255,0.75); pointer-events:none; z-index:2; animation:spinClockwise 6s linear infinite;"></div>
-        </div>
+        <div id="td-box-viewport" style="flex:1; width:100%; background:#010814; position:relative; overflow:hidden;"></div>
 
         <div id="fullscreen-projection-layer" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(1,8,20,0.96); z-index:50; flex-direction:column; justify-content:space-between; padding:18px; box-sizing:border-box;">
           <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #00ffff; padding-bottom:10px;">
@@ -1095,26 +834,14 @@ function ensure3DModalExists() {
       document.getElementById('td-file-input').click();
     });
     document.getElementById('td-file-input').addEventListener('change', handle3DBlueprintUpload);
-
-    window.addEventListener('resize', () => {
-      const vp = document.getElementById('td-box-viewport');
-      adjustThreeLayerRingsToViewport(vp);
-      if (renderer3DBox && camera3DBox && vp && vp.clientWidth > 0 && vp.clientHeight > 0) {
-        camera3DBox.aspect = vp.clientWidth / vp.clientHeight;
-        camera3DBox.updateProjectionMatrix();
-        renderer3DBox.setSize(vp.clientWidth, vp.clientHeight);
-      }
-    });
   }
 }
 
 function open3DWorkspaceModal() {
   ensure3DModalExists();
   const modal = document.getElementById('td-workspace-modal');
-  const vp = document.getElementById('td-box-viewport');
   if (modal) {
     modal.style.display = 'flex';
-    adjustThreeLayerRingsToViewport(vp);
     hologramRiseProgress = 0;
     init3DBoxScene();
     pushSystemLog("3D Table", "ACTIVE");
@@ -1131,13 +858,7 @@ function close3DWorkspaceModal() {
 
 function init3DBoxScene() {
   const viewport = document.getElementById('td-box-viewport');
-  if (!viewport || typeof THREE === 'undefined') return;
-  adjustThreeLayerRingsToViewport(viewport);
-
-  if (renderer3DBox && renderer3DBox.domElement) {
-    renderer3DBox.setSize(viewport.clientWidth, viewport.clientHeight);
-    return;
-  }
+  if (!viewport || viewport.hasChildNodes() || typeof THREE === 'undefined') return;
 
   scene3DBox = new THREE.Scene();
   scene3DBox.background = new THREE.Color(0x010814);
@@ -1149,8 +870,6 @@ function init3DBoxScene() {
   renderer3DBox = new THREE.WebGLRenderer({ antialias: true });
   renderer3DBox.setSize(viewport.clientWidth, viewport.clientHeight);
   renderer3DBox.setPixelRatio(window.devicePixelRatio);
-  renderer3DBox.domElement.style.position = 'relative';
-  renderer3DBox.domElement.style.zIndex = '1';
   viewport.appendChild(renderer3DBox.domElement);
 
   scene3DBox.add(new THREE.AmbientLight(0x00ffff, 0.8));
@@ -1361,7 +1080,7 @@ function updateAll3DFilesMode(makeNormal) {
 }
 
 /* =========================================================
-   1.8. FULLSCREEN PROJECTION LAYER & 3D TOUCH CONTROLS
+   1.6. FULLSCREEN PROJECTION LAYER & 3D TOUCH CONTROLS
    ========================================================= */
 let activeFullscreenFilesState = [];
 let fullscreenFilesNaturalMap = {};
@@ -1531,7 +1250,7 @@ function setup3DInteractions(viewport) {
       selectedObject3D = intersects[0].object;
       const outline = selectedObject3D.getObjectByName("outline");
       if (outline) outline.visible = true;
-      if (hud) hud.innerText = "OBJECT MODE (1-Finger Place | 2-Finger Scale)";
+      if (hud) hud.innerText = "OBJECT MODE (1-Finger Place | 2-Finger Pinch Zoom)";
     } else {
       deselect3D();
     }
@@ -1543,7 +1262,7 @@ function setup3DInteractions(viewport) {
       if (outline) outline.visible = false;
       selectedObject3D = null;
       const hud = document.getElementById('td-hud-status');
-      if (hud) hud.innerText = "3D WORKSPACE // 3-LAYER RING MATRIX";
+      if (hud) hud.innerText = "3D WORKSPACE (1-Finger Rotate | 2-Finger Move & Pinch Zoom)";
     }
   }
 
@@ -1709,10 +1428,7 @@ function initCircularVibrationGraph() {
 window.addEventListener('DOMContentLoaded', () => {
   initCircularVibrationGraph();
   initKeyRingInteractions();
-  initHeartbeatTrigger();
-  initDeckRotaryDialControls();
-  initMicLinkGestureControls();
-  ensureJarvisModeAlwaysOn();
+  initProcRingInteractions();
   updateTelemetryCounters();
 
   setTimeout(() => {
@@ -1726,7 +1442,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 /* =========================================================
-   3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT
+   3. TEXT-TO-SPEECH (TTS) WITH INTERRUPT SUPPORT (ORIGINAL)
    ========================================================= */
 function speak(text) {
   if ('speechSynthesis' in window) {
@@ -1800,6 +1516,9 @@ function addMessage(text, sender, imageDataUrl = null) {
   updateTelemetryCounters();
 }
 
+/* =========================================================
+   4.5. CLEAR MEMORY -> SAVE TO HISTORY & CLEAR CHAT
+   ========================================================= */
 function archiveCurrentChatToHistoryAndClear() {
   if (currentSession.messages.length > 0) {
     const snapshot = {
@@ -1885,37 +1604,26 @@ if (saveCustomMemory) {
 }
 
 /* =========================================================
-   5.5. JARVIS MODE ENFORCER & MIC_LINK 2-TURN + DOUBLE-CLICK
+   5.5. JARVIS MODE TOGGLE CONTROLLER
    ========================================================= */
-function ensureJarvisModeAlwaysOn() {
-  strictJarvisKeywordMode = true;
-  const rightOrb = document.getElementById('rightOrb');
-  if (modeIndicator) modeIndicator.innerText = "JARVIS_ON";
-  if (statusBadge) statusBadge.innerText = "[JARVIS_ACTIVE]";
-  if (rightOrb) rightOrb.classList.add('jarvis-mode-active');
-}
-
 function setJarvisModeState(enabled, announce = true) {
   strictJarvisKeywordMode = Boolean(enabled);
   const rightOrb = document.getElementById('rightOrb');
 
   if (modeIndicator) {
-    modeIndicator.innerText = strictJarvisKeywordMode ? "JARVIS_ON" : "STANDBY";
-  }
-  if (statusBadge) {
-    statusBadge.innerText = strictJarvisKeywordMode ? "[JARVIS_ACTIVE]" : "[STANDBY]";
+    modeIndicator.innerText = strictJarvisKeywordMode ? "STRICT" : "STANDARD";
   }
   if (rightOrb) {
     if (strictJarvisKeywordMode) rightOrb.classList.add('jarvis-mode-active');
     else rightOrb.classList.remove('jarvis-mode-active');
   }
 
-  pushSystemLog("Mode", strictJarvisKeywordMode ? "JARVIS_ON" : "STANDBY");
+  pushSystemLog("Mode", strictJarvisKeywordMode ? "JARVIS_ON" : "STANDARD");
 
   if (announce) {
     const msg = strictJarvisKeywordMode
-      ? "Jarvis Mode activated and locked on across all frameworks, Boss."
-      : "Jarvis Mode switched to standby, Boss. Rotate MIC LINK 2 times and double-click to reactivate.";
+      ? "Jarvis Mode activated, Boss. Only 'Jarvis' commands will trigger."
+      : "Jarvis Mode deactivated, Boss. Standard voice mode active.";
     addMessage(`Jarvis: ${msg}`, 'ai');
     currentSession.messages.push({ role: 'model', text: msg, time: format12HourTime(new Date()) });
     saveSessions();
@@ -1925,75 +1633,6 @@ function setJarvisModeState(enabled, announce = true) {
 
 function toggleJarvisMode() {
   setJarvisModeState(!strictJarvisKeywordMode, true);
-}
-
-function initMicLinkGestureControls() {
-  if (!micBtn) return;
-
-  let micTurnDeg = 0;
-  let micLastAngle = null;
-  let isTurningMic = false;
-  let micTapCount = 0;
-  let micTapTimer = null;
-  let micMoved = false;
-
-  const getMicAngle = (clientX, clientY) => {
-    const rect = micBtn.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    return (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI;
-  };
-
-  micBtn.addEventListener('pointerdown', (e) => {
-    isTurningMic = true;
-    micMoved = false;
-    micLastAngle = getMicAngle(e.clientX, e.clientY);
-    micBtn.setPointerCapture(e.pointerId);
-  });
-
-  micBtn.addEventListener('pointermove', (e) => {
-    if (!isTurningMic) return;
-    const ang = getMicAngle(e.clientX, e.clientY);
-    if (micLastAngle !== null) {
-      let delta = ang - micLastAngle;
-      if (delta > 180) delta -= 360;
-      if (delta < -180) delta += 360;
-      if (Math.abs(delta) > 2) {
-        micMoved = true;
-        micTurnDeg += Math.abs(delta);
-        micBtn.style.setProperty('--mic-angle', `${micTurnDeg}deg`);
-      }
-    }
-    micLastAngle = ang;
-  });
-
-  const endMicPointer = (e) => {
-    if (micBtn.hasPointerCapture(e.pointerId)) {
-      try { micBtn.releasePointerCapture(e.pointerId); } catch (err) {}
-    }
-    isTurningMic = false;
-    micLastAngle = null;
-
-    if (!micMoved) {
-      micTapCount += 1;
-      clearTimeout(micTapTimer);
-      micTapTimer = setTimeout(() => {
-        const taps = micTapCount;
-        micTapCount = 0;
-        if (taps >= 2 && micTurnDeg >= 720) {
-          micTurnDeg = 0;
-          micBtn.style.setProperty('--mic-angle', '0deg');
-          setJarvisModeState(true, true);
-          if (!isListeningActive && typeof startJarvisListening === 'function') {
-            startJarvisListening();
-          }
-        }
-      }, 320);
-    }
-  };
-
-  micBtn.addEventListener('pointerup', endMicPointer);
-  micBtn.addEventListener('pointercancel', endMicPointer);
 }
 
 /* =========================================================
@@ -2033,10 +1672,11 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("go back") || query.includes("back")) {
-    if (cyberDeckOverlayEl && cyberDeckOverlayEl.style.display === 'flex') {
-      closeHorizontalCyberDeck();
-      return "Exited Cyber-Deck framework, Boss.";
+    if (realModulesFrameEl && realModulesFrameEl.classList.contains('open')) {
+      closeRealModulesFrame();
+      return "Closed real modules frame, Boss.";
     }
+
     if (keyState.expandedPanel) {
       resetKeyAndCollapsePanel();
       return "Exited fullscreen box view, Boss.";
@@ -2066,7 +1706,7 @@ function handleHardcoded(text) {
   }
 
   if (query.includes("go to home") || query.includes("go home") || query.includes("home")) {
-    closeHorizontalCyberDeck();
+    closeRealModulesFrame();
     resetKeyAndCollapsePanel();
     if (historyModal) historyModal.style.display = 'none';
     if (memoryModal) memoryModal.style.display = 'none';
@@ -2220,9 +1860,11 @@ async function generateImageWithGemini(promptText, activeKey) {
       } else {
         const errBody = await res.text().catch(() => '');
         lastStatusError = `${imgModel} HTTP ${res.status}: ${errBody.slice(0, 120)}`;
+        console.warn("Image model response error:", lastStatusError);
       }
     } catch (e) {
       lastStatusError = `${imgModel} request failed: ${e.message || e}`;
+      console.warn("Image model attempt failed:", imgModel, e);
     }
   }
 
@@ -2505,9 +2147,42 @@ window.addEventListener('click', (e) => {
 });
 
 /* =========================================================
-   11. CONTINUOUS VOICE RECOGNITION + VIBE PANEL + TELEMETRY
+   11. CONTINUOUS VOICE RECOGNITION + VIBE PANEL + TELEMETRY (ORIGINAL)
    ========================================================= */
 let startJarvisListening = function() {};
+
+function toggleVoiceAssistant() {
+  isListeningActive = !isListeningActive;
+  const leftOrb = document.getElementById('leftOrb');
+  const rightOrb = document.getElementById('rightOrb');
+  const voicePanel = document.getElementById('voicePanel');
+
+  if (isListeningActive) {
+    if (leftOrb) leftOrb.classList.add('listening');
+    if (rightOrb) rightOrb.classList.add('listening');
+    if (micBtn) micBtn.classList.add('active-mic');
+    if (voiceStatus) voiceStatus.innerText = 'ACTIVE';
+    if (statusBadge) statusBadge.innerText = '[VOICE_ON]';
+
+    if (navigator.vibrate) {
+      navigator.vibrate([110, 50, 110, 50, 180]);
+    }
+    if (voicePanel) {
+      voicePanel.classList.add('glitch-active');
+      setTimeout(() => voicePanel.classList.remove('glitch-active'), 450);
+    }
+    pushSystemLog("Voice Link", "LISTENING");
+    if (typeof startJarvisListening === 'function') startJarvisListening();
+  } else {
+    if (leftOrb) leftOrb.classList.remove('listening');
+    if (rightOrb) rightOrb.classList.remove('listening');
+    if (micBtn) micBtn.classList.remove('active-mic');
+    if (voiceStatus) voiceStatus.innerText = 'STANDBY';
+    if (statusBadge) statusBadge.innerText = '[ONLINE]';
+    if (navigator.vibrate) navigator.vibrate(0);
+    pushSystemLog("Voice Link", "STANDBY");
+  }
+}
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -2522,7 +2197,6 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     recognition.onstart = () => {
       if (statusText) statusText.innerText = "LISTENING...";
       if (micBtn) micBtn.classList.add('active-mic');
-      if (voiceStatus) voiceStatus.innerText = "ACTIVE";
     };
 
     recognition.onresult = (event) => {
@@ -2636,9 +2310,14 @@ function pulseEqualizer() {
   });
 }
 
+let decryptProg = 30;
 setInterval(() => {
   pulseEqualizer();
   updateTelemetryCounters();
+
+  decryptProg = decryptProg >= 100 ? 12 : decryptProg + 1;
+  const decEl = document.getElementById('decryptPercent');
+  if (decEl) decEl.innerHTML = `SYNC<br>${decryptProg}%`;
 
   const tempEl = document.getElementById('coreTemp');
   if (tempEl) tempEl.textContent = `${(37.5 + Math.random() * 2.4).toFixed(1)}°C`;
