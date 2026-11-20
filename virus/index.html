@@ -10,17 +10,24 @@
 </head>
 <body class="jarvis-mode-enforced">
 
-  <!-- GLOBAL HEARTBEAT CORE RING (PERSISTENT ACROSS ALL SCREENS & MODALS) -->
-  <div id="global-heartbeat-ring" class="heartbeat-ring-widget" title="Drag to rotate | Double-click + 2 right turns to activate | Double-click to open Horizontal Cyber-Deck | Triple-click to toggle size/dock">
+  <!-- GLOBAL HEARTBEAT CORE RING WITH 3 FUNCTIONAL LAYERS -->
+  <div id="global-heartbeat-ring"
+       class="heartbeat-ring-widget hb-small"
+       data-active-layer="1"
+       title="Layer 1: L/R = Zoom In/Out | Layer 2: L/R = Rotate Screen | Layer 3: File/App Index">
+    <div class="hb-layer hb-layer-1" data-layer="1" title="L1: Zoom"></div>
+    <div class="hb-layer hb-layer-2" data-layer="2" title="L2: Rotate"></div>
+    <div class="hb-layer hb-layer-3" data-layer="3" title="L3: Files/Apps"></div>
     <div class="hb-outer-ring"></div>
     <div class="hb-mid-ring"></div>
     <div class="hb-inner-core">
-      <div class="hb-label" id="hbRingLabel">KEY</div>
-      <div class="hb-sub" id="hbRingSub">2x CLK + 2R</div>
+      <div class="hb-layer-tag" id="hbLayerTag">L1:ZOOM</div>
+      <div class="hb-label" id="hbRingLabel">F1</div>
+      <div class="hb-sub" id="hbRingSub">L/R ZOOM</div>
     </div>
   </div>
 
-  <!-- HORIZONTAL CYBER-DECK OVERLAY (ACTIVATED ON DOUBLE-CLICK AFTER ACTIVATION) -->
+  <!-- HORIZONTAL CYBER-DECK OVERLAY WITH DEDICATED LARGE CIRCLE SIDE PANEL -->
   <div id="horizontal-cyber-deck-overlay" class="cyber-deck-overlay" style="display:none;">
     <div class="cyber-deck-frame">
       <div class="cyber-deck-header">
@@ -28,14 +35,29 @@
         <span class="cyber-deck-jarvis-badge">JARVIS MODE: ALWAYS ACTIVE</span>
         <button id="close-cyber-deck-btn" class="cyber-deck-close-btn">EXIT DECK [✕]</button>
       </div>
-      <div class="cyber-deck-body">
-        <div class="cyber-deck-left">
+      <div class="cyber-deck-body deck-split-layout">
+        <!-- Apps / Modules Box -->
+        <div class="cyber-deck-left apps-box-panel">
           <div class="deck-target-bar">
             <span id="deckActiveModuleLabel">TARGET: 3D WORKSPACE</span>
-            <span id="deckGestureHint">Rotate Heartbeat Ring to switch • Double-click Ring to launch</span>
+            <span id="deckGestureHint">L1: Zoom • L2: Rotate • L3: File/App</span>
           </div>
           <div id="cyber-deck-orbit-nodes" class="cyber-deck-orbit-nodes"></div>
         </div>
+
+        <!-- Adjacent Large Circle Box (Replaces Top-Floating Circle) -->
+        <div class="cyber-deck-center large-side-circle-panel" id="deckLargeCircleBox">
+          <div class="deck-large-circle" id="deckLargeCircle">
+            <div class="deck-large-circle-ring"></div>
+            <div class="deck-large-circle-center">
+              <div class="deck-circle-mode" id="deckCircleLayerLabel">LAYER 1 • ZOOM</div>
+              <div class="deck-circle-value" id="deckCircleCenterValue">APP 1</div>
+              <div class="deck-circle-sub" id="deckCircleSubValue">3D WORKSPACE</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Details & Launch Box -->
         <div class="cyber-deck-right">
           <div class="deck-preview-card">
             <div class="deck-preview-head" id="deckPreviewTitle">3D WORKSPACE</div>
@@ -115,16 +137,16 @@
         </div>
       </section>
 
-      <!-- REPLACED PERCENTAGE CIRCLE WITH HEARTBEAT KEY ANCHOR SLOT -->
+      <!-- HEARTBEAT KEY ANCHOR SLOT -->
       <section class="panel decrypt-panel" data-expandable="true" data-box-id="decrypt-panel">
         <div class="panel-header">
           <span>HEARTBEAT_KEY</span>
-          <span id="procMode">CORE-KEY</span>
+          <span id="procMode">3-LAYER</span>
         </div>
         <div class="decrypt-container">
           <div class="progress-ring-wrapper" id="heartbeatKeyAnchorSlot">
             <div class="progress-ring"></div>
-            <div class="decrypt-text" id="decryptPercent">KEY<br>ANCHOR</div>
+            <div class="decrypt-text" id="decryptPercent">3-LAYER<br>RING</div>
           </div>
           <div class="binary-stream" id="binaryStream">
             01101010 01100001<br>
@@ -191,7 +213,7 @@
       </section>
     </section>
 
-    <!-- RIGHT SIDEBAR: KEYFRAME_FX (ROTARY KEY RING) + SIGNAL_WAVE + VOICE_LINK -->
+    <!-- RIGHT SIDEBAR: KEYFRAME_FX + SIGNAL_WAVE + VOICE_LINK -->
     <aside class="column right-col">
       <section class="panel fx-panel" data-expandable="true" data-box-id="fx-panel">
         <div class="panel-header">
