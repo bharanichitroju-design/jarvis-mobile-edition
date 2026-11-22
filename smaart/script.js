@@ -1,8 +1,9 @@
 /* =========================================================
-   STARK INDUSTRIES // J.A.R.V.I.S. HACKING WALL SCRIPT
+   MARK I PROJECT // J.A.R.V.I.S. HACKING WALL SCRIPT
    - Multi-Model Gemini Chain + Automatic Google Web Fallback
+   - Live Source Model Banner (#activeModelSource)
    - 6 Dock Buttons: YouTube, 3D work, Games, Voice, Exist, Clear
-   - Box 1 (Your Diary), Box 2 (Media), Box 3 (Personal + 5030 + AI)
+   - Box 1 (Your Diary), Box 2 (Media), Box 3 (Personal + AI Locked)
    - Key-Drop-Only Fullscreen Activation + Auto Key Deactivation
    ========================================================= */
 
@@ -67,6 +68,7 @@ const statusText = document.getElementById("status-text");
 const statusBadge = document.getElementById("status-badge");
 const engineBadge = document.getElementById("engineBadge");
 const apiFallbackBadge = document.getElementById("apiFallbackBadge");
+const activeModelSourceEl = document.getElementById("activeModelSource");
 const modeIndicator = document.getElementById("modeIndicator");
 const voiceStatus = document.getElementById("voiceStatus");
 const speechIndicator = document.getElementById("speechIndicator");
@@ -81,7 +83,14 @@ const mediaMiniStrip = document.getElementById("mediaMiniStrip");
 const diaryLatestMeta = document.getElementById("diaryLatestMeta");
 const personalLockBadge = document.getElementById("personalLockBadge");
 
-// ==================== 3. RULER, CLOCK, NODE POINTS & 6-BUTTON ARC DOCK ====================
+function setAnswerSourceModel(sourceLabel) {
+  const cleanLabel = (sourceLabel || "UNKNOWN").toUpperCase();
+  if (activeModelSourceEl) activeModelSourceEl.textContent = cleanLabel;
+  if (apiFallbackBadge) apiFallbackBadge.textContent = cleanLabel;
+  if (engineBadge) engineBadge.textContent = `SOURCE: ${cleanLabel}`;
+}
+
+// ==================== 3. RULER, CLOCK, SPECTRUM & 6-BUTTON ARC DOCK ====================
 function buildTopRuler() {
   const ruler = document.getElementById("topRuler");
   if (!ruler) return;
@@ -123,14 +132,31 @@ function updateClockAndDate() {
   if (bottomClock) bottomClock.textContent = `${hh}:${mm}:${ss}`;
 }
 
-function startIndicatorPointsCycle() {
-  const nodes = Array.from(document.querySelectorAll("#indicatorPoints .node-pt"));
-  if (!nodes.length) return;
-  let activeIdx = 0;
+function buildSpectrumBars() {
+  const frame = document.getElementById("spectrumBarsFrame");
+  if (!frame) return;
+  const barCount = 24;
+  frame.innerHTML = "";
+  const bars = [];
+  for (let i = 0; i < barCount; i++) {
+    const col = document.createElement("div");
+    col.className = "spectrum-bar-col";
+    col.style.height = "25%";
+    frame.appendChild(col);
+    bars.push(col);
+  }
+
+  let tick = 0;
   setInterval(() => {
-    nodes.forEach((n, idx) => n.classList.toggle("active", idx === activeIdx));
-    activeIdx = (activeIdx + 1) % nodes.length;
-  }, 900);
+    tick += 0.22;
+    const energy = isSpeaking ? 0.92 : (isMicListening ? 0.65 : 0.28);
+    bars.forEach((col, i) => {
+      const waveA = Math.abs(Math.sin(tick + i * 0.42));
+      const waveB = Math.abs(Math.cos(tick * 0.7 - i * 0.28));
+      const pct = Math.max(14, Math.min(96, Math.round((waveA * 0.65 + waveB * 0.35) * 100 * energy + 12)));
+      col.style.height = `${pct}%`;
+    });
+  }, 150);
 }
 
 function buildArcDock() {
@@ -198,9 +224,9 @@ function updateTelemetryCounts() {
   if (diaryLatestMeta) {
     if (diaryEntries.length > 0) {
       const latest = diaryEntries[diaryEntries.length - 1];
-      diaryLatestMeta.textContent = `${latest.fileLabel} // ${latest.timestamp}`;
+      diaryLatestMeta.textContent = `${latest.fileLabel} // AI LINKED`;
     } else {
-      diaryLatestMeta.textContent = "BOX 1 // TEXT & PHOTOS + AI";
+      diaryLatestMeta.textContent = "BOX 1 // TEXT & PHOTOS • AI LINKED";
     }
   }
 
@@ -209,12 +235,12 @@ function updateTelemetryCounts() {
       const latestMedia = mediaItems[mediaItems.length - 1];
       mediaMiniStrip.textContent = `${latestMedia.fileLabel}: ${latestMedia.name}`;
     } else {
-      mediaMiniStrip.textContent = "PHOTOS & VIDEOS";
+      mediaMiniStrip.textContent = "PHOTOS & VIDEOS • AI LINKED";
     }
   }
 
   if (personalLockBadge) {
-    personalLockBadge.textContent = personalUnlocked ? "UNLOCKED" : "LOCKED";
+    personalLockBadge.textContent = personalUnlocked ? "AI UNLOCKED" : "AI LOCKED";
   }
 }
 
@@ -248,15 +274,12 @@ function finalizeClearChat(saveToBothMemoryAndHistory) {
     .map(m => `[${m.sender.toUpperCase()} @ ${m.time || ""}]: ${m.text.replace(/<[^>]*>/g, "")}`)
     .join(" | ");
 
-  if (formatted) {
-    const record = {
+  if (formatted && saveToBothMemoryAndHistory) {
+    memoryStore.push({
       text: `Cleared Chat Log: ${formatted.slice(0, 1200)}`,
       time: new Date().toLocaleString()
-    };
-    if (saveToBothMemoryAndHistory) {
-      memoryStore.push(record);
-      localStorage.setItem(STORAGE_KEYS.MEMORY, JSON.stringify(memoryStore));
-    }
+    });
+    localStorage.setItem(STORAGE_KEYS.MEMORY, JSON.stringify(memoryStore));
   }
 
   localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory.slice(-150)));
@@ -334,7 +357,7 @@ function setupModals() {
   });
 }
 
-// ==================== 5. BOX 1 (YOUR DIARY), BOX 2 (MEDIA) & BOX 3 (PERSONAL + 5030 + AI) ====================
+// ==================== 5. BOX 1 (YOUR DIARY), BOX 2 (MEDIA) & BOX 3 (PERSONAL + AI LOCKED) ====================
 function setupDiaryBox1() {
   const imgInp = document.getElementById("diary-img-input");
   const badge = document.getElementById("diaryPendingPhotoBadge");
@@ -383,6 +406,7 @@ function setupDiaryBox1() {
     if (badge) badge.textContent = "NO PHOTO";
     updateTelemetryCounts();
     renderDiaryList(searchInp?.value || "");
+    setAnswerSourceModel("BOX 1 AI");
     appendMessage("ai", `Saved ${entry.fileLabel} to Your Diary (${entry.timestamp}), Boss.`);
   });
 
@@ -425,11 +449,8 @@ function renderDiaryList(filter = "") {
 }
 
 function answerFromBox1Diary(query) {
+  setAnswerSourceModel("BOX 1 AI");
   const lower = query.toLowerCase();
-  if (!lower.includes("box 1") && !lower.includes("file") && !lower.includes("diary")) {
-    return "Please mention Box 1 or a specific File number (e.g., Box 1 File 1) so I can answer from that entry, Boss.";
-  }
-
   const fileMatch = lower.match(/file\s*(\d+)/);
   if (fileMatch) {
     const targetNum = parseInt(fileMatch[1], 10);
@@ -479,6 +500,7 @@ function setupMediaBox2() {
         }
         updateTelemetryCounts();
         renderMediaGrid();
+        setAnswerSourceModel("BOX 2 AI");
         appendMessage("ai", `Added ${item.fileLabel} (${item.name}) to Media Box, Boss.`);
       };
       reader.readAsDataURL(file);
@@ -537,10 +559,8 @@ function openLightbox(title, src, type) {
 }
 
 function answerFromBox2Media(query) {
+  setAnswerSourceModel("BOX 2 AI");
   const lower = query.toLowerCase();
-  if (!lower.includes("box 2") && !lower.includes("file") && !lower.includes("media")) {
-    return "Mention Box 2 and the File number (e.g., Box 2 File 1) to inspect that media item, Boss.";
-  }
   const m = lower.match(/file\s*(\d+)/);
   if (m) {
     const num = parseInt(m[1], 10);
@@ -616,7 +636,7 @@ function setupPersonalBox3() {
 
   saveBtn?.addEventListener("click", () => {
     if (!personalUnlocked) {
-      alert("Password required first, Boss.");
+      alert("This is AI locked, Boss.");
       return;
     }
     const inp = document.getElementById("personal-detail-input");
@@ -638,31 +658,47 @@ function setupPersonalBox3() {
     pendingPersonalPhotoName = "";
     if (photoBadge) photoBadge.textContent = "NO PHOTO";
     renderPersonalEntries();
-    appendMessage("ai", "Personal detail stored in your private vault, Boss.");
+    setAnswerSourceModel("BOX 3 AI");
+    appendMessage("ai", "Personal detail stored in your private AI vault, Boss.");
   });
 
   askAiBtn?.addEventListener("click", () => {
     const q = (aiInp?.value || "").trim();
     if (!q) return;
-    if (!personalUnlocked) {
-      const codeAttempt = prompt("Personal AI locked. Enter the password to access personal details, Boss:");
-      if (codeAttempt !== PERSONAL_PASSCODE) {
-        appendMessage("ai", WRONG_PASS_MESSAGE);
-        if (aiInp) aiInp.value = "";
-        return;
-      }
-      personalUnlocked = true;
-      refreshPersonalModalState();
-      updateTelemetryCounts();
-    }
-
-    const summary = personalDetails.length
-      ? personalDetails.map((p, i) => `Record ${i + 1} (${p.timestamp}): ${p.text || (p.image ? `Photo (${p.photoName || "Image"})` : "")}`).join("<br/>")
-      : "No personal details stored yet, Boss.";
     appendMessage("user", `[Personal AI] ${q}`);
-    appendMessage("ai", `<strong>[PERSONAL VAULT AI — VERIFIED]</strong><br/>${summary}`);
+    appendMessage("ai", answerFromBox3Personal(q));
     if (aiInp) aiInp.value = "";
   });
+}
+
+function answerFromBox3Personal(query) {
+  setAnswerSourceModel("BOX 3 AI");
+  if (!personalUnlocked) {
+    const codeAttempt = prompt("This is AI locked. Enter security code, Boss:");
+    if (codeAttempt !== PERSONAL_PASSCODE) {
+      return WRONG_PASS_MESSAGE;
+    }
+    personalUnlocked = true;
+    refreshPersonalModalState();
+    updateTelemetryCounts();
+  }
+
+  const lower = (query || "").toLowerCase();
+  const fileMatch = lower.match(/file\s*(\d+)/);
+  if (fileMatch) {
+    const idx = parseInt(fileMatch[1], 10) - 1;
+    const item = personalDetails[idx];
+    if (!item) return `Box 3 File ${idx + 1} was not found in Personal Details, Boss.`;
+    return `<strong>[Box 3 File ${idx + 1} — ${item.timestamp}]</strong><br/>${item.text || (item.image ? `Photo (${item.photoName || "Image"})` : "Empty record")}`;
+  }
+
+  if (!personalDetails.length) {
+    return "No personal details stored yet, Boss.";
+  }
+  const summary = personalDetails
+    .map((p, i) => `File ${i + 1} (${p.timestamp}): ${p.text || (p.image ? `Photo (${p.photoName || "Image"})` : "")}`)
+    .join("<br/>");
+  return `<strong>[PERSONAL VAULT AI — VERIFIED]</strong><br/>${summary}`;
 }
 
 function refreshPersonalModalState() {
@@ -688,7 +724,7 @@ function renderPersonalEntries() {
   }
   list.innerHTML = personalDetails.slice().reverse().map((p, idx) => `
     <div class="history-item">
-      <strong>Record #${personalDetails.length - idx}</strong> — <small>${p.timestamp}</small>
+      <strong>Box 3 File ${personalDetails.length - idx}</strong> — <small>${p.timestamp}</small>
       ${p.text ? `<div style="margin-top:4px;white-space:pre-wrap;">${p.text}</div>` : ""}
       ${p.image ? `<img src="${p.image}" alt="Personal detail" style="max-width:100%;max-height:130px;border:1px solid #3be8ff;border-radius:3px;margin-top:6px;cursor:pointer;" onclick="openLightbox('Personal Record', '${p.image}', 'image')" />` : ""}
     </div>
@@ -703,7 +739,7 @@ function open3DWorkplaceModal() {
   if (bodyEl) {
     bodyEl.innerHTML = `
       <p style="font-size:0.78rem;color:#d8f8ff;margin-bottom:8px;">
-        Three-dimensional workspace ready for your Mark VII models, Boss.
+        Three-dimensional workspace ready for your Mark I models, Boss.
       </p>
       <canvas id="threePreviewCanvas" width="480" height="210" style="width:100%;height:210px;border:1px solid #3be8ff;border-radius:4px;background:#020b16;"></canvas>
     `;
@@ -770,8 +806,7 @@ function triggerExistBackAction() {
 
 // ==================== 7. MULTI-MODEL GEMINI CHAIN + GOOGLE WEB FALLBACK ====================
 async function fetchGoogleWebFallback(query) {
-  if (apiFallbackBadge) apiFallbackBadge.textContent = "GOOGLE-WEB";
-  if (engineBadge) engineBadge.textContent = "ENGINE: AUTO-WEB FALLBACK";
+  setAnswerSourceModel("GOOGLE-WEB");
 
   let snippet = "";
   let sourceTitle = "";
@@ -798,7 +833,7 @@ async function fetchGoogleWebFallback(query) {
   const googleSearchLink = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
   if (snippet) {
     return (
-      `<div><strong>[ALL GEMINI MODELS EXHAUSTED — GOOGLE WEB FALLBACK: ${sourceTitle}]</strong></div>` +
+      `<div><strong>[GOOGLE WEB FALLBACK: ${sourceTitle}]</strong></div>` +
       `<div>${snippet}</div>` +
       `<div style="margin-top:4px;"><a href="${googleSearchLink}" target="_blank" rel="noopener noreferrer" style="color:#8cf3ff;text-decoration:underline;">Open Google Search Results</a>` +
       (sourceUrl && sourceUrl !== googleSearchLink
@@ -809,16 +844,16 @@ async function fetchGoogleWebFallback(query) {
   }
 
   return (
-    `<div><strong>[ALL GEMINI MODELS EXHAUSTED — GOOGLE WEB FALLBACK]</strong></div>` +
-    `<div>All configured Gemini models reached limits or failed. Direct Google Search link ready for "<strong>${query}</strong>":</div>` +
+    `<div><strong>[GOOGLE WEB FALLBACK]</strong></div>` +
+    `<div>Gemini models were unavailable or exhausted. Direct Google Search link ready for "<strong>${query}</strong>":</div>` +
     `<div style="margin-top:4px;"><a href="${googleSearchLink}" target="_blank" rel="noopener noreferrer" style="color:#8cf3ff;text-decoration:underline;">Search on Google Now</a></div>`
   );
 }
 
 function buildContextualSystemInstruction() {
   const base = isJarvisStrictMode
-    ? "You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir). Keep answers concise, direct, and tactical."
-    : "You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir). Always address Bharani as 'Boss' or 'Sir'.";
+    ? "You are J.A.R.V.I.S. for Mark I Project, created for Boss Bharani. Keep answers concise, direct, and tactical."
+    : "You are J.A.R.V.I.S. for Mark I Project, created for Boss Bharani. Always address Bharani as 'Boss'.";
 
   if (memoryStore.length > 0) {
     const notes = memoryStore.slice(-15).map(m => `- ${m.text}`).join("\n");
@@ -867,7 +902,7 @@ async function queryGeminiOrFallback(promptText) {
 
   if (!activeKey) {
     const webHtml = await fetchGoogleWebFallback(promptText);
-    setSystemState("SYSTEM ONLINE", "[WEB-FALLBACK]");
+    setSystemState("SYSTEM ONLINE", "[GOOGLE-WEB]");
     return webHtml;
   }
 
@@ -875,19 +910,17 @@ async function queryGeminiOrFallback(promptText) {
 
   for (const modelName of TEXT_MODELS) {
     try {
-      if (apiFallbackBadge) apiFallbackBadge.textContent = modelName.toUpperCase();
-      if (engineBadge) engineBadge.textContent = `ENGINE: ${modelName}`;
-
+      setAnswerSourceModel(modelName);
       const reply = await tryTextModel(modelName, activeKey, promptText, systemInstruction);
       setSystemState("SYSTEM ONLINE", "[ONLINE]");
       return reply;
     } catch (err) {
-      console.warn(`Model failed, moving to next model in chain (${modelName}):`, err);
+      console.warn(`Model failed, trying next in chain (${modelName}):`, err);
     }
   }
 
   const webHtml = await fetchGoogleWebFallback(promptText);
-  setSystemState("SYSTEM ONLINE", "[WEB-FALLBACK]");
+  setSystemState("SYSTEM ONLINE", "[GOOGLE-WEB]");
   return webHtml;
 }
 
@@ -909,14 +942,7 @@ async function handleUserCommand(rawText) {
     return;
   }
   if (lower.includes("box 3") || lower.includes("personal detail")) {
-    if (!personalUnlocked) {
-      appendMessage("ai", "Personal details are locked. Unlock Box 3 with the key and enter your security code first, Boss.");
-      return;
-    }
-    const info = personalDetails.length
-      ? personalDetails.map((p, idx) => `#${idx + 1} (${p.timestamp}): ${p.text || "[Photo]"}`).join("<br/>")
-      : "No personal details recorded yet, Boss.";
-    appendMessage("ai", info);
+    appendMessage("ai", answerFromBox3Personal(text));
     return;
   }
 
@@ -1055,7 +1081,7 @@ function toggleJarvisMode() {
   speakText(msg);
 }
 
-// ==================== 9. RED SIGNAL WAVE & CIRCULAR VIBRATION ====================
+// ==================== 9. RED SIGNAL WAVE ====================
 let wavePhase = 0;
 function renderVisualizers() {
   wavePhase += 0.085;
@@ -1092,31 +1118,6 @@ function renderVisualizers() {
     ctx.shadowBlur = 0;
   }
 
-  const vibCanvas = document.getElementById("circularVibrationCanvas");
-  if (vibCanvas) {
-    const vctx = vibCanvas.getContext("2d");
-    const cx = vibCanvas.width / 2;
-    const cy = vibCanvas.height / 2;
-    const baseR = 114;
-    vctx.clearRect(0, 0, vibCanvas.width, vibCanvas.height);
-
-    vctx.strokeStyle = "#8cf3ff";
-    vctx.lineWidth = 1.8;
-    vctx.beginPath();
-    const points = 72;
-    for (let i = 0; i <= points; i++) {
-      const angle = (i / points) * Math.PI * 2;
-      const ripple = Math.sin(angle * 10 + wavePhase * 2.2) * (4 + audioWaveLevel * 22);
-      const r = baseR + ripple;
-      const px = cx + Math.cos(angle) * r;
-      const py = cy + Math.sin(angle) * r;
-      if (i === 0) vctx.moveTo(px, py);
-      else vctx.lineTo(px, py);
-    }
-    vctx.closePath();
-    vctx.stroke();
-  }
-
   requestAnimationFrame(renderVisualizers);
 }
 
@@ -1132,7 +1133,7 @@ function collapseExpandedPanel() {
   const puck = document.getElementById("keyDialPuck");
   const stage = document.getElementById("keyRingStage");
   if (puck && stage && puck.parentElement !== stage) {
-    puck.classList.remove("floating-key", "docked-return", "dragging");
+    puck.classList.remove("floating-key", "dragging");
     puck.style.left = "";
     puck.style.top = "";
     puck.style.right = "";
@@ -1197,7 +1198,6 @@ function setupRotaryKey() {
       dragOffsetX = pt.clientX - (rect.left + rect.width / 2);
       dragOffsetY = pt.clientY - (rect.top + rect.height / 2);
       puck.classList.add("floating-key", "dragging");
-      puck.classList.remove("docked-return");
       document.body.appendChild(puck);
       puck.style.left = `${rect.left}px`;
       puck.style.top = `${rect.top}px`;
@@ -1264,12 +1264,11 @@ function setupRotaryKey() {
 
       if (hoveredBox) {
         const modalTargetId = hoveredBox.getAttribute("data-modal-target");
-        puck.classList.remove("floating-key", "docked-return");
+        puck.classList.remove("floating-key");
         puck.style.left = "";
         puck.style.top = "";
         stage.appendChild(puck);
 
-        // Automatically deactivate key upon opening / entering expanded view
         unlocked = false;
         totalCounterClockwiseDeg = 0;
         updateDialVisual(0);
@@ -1284,7 +1283,7 @@ function setupRotaryKey() {
           expandedElement = hoveredBox;
         }
       } else {
-        puck.classList.remove("floating-key", "docked-return");
+        puck.classList.remove("floating-key");
         puck.style.left = "";
         puck.style.top = "";
         stage.appendChild(puck);
@@ -1313,7 +1312,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateClockAndDate();
   setInterval(updateClockAndDate, 1000);
 
-  startIndicatorPointsCycle();
+  buildSpectrumBars();
   buildArcDock();
   updateTelemetryCounts();
   setupModals();
@@ -1334,6 +1333,6 @@ document.addEventListener("DOMContentLoaded", () => {
   if (chatHistory.length > 0) {
     chatHistory.slice(-15).forEach(item => appendMessage(item.sender, item.text, false));
   } else {
-    appendMessage("ai", "J.A.R.V.I.S. Mark VII Hacking HUD online, Boss. Ready for commands.", false);
+    appendMessage("ai", "MARK I PROJECT HUD online, Boss. Ready for commands.", false);
   }
 });
