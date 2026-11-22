@@ -1,8 +1,10 @@
 /* =========================================================
    STARK INDUSTRIES // J.A.R.V.I.S. HACKING WALL HUD CSS
    - Single-screen fit with high-intensity neon-cyan glow
-   - Unboxed floating hacker layout (except Answer Box)
-   - Mark VII center spotlight + Skull top-right + Key down-right
+   - AI-connected left sidebar modules + SPECTRUM IDLE + Red Wave
+   - Static outer arc reactor frame + rotating inner core
+   - Enlarged Skull & Key (circle next to Key removed)
+   - Continuous rotating frames on all 6 bottom dock buttons
    ========================================================= */
 :root {
   --bg-void: #020810;
@@ -81,7 +83,7 @@ body.hacking-wall-hud {
 
 /* ================= TOP NUMBER RULER ================= */
 .top-ruler {
-  height: 20px;
+  height: 18px;
   width: 100%;
   max-width: 100vw;
   display: flex;
@@ -92,7 +94,7 @@ body.hacking-wall-hud {
   border-bottom: 1.5px solid #5cf0ff;
   box-shadow: 0 0 18px rgba(59, 232, 255, 0.65);
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 8.5px;
   letter-spacing: 1px;
   color: rgba(155, 247, 255, 0.9);
   flex-shrink: 0;
@@ -124,14 +126,14 @@ body.hacking-wall-hud {
   box-shadow: var(--glow-cyan);
 }
 
-/* ================= TOP COMMAND BAR (FLOATING HACKER STRIP) ================= */
+/* ================= TOP COMMAND BAR ================= */
 .navbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
   padding: 4px 12px;
-  margin: 4px 12px 0 12px;
+  margin: 3px 12px 0 12px;
   max-width: calc(100vw - 24px);
   background: linear-gradient(90deg, rgba(4, 28, 52, 0.85), rgba(14, 165, 233, 0.22), rgba(4, 28, 52, 0.85));
   border-bottom: 1.5px solid #5cf0ff;
@@ -146,7 +148,7 @@ body.hacking-wall-hud {
   gap: 6px;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   color: var(--cyan-ultra);
   text-shadow: var(--glow-cyan);
   letter-spacing: 1.2px;
@@ -157,7 +159,7 @@ body.hacking-wall-hud {
   display: flex;
   gap: 5px;
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: 0.62rem;
   color: #7dd3fc;
   white-space: nowrap;
   overflow: hidden;
@@ -210,7 +212,7 @@ body.hacking-wall-hud {
   padding: 3px 10px;
   border-radius: 2px;
   font-family: var(--font-display);
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 1px;
   cursor: pointer;
@@ -228,9 +230,9 @@ body.hacking-wall-hud {
 .hud-workspace {
   flex: 1;
   display: grid;
-  grid-template-columns: 235px minmax(0, 1fr);
+  grid-template-columns: 248px minmax(0, 1fr);
   gap: 10px;
-  padding: 6px 12px 4px 12px;
+  padding: 5px 12px 4px 12px;
   min-height: 0;
   min-width: 0;
   width: 100%;
@@ -240,16 +242,17 @@ body.hacking-wall-hud {
   z-index: 10;
 }
 
-/* ================= LEFT COLUMN (FLOATING HACKER TELEMETRY + RED WAVE) ================= */
+/* ================= LEFT COLUMN ================= */
 .col-left {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 6px;
-  padding-left: 24px;
+  gap: 4px;
+  padding-left: 22px;
   position: relative;
   min-height: 0;
   min-width: 0;
+  height: 100%;
 }
 
 .left-sidebar-strip {
@@ -257,7 +260,7 @@ body.hacking-wall-hud {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 18px;
+  width: 16px;
   background: linear-gradient(180deg, rgba(14, 165, 233, 0.25), rgba(3, 18, 36, 0.85));
   border-left: 2px solid var(--cyan-bright);
   box-shadow: 0 0 14px rgba(59, 232, 255, 0.55);
@@ -265,18 +268,18 @@ body.hacking-wall-hud {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 0;
+  padding: 5px 0;
 }
 
 .strip-icon {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   border: 1px solid #8cf3ff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 7px;
+  font-size: 6.5px;
   box-shadow: var(--glow-soft);
   cursor: pointer;
 }
@@ -284,47 +287,46 @@ body.hacking-wall-hud {
 .strip-dots {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .strip-dots i {
-  width: 4px;
-  height: 4px;
+  width: 3.5px;
+  height: 3.5px;
   background: var(--cyan-bright);
   box-shadow: 0 0 8px var(--cyan-bright);
   border-radius: 50%;
   display: block;
 }
 
-/* TOP-LEFT INDICATOR POINTS CLUSTER */
 .top-left-cluster {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
   flex-shrink: 0;
 }
 
 .indicator-points-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
+  gap: 3px;
 }
 
 .node-pt {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   font-family: var(--font-mono);
-  font-size: 0.6rem;
+  font-size: 0.54rem;
   color: #9bf7ff;
-  padding: 2px 5px;
+  padding: 1px 4px;
   border-left: 1.5px solid rgba(59, 232, 255, 0.65);
   background: rgba(4, 24, 46, 0.55);
 }
 
 .node-pt i {
-  width: 5px;
-  height: 5px;
+  width: 4.5px;
+  height: 4.5px;
   border-radius: 50%;
   background: var(--cyan-bright);
   box-shadow: 0 0 7px var(--cyan-bright);
@@ -340,12 +342,12 @@ body.hacking-wall-hud {
 .date-clock-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
 .date-ring-widget {
-  width: 74px;
-  height: 74px;
+  width: 56px;
+  height: 56px;
   position: relative;
   display: flex;
   align-items: center;
@@ -368,14 +370,14 @@ body.hacking-wall-hud {
 
 .date-ring-inner .month {
   font-family: var(--font-display);
-  font-size: 8.5px;
+  font-size: 7px;
   color: #9bf7ff;
   letter-spacing: 1px;
 }
 
 .date-ring-inner .day-num {
   font-family: var(--font-display);
-  font-size: 19px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.05;
   color: #ffffff;
@@ -385,9 +387,9 @@ body.hacking-wall-hud {
 .weekday-box {
   flex: 1;
   min-width: 0;
-  padding: 5px 8px;
+  padding: 3px 7px;
   clip-path: polygon(0 0, 92% 0, 100% 28%, 100% 100%, 8% 100%, 0 72%);
-  background: rgba(5, 30, 56, 0.72);
+  background: rgba(5, 30, 56, 0.75);
   border-left: 2px solid var(--cyan-bright);
   border-right: 1px solid rgba(92, 240, 255, 0.5);
   box-shadow: 0 0 14px rgba(59, 232, 255, 0.35);
@@ -395,31 +397,122 @@ body.hacking-wall-hud {
 
 .weekday-box .day-name {
   font-family: var(--font-display);
-  font-size: 9.5px;
+  font-size: 8px;
   letter-spacing: 1px;
   color: #a5f3fc;
   border-bottom: 1px solid rgba(92, 240, 255, 0.5);
-  padding-bottom: 2px;
-  margin-bottom: 2px;
+  padding-bottom: 1px;
+  margin-bottom: 1px;
 }
 
 .weekday-box .mini-time {
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 13px;
   color: #ffffff;
   text-shadow: var(--glow-soft);
 }
 
 .weekday-box .mini-time small {
-  font-size: 9.5px;
+  font-size: 8px;
   color: var(--cyan-bright);
 }
 
-/* FLOATING VAULT COUNTERS (NO BOX HEADER) */
+/* FULL-HEIGHT STACK FOR THE THREE AI-CONNECTED VAULT BOXES */
+.left-vault-stack {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 0;
+}
+
+.vault-fill-slot {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 5px 8px;
+  border-radius: 4px;
+  transition: transform 0.16s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.diary-glow-box {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.24), rgba(3, 22, 44, 0.9));
+  border: 1.4px solid var(--cyan-ultra);
+  box-shadow: 0 0 16px rgba(59, 232, 255, 0.72), inset 0 0 10px rgba(59, 232, 255, 0.25);
+}
+
+.diary-glow-title {
+  font-family: var(--font-display);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 1.1px;
+  color: #ffffff;
+  text-shadow: 0 0 10px var(--cyan-bright), 0 0 22px var(--cyan-mid);
+  animation: diaryGlowPulse 2.2s infinite alternate;
+}
+
+.ai-link-chip {
+  font-family: var(--font-mono);
+  font-size: 0.46rem;
+  color: #9bf7ff;
+  background: rgba(14, 165, 233, 0.22);
+  border: 1px solid rgba(155, 247, 255, 0.55);
+  border-radius: 3px;
+  padding: 1px 4px;
+  white-space: nowrap;
+}
+
+.diary-meta-sub {
+  font-family: var(--font-mono);
+  font-size: 0.48rem;
+  color: #a5f3fc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.media-vault-box,
+.personal-vault-box {
+  background: rgba(4, 24, 46, 0.78);
+  border: 1.2px solid rgba(92, 240, 255, 0.78);
+  box-shadow: 0 0 12px rgba(59, 232, 255, 0.36);
+}
+
+.personal-vault-box {
+  border-color: #8cf3ff;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.24), rgba(3, 18, 36, 0.92));
+}
+
+.vault-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-display);
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.75px;
+  color: #ffffff;
+}
+
+.vault-mini-preview {
+  font-family: var(--font-mono);
+  font-size: 0.47rem;
+  color: #9bf7ff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+/* COUNTERS */
 .metrics-strip-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 5px;
+  gap: 4px;
   text-align: center;
   flex-shrink: 0;
 }
@@ -429,30 +522,69 @@ body.hacking-wall-hud {
   border-top: 1.5px solid #5cf0ff;
   border-bottom: 1px solid rgba(59, 232, 255, 0.35);
   box-shadow: 0 0 10px rgba(59, 232, 255, 0.28);
-  padding: 3px 2px;
+  padding: 2px 2px;
   display: flex;
   flex-direction: column;
 }
 
 .metric-label {
   font-family: var(--font-mono);
-  font-size: 0.55rem;
+  font-size: 0.46rem;
   color: #9bf7ff;
 }
 
 .metric-value {
   font-family: var(--font-display);
-  font-size: 0.8rem;
+  font-size: 0.68rem;
   color: #ffffff;
   font-weight: 700;
   text-shadow: var(--glow-soft);
 }
 
-/* FLOATING SPECTRUM STRIP */
-.eq-strip {
+/* SPECTRUM IDLE BLUE EQUALIZER GRAPH */
+.spectrum-idle-zone {
+  background: rgba(3, 20, 38, 0.84);
+  border-left: 1.5px solid rgba(92, 240, 255, 0.7);
+  border-right: 1.5px solid rgba(92, 240, 255, 0.7);
+  box-shadow: 0 0 12px rgba(59, 232, 255, 0.32);
+  padding: 3px 6px;
+  flex-shrink: 0;
+}
+
+.spectrum-idle-title {
+  font-family: var(--font-display);
+  font-size: 0.56rem;
+  letter-spacing: 1.4px;
+  color: #d8f8ff;
+  margin-bottom: 2px;
+}
+
+.spectrum-bars-frame {
+  height: 30px;
+  border-left: 1.5px solid #5cf0ff;
+  border-right: 1.5px solid #5cf0ff;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2px;
+  padding: 2px 3px 1px 3px;
+  background: rgba(2, 13, 26, 0.72);
+}
+
+.spectrum-bar-col {
+  flex: 1;
+  min-width: 2px;
+  background: linear-gradient(180deg, #9bf7ff 0%, #3be8ff 55%, #0284c7 100%);
+  box-shadow: 0 0 6px rgba(59, 232, 255, 0.75);
+  border-radius: 1px 1px 0 0;
+  transition: height 0.14s ease;
+}
+
+/* DOWN-LEFT: PERSISTENT RED WAVE SIGNAL GRAPH */
+.red-wave-zone {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
@@ -461,67 +593,9 @@ body.hacking-wall-hud {
   justify-content: space-between;
   align-items: center;
   font-family: var(--font-display);
-  font-size: 0.58rem;
+  font-size: 0.52rem;
   letter-spacing: 1px;
-  color: #9bf7ff;
   padding: 0 2px;
-}
-
-.equalizer-bars {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  height: 36px;
-  background: rgba(2, 13, 26, 0.72);
-  border-left: 1.5px solid var(--cyan-bright);
-  border-right: 1.5px solid var(--cyan-bright);
-  padding: 3px 4px;
-  gap: 2px;
-}
-
-.eq-bar {
-  flex: 1;
-  background: linear-gradient(to top, #0369a1, #3be8ff);
-  box-shadow: 0 0 7px var(--cyan-bright);
-  height: 15%;
-  min-height: 5%;
-  max-height: 100%;
-  transition: height 0.05s linear;
-}
-
-.quick-action-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-}
-
-.hud-mini-btn {
-  background: rgba(14, 165, 233, 0.24);
-  border: 1px solid #5cf0ff;
-  box-shadow: 0 0 9px rgba(59, 232, 255, 0.42);
-  color: #e0f7ff;
-  font-family: var(--font-display);
-  font-size: 0.54rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  padding: 3px 2px;
-  border-radius: 2px;
-  cursor: pointer;
-  transition: 0.16s;
-}
-
-.hud-mini-btn:hover {
-  background: var(--cyan-bright);
-  color: #020810;
-  box-shadow: var(--glow-cyan);
-}
-
-/* DOWN-LEFT: RED WAVE SIGNAL GRAPH */
-.red-wave-zone {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex-shrink: 0;
 }
 
 .strip-subline.red-tag {
@@ -531,7 +605,7 @@ body.hacking-wall-hud {
 
 canvas#redWaveCanvas {
   width: 100%;
-  height: 54px;
+  height: 38px;
   display: block;
   background: rgba(24, 4, 12, 0.72);
   border-left: 2px solid var(--red-pulse);
@@ -544,7 +618,7 @@ canvas#redWaveCanvas {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 6px;
+  gap: 5px;
   min-height: 0;
   min-width: 0;
 }
@@ -554,7 +628,7 @@ canvas#redWaveCanvas {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 2px 6px;
+  padding: 1px 6px;
   flex-shrink: 0;
   min-width: 0;
 }
@@ -562,7 +636,7 @@ canvas#redWaveCanvas {
 .live-tag,
 .stark-tag {
   font-family: var(--font-display);
-  font-size: 0.64rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 1.2px;
   color: #ffffff;
@@ -589,7 +663,7 @@ canvas#redWaveCanvas {
 
 .ironman-title {
   font-family: var(--font-display);
-  font-size: 1.45rem;
+  font-size: 1.4rem;
   font-weight: 900;
   letter-spacing: 4px;
   background: linear-gradient(180deg, #ffffff 0%, #3be8ff 52%, #0284c7 100%);
@@ -608,11 +682,11 @@ canvas#redWaveCanvas {
   box-shadow: 0 0 12px var(--cyan-bright);
 }
 
-/* CORE MATRIX: MARK VII SPOTLIGHT (LEFT-CENTER) + SKULL (TOP-RIGHT) + KEY (DOWN-RIGHT) */
+/* CORE MATRIX: MARK VII (CENTER) + SKULL (TOP-RIGHT) + KEY (DOWN-RIGHT) */
 .core-matrix-area {
-  flex: 1.25;
+  flex: 1.3;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 165px;
+  grid-template-columns: minmax(0, 1fr) 178px;
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
   min-height: 0;
@@ -620,7 +694,6 @@ canvas#redWaveCanvas {
   position: relative;
 }
 
-/* MARK VII CENTRAL HIGHLIGHT (FLOATING HOLOGRAPHIC STREAM, NO HEAVY BOX) */
 .mark-vii-spotlight {
   grid-column: 1;
   grid-row: 1 / 3;
@@ -641,7 +714,7 @@ canvas#redWaveCanvas {
   display: flex;
   justify-content: space-between;
   font-family: var(--font-display);
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   letter-spacing: 1.3px;
   color: var(--cyan-ultra);
   text-shadow: var(--glow-soft);
@@ -659,29 +732,26 @@ canvas#redWaveCanvas {
   overflow: hidden;
 }
 
-.vibration-circle-canvas {
-  position: absolute;
-  width: 220px;
-  height: 220px;
-  max-width: 78%;
-  max-height: 78%;
-  z-index: 4;
-  pointer-events: none;
-  filter: drop-shadow(0 0 12px rgba(59, 232, 255, 0.85));
-}
-
 .jarvis-svg-hud {
   width: 100%;
   height: 100%;
   max-width: 100%;
   max-height: 100%;
   z-index: 2;
-  filter: drop-shadow(0 0 16px rgba(59, 232, 255, 0.85));
+  filter: drop-shadow(0 0 18px rgba(59, 232, 255, 0.92));
+}
+
+.jarvis-svg-hud.enlarged-figure {
+  transform: scale(1.16);
+}
+
+.heart-inner-spin {
+  animation: heartCoreSpin 6.5s linear infinite;
 }
 
 .boss-quote {
   font-family: var(--font-display);
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   letter-spacing: 1.2px;
   color: #e0f7ff;
   text-align: center;
@@ -693,7 +763,7 @@ canvas#redWaveCanvas {
   text-overflow: ellipsis;
 }
 
-/* TOP-RIGHT OF MARK VII: HACKING SKULL (FLOATING WITH RINGS) */
+/* TOP-RIGHT OF MARK VII: HACKING SKULL */
 .skull-top-right {
   grid-column: 2;
   grid-row: 1;
@@ -709,8 +779,8 @@ canvas#redWaveCanvas {
   position: relative;
   width: 100%;
   height: 100%;
-  max-width: 155px;
-  max-height: 155px;
+  max-width: 162px;
+  max-height: 162px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -723,16 +793,16 @@ canvas#redWaveCanvas {
 }
 
 .skull-ring.ring-a {
-  width: 112px;
-  height: 112px;
+  width: 122px;
+  height: 122px;
   border: 1.5px dashed var(--cyan-bright);
-  box-shadow: 0 0 12px rgba(59, 232, 255, 0.55);
+  box-shadow: 0 0 14px rgba(59, 232, 255, 0.6);
   animation: spinClockwise 15s linear infinite;
 }
 
 .skull-ring.ring-b {
-  width: 92px;
-  height: 92px;
+  width: 102px;
+  height: 102px;
   border: 1.5px solid var(--cyan-ultra);
   border-left-color: transparent;
   border-right-color: transparent;
@@ -741,10 +811,10 @@ canvas#redWaveCanvas {
 }
 
 .skull-svg {
-  width: 74px;
-  height: 82px;
+  width: 90px;
+  height: 98px;
   z-index: 4;
-  filter: drop-shadow(0 0 14px rgba(59, 232, 255, 0.95));
+  filter: drop-shadow(0 0 16px rgba(59, 232, 255, 0.98));
 }
 
 .skull-hull {
@@ -773,7 +843,7 @@ canvas#redWaveCanvas {
   filter: drop-shadow(0 0 8px #ffffff) drop-shadow(0 0 16px var(--cyan-bright));
 }
 
-/* DOWN-RIGHT OF MARK VII: ROTARY KEY + VOICE TRIGGERS */
+/* DOWN-RIGHT OF MARK VII: ENLARGED KEY FRAME (LARGER THAN SKULL, NO SIDE CIRCLE) */
 .key-down-right {
   grid-column: 2;
   grid-row: 2;
@@ -781,7 +851,7 @@ canvas#redWaveCanvas {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: 3px;
   min-height: 0;
   min-width: 0;
 }
@@ -793,26 +863,13 @@ canvas#redWaveCanvas {
   align-items: center;
   justify-content: center;
   position: relative;
-  min-height: 54px;
+  min-height: 76px;
 }
 
-.key-outer-halo {
-  position: absolute;
-  width: 66px;
-  height: 66px;
-  border-radius: 50%;
-  border: 1.5px dashed rgba(59, 232, 255, 0.65);
-  border-top-color: var(--cyan-ultra);
-  border-bottom-color: var(--cyan-bright);
-  box-shadow: 0 0 14px rgba(59, 232, 255, 0.55);
-  pointer-events: none;
-  animation: spinClockwise 9s linear infinite;
-}
-
-.key-dial-puck {
+.key-dial-puck.enlarged-key {
   position: relative;
-  width: 58px;
-  height: 58px;
+  width: 106px;
+  height: 106px;
   border-radius: 50%;
   color: var(--cyan-bright);
   display: flex;
@@ -822,7 +879,7 @@ canvas#redWaveCanvas {
   cursor: grab;
   z-index: 30;
   transition: color 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
-  filter: drop-shadow(0 0 12px rgba(59, 232, 255, 0.85));
+  filter: drop-shadow(0 0 16px rgba(59, 232, 255, 0.95));
 }
 
 .key-dial-svg {
@@ -836,14 +893,14 @@ canvas#redWaveCanvas {
 
 .key-turn-badge {
   position: absolute;
-  bottom: -2px;
+  bottom: 0px;
   background: rgba(2, 14, 28, 0.96);
   border: 1px solid var(--cyan-bright);
   box-shadow: 0 0 8px rgba(59, 232, 255, 0.75);
   border-radius: 7px;
-  padding: 0 4px;
+  padding: 0 6px;
   font-family: var(--font-display);
-  font-size: 0.44rem;
+  font-size: 0.5rem;
   font-weight: 700;
   color: #ffffff;
   pointer-events: none;
@@ -851,8 +908,8 @@ canvas#redWaveCanvas {
 
 .key-state-tag {
   position: absolute;
-  top: 0;
-  right: 4px;
+  top: -1px;
+  right: 2px;
   font-family: var(--font-mono);
   font-size: 0.52rem;
   color: #9bf7ff;
@@ -869,7 +926,7 @@ canvas#redWaveCanvas {
 
 .key-dial-puck.dragging {
   cursor: grabbing;
-  transform: scale(1.1);
+  transform: scale(1.08);
   z-index: 2200 !important;
 }
 
@@ -877,21 +934,6 @@ canvas#redWaveCanvas {
   position: fixed !important;
   z-index: 2200 !important;
   margin: 0 !important;
-}
-
-.key-dial-puck.docked-return {
-  position: fixed !important;
-  right: 18px !important;
-  bottom: 18px !important;
-  left: auto !important;
-  top: auto !important;
-  width: 60px !important;
-  height: 60px !important;
-  z-index: 2200 !important;
-  background: rgba(2, 16, 32, 0.96);
-  border: 1.5px solid var(--cyan-bright);
-  box-shadow: var(--glow-cyan);
-  cursor: pointer;
 }
 
 .voice-controls-row {
@@ -904,8 +946,8 @@ canvas#redWaveCanvas {
 }
 
 .voice-orb {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 1.5px solid #8cf3ff;
   display: flex;
@@ -913,7 +955,7 @@ canvas#redWaveCanvas {
   justify-content: center;
   text-align: center;
   font-family: var(--font-display);
-  font-size: 0.42rem;
+  font-size: 0.4rem;
   font-weight: 700;
   line-height: 1.1;
   color: #ffffff;
@@ -938,8 +980,8 @@ canvas#redWaveCanvas {
 
 .voice-mini-readout {
   font-family: var(--font-mono);
-  font-size: 0.52rem;
-  line-height: 1.25;
+  font-size: 0.5rem;
+  line-height: 1.22;
   color: #a5f3fc;
   text-align: right;
   flex: 1;
@@ -952,8 +994,8 @@ canvas#redWaveCanvas {
 
 /* ================= KEPT BOXED: ANSWER / CHAT OUTPUT PANEL ================= */
 .answer-box-panel {
-  flex: 0.9;
-  min-height: 92px;
+  flex: 0.88;
+  min-height: 86px;
   min-width: 0;
   background: var(--bg-answer-box);
   border: var(--border-neon);
@@ -962,7 +1004,7 @@ canvas#redWaveCanvas {
   padding: 5px 8px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   position: relative;
 }
 
@@ -971,7 +1013,7 @@ canvas#redWaveCanvas {
   justify-content: space-between;
   align-items: center;
   font-family: var(--font-display);
-  font-size: 0.58rem;
+  font-size: 0.56rem;
   letter-spacing: 1.2px;
   color: #d8f8ff;
   border-bottom: 1px solid rgba(92, 240, 255, 0.55);
@@ -986,7 +1028,7 @@ canvas#redWaveCanvas {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 4px 6px;
+  padding: 3px 6px;
   scrollbar-width: thin;
   scrollbar-color: var(--cyan-bright) transparent;
 }
@@ -995,9 +1037,9 @@ canvas#redWaveCanvas {
   padding: 4px 8px;
   border-radius: 3px;
   font-family: var(--font-ui);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 500;
-  line-height: 1.32;
+  line-height: 1.3;
   max-width: 96%;
   word-wrap: break-word;
   user-select: text;
@@ -1022,7 +1064,7 @@ canvas#redWaveCanvas {
 .drop-target-hover {
   border-color: #ffffff !important;
   box-shadow: 0 0 26px #3be8ff, 0 0 44px #0ea5e9, inset 0 0 18px rgba(59, 232, 255, 0.45) !important;
-  transform: scale(1.01);
+  transform: scale(1.015);
 }
 
 .expanded-fullscreen,
@@ -1046,38 +1088,47 @@ canvas#redWaveCanvas {
   overflow: auto !important;
 }
 
-/* ================= BOTTOM ARC REACTOR DOCK ================= */
+/* ================= BOTTOM ARC REACTOR DOCK (6 CONTINUOUSLY ROTATING FRAMES) ================= */
 .bottom-dock-bar {
-  height: 58px;
+  height: 68px;
   width: 100%;
   max-width: 100vw;
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding: 0 22px;
-  background: linear-gradient(0deg, rgba(4, 26, 50, 0.95) 0%, rgba(2, 10, 20, 0.45) 100%);
+  padding: 2px 10px;
+  background: linear-gradient(0deg, rgba(4, 26, 50, 0.96) 0%, rgba(2, 10, 20, 0.52) 100%);
   border-top: 1.5px solid #5cf0ff;
   box-shadow: 0 -2px 20px rgba(59, 232, 255, 0.55);
   flex-shrink: 0;
   z-index: 15;
 }
 
+.dock-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  min-width: 0;
+}
+
 .dock-orb {
-  width: 44px;
-  height: 44px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  filter: drop-shadow(0 0 12px rgba(59, 232, 255, 0.85));
+  filter: drop-shadow(0 0 11px rgba(59, 232, 255, 0.85));
   transition: transform 0.2s ease, filter 0.2s ease;
 }
 
-.dock-orb:hover {
-  transform: translateY(-3px) scale(1.08);
-  filter: drop-shadow(0 0 18px rgba(59, 232, 255, 1));
+.dock-slot:hover .dock-orb {
+  transform: translateY(-2px) scale(1.08);
+  filter: drop-shadow(0 0 17px rgba(59, 232, 255, 1));
 }
 
 .dock-orb svg {
@@ -1085,26 +1136,21 @@ canvas#redWaveCanvas {
   height: 100%;
 }
 
-.dock-orb .orb-tooltip {
-  position: absolute;
-  top: -21px;
-  background: rgba(2, 16, 32, 0.96);
-  border: 1px solid var(--cyan-bright);
-  box-shadow: 0 0 10px rgba(59, 232, 255, 0.7);
-  color: #ffffff;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-family: var(--font-display);
-  font-size: 8px;
-  letter-spacing: 1px;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: 0.2s;
+.dock-rot-frame {
+  animation: dockFrameSpin 8s linear infinite;
 }
 
-.dock-orb:hover .orb-tooltip {
-  opacity: 1;
+.dock-sub-label {
+  font-family: var(--font-display);
+  font-size: 0.48rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #d8f8ff;
+  text-shadow: 0 0 6px rgba(59, 232, 255, 0.65);
+  white-space: nowrap;
+  max-width: 68px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .os-task-strip {
@@ -1124,32 +1170,49 @@ canvas#redWaveCanvas {
   z-index: 15;
 }
 
-/* ================= MODALS ================= */
+/* ================= FULLSCREEN MODULE MODALS & BLUE-FLAME KEYPAD ================= */
 .modal {
   display: none;
   position: fixed;
   inset: 0;
   z-index: 2500;
-  background-color: rgba(2, 8, 16, 0.9);
+  background-color: rgba(2, 8, 16, 0.92);
   backdrop-filter: blur(4px);
   overflow-y: auto;
-  padding: 14px;
+  padding: 10px;
 }
 
 .modal-content {
   background: rgba(3, 18, 34, 0.98);
-  margin: 6% auto;
+  margin: 2% auto;
   padding: 14px;
   border: 1.5px solid #8cf3ff;
-  width: 94%;
-  max-width: 460px;
+  width: 96%;
+  max-width: 540px;
   border-radius: 6px;
   box-shadow: var(--glow-heavy);
 }
 
+.fullscreen-module-card {
+  width: 96vw !important;
+  max-width: 920px !important;
+  min-height: 86vh;
+  max-height: 92vh;
+  margin: 2vh auto !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.scrollable-module-body {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--cyan-bright) transparent;
+}
+
 .neon-flame-box {
   border: 2px solid var(--cyan-bright);
-  box-shadow: var(--glow-cyan);
+  box-shadow: 0 0 22px rgba(59, 232, 255, 0.9), inset 0 0 16px rgba(14, 165, 233, 0.35);
 }
 
 .modal-header {
@@ -1159,51 +1222,82 @@ canvas#redWaveCanvas {
   margin-bottom: 10px;
   border-bottom: 1px solid rgba(92, 240, 255, 0.55);
   padding-bottom: 6px;
+  flex-shrink: 0;
 }
 
 .modal-header h2 {
   font-family: var(--font-display);
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   letter-spacing: 1.5px;
   color: #ffffff;
 }
 
 .close-btn {
   color: var(--cyan-bright);
-  font-size: 18px;
+  font-size: 22px;
   font-weight: bold;
   cursor: pointer;
 }
 
-#memory-search-input,
-#custom-memory-input {
+#diary-search-input,
+#diary-text-input,
+#diary-ai-input,
+#media-ai-input,
+#personal-detail-input,
+#personal-ai-input {
   width: 100%;
   background: rgba(2, 12, 24, 0.92);
   border: 1px solid #5cf0ff;
   color: #ffffff;
-  padding: 7px;
+  padding: 8px;
   border-radius: 4px;
   font-family: var(--font-mono);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   outline: none;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   user-select: text;
   -webkit-user-select: text;
 }
 
-#custom-memory-input {
-  height: 60px;
-  resize: none;
+.large-scroll-textarea {
+  min-height: 150px;
+  max-height: 280px;
+  resize: vertical;
+  overflow-y: auto;
+}
+
+.upload-status-chip {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: #9bf7ff;
+  padding: 4px 8px;
+  border: 1px dashed rgba(155, 247, 255, 0.6);
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.modal-action-row,
+.ai-sub-assist {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-sub-assist input {
+  margin-bottom: 0 !important;
+  flex: 1;
+  min-width: 180px;
 }
 
 .neon-btn {
-  width: 100%;
   background: var(--cyan-bright);
   color: #020810;
   font-family: var(--font-display);
   font-weight: 700;
   border: none;
-  padding: 8px;
+  padding: 8px 12px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.72rem;
@@ -1220,6 +1314,7 @@ canvas#redWaveCanvas {
   font-weight: bold;
   border-radius: 4px;
   font-size: 0.72rem;
+  white-space: nowrap;
 }
 
 .btn-danger {
@@ -1229,28 +1324,124 @@ canvas#redWaveCanvas {
 }
 
 .history-container {
-  max-height: 170px;
+  max-height: 230px;
   overflow-y: auto;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
 }
 
 .history-item {
   margin-bottom: 6px;
-  padding: 6px;
+  padding: 7px;
   background: rgba(6, 30, 54, 0.75);
   border: 1px solid rgba(92, 240, 255, 0.45);
   border-radius: 4px;
 }
 
+.media-grid-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.media-thumb-card {
+  background: rgba(4, 24, 46, 0.85);
+  border: 1px solid #5cf0ff;
+  border-radius: 4px;
+  padding: 5px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.media-thumb-card img,
+.media-thumb-card video {
+  width: 100%;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+/* Blue Flame Keypad */
+.keypad-lock-panel {
+  text-align: center;
+  padding: 10px 6px;
+}
+
+.keypad-banner {
+  font-family: var(--font-display);
+  font-size: 0.74rem;
+  letter-spacing: 1.4px;
+  color: #9bf7ff;
+  margin-bottom: 10px;
+}
+
+.keypad-display {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  letter-spacing: 8px;
+  color: #ffffff;
+  background: rgba(2, 16, 32, 0.95);
+  border: 1.5px solid var(--cyan-bright);
+  box-shadow: 0 0 18px rgba(59, 232, 255, 0.75), inset 0 0 12px rgba(14, 165, 233, 0.35);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 0 auto 12px auto;
+  max-width: 260px;
+}
+
+.flame-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 260px;
+  margin: 0 auto;
+}
+
+.flame-key-btn {
+  padding: 11px 0;
+  border-radius: 5px;
+  border: 1.5px solid #8cf3ff;
+  background: radial-gradient(circle at 50% 65%, rgba(59, 232, 255, 0.42), rgba(3, 24, 48, 0.94));
+  box-shadow: 0 0 14px rgba(59, 232, 255, 0.65), inset 0 -4px 10px rgba(14, 165, 233, 0.45);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+
+.flame-key-btn:hover {
+  transform: scale(1.05);
+  box-shadow: var(--glow-cyan);
+}
+
+.danger-alert-text {
+  margin-top: 12px;
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #ff6b85;
+  text-shadow: 0 0 12px rgba(255, 51, 85, 0.85);
+  min-height: 20px;
+}
+
 /* ================= ANIMATIONS ================= */
-@keyframes spinSlow {
+@keyframes heartCoreSpin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
 
-@keyframes spinReverse {
-  from { transform: rotate(360deg); }
-  to { transform: rotate(0deg); }
+@keyframes dockFrameSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes diaryGlowPulse {
+  from { text-shadow: 0 0 8px var(--cyan-bright), 0 0 16px var(--cyan-mid); }
+  to { text-shadow: 0 0 16px #ffffff, 0 0 28px var(--cyan-bright); }
 }
 
 @keyframes spinClockwise {
@@ -1259,17 +1450,6 @@ canvas#redWaveCanvas {
 
 @keyframes spinCounter {
   100% { transform: rotate(-360deg); }
-}
-
-@keyframes corePulse {
-  0%, 100% { opacity: 0.92; filter: drop-shadow(0 0 12px #3be8ff); }
-  50% { opacity: 1; filter: drop-shadow(0 0 26px #3be8ff); }
-}
-
-@keyframes eyeFlicker {
-  0%, 92%, 100% { opacity: 1; }
-  94% { opacity: 0.3; }
-  96% { opacity: 0.95; }
 }
 
 @keyframes orbPulseCyan {
@@ -1282,7 +1462,7 @@ canvas#redWaveCanvas {
   to { box-shadow: 0 0 30px #ffffff, 0 0 44px var(--cyan-bright), inset 0 0 18px var(--cyan-bright); }
 }
 
-/* ================= MOBILE RESPONSIVE (FITS CLEANLY WITHOUT SCROLL BLOAT) ================= */
+/* ================= MOBILE RESPONSIVE ================= */
 @media (max-width: 820px) {
   html, body {
     height: 100dvh;
@@ -1299,18 +1479,18 @@ canvas#redWaveCanvas {
   }
 
   .hud-workspace {
-    grid-template-columns: 120px minmax(0, 1fr);
-    gap: 6px;
-    padding: 4px 8px;
+    grid-template-columns: 128px minmax(0, 1fr);
+    gap: 5px;
+    padding: 4px 6px;
   }
 
   .col-left {
-    padding-left: 14px;
-    gap: 4px;
+    padding-left: 12px;
+    gap: 3px;
   }
 
   .left-sidebar-strip {
-    width: 11px;
+    width: 10px;
   }
 
   .indicator-points-row {
@@ -1319,67 +1499,94 @@ canvas#redWaveCanvas {
   }
 
   .node-pt {
-    font-size: 0.48rem;
-    padding: 1px 3px;
+    font-size: 0.44rem;
+    padding: 1px 2px;
   }
 
   .date-clock-row {
     flex-direction: column;
-    gap: 3px;
+    gap: 2px;
   }
 
   .date-ring-widget {
-    width: 52px;
-    height: 52px;
+    width: 42px;
+    height: 42px;
   }
 
   .date-ring-inner .day-num {
-    font-size: 14px;
+    font-size: 12px;
   }
 
   .weekday-box {
     width: 100%;
-    padding: 3px 5px;
+    padding: 2px 4px;
   }
 
   .weekday-box .mini-time {
-    font-size: 11px;
+    font-size: 10px;
+  }
+
+  .diary-glow-title {
+    font-size: 0.52rem;
+    letter-spacing: 0.5px;
+  }
+
+  .ai-link-chip {
+    font-size: 0.38rem;
+    padding: 0 2px;
+  }
+
+  .diary-meta-sub,
+  .vault-mini-preview {
+    font-size: 0.42rem;
+  }
+
+  .vault-box-header {
+    font-size: 0.44rem;
+  }
+
+  .spectrum-idle-title {
+    font-size: 0.46rem;
+    letter-spacing: 0.8px;
+  }
+
+  .spectrum-bars-frame {
+    height: 22px;
+  }
+
+  canvas#redWaveCanvas {
+    height: 30px;
   }
 
   .core-matrix-area {
-    grid-template-columns: minmax(0, 1fr) 96px;
+    grid-template-columns: minmax(0, 1fr) 104px;
     gap: 5px;
   }
 
   .skull-ring.ring-a {
-    width: 74px;
-    height: 74px;
+    width: 82px;
+    height: 82px;
   }
 
   .skull-ring.ring-b {
-    width: 60px;
-    height: 60px;
+    width: 68px;
+    height: 68px;
   }
 
   .skull-svg {
-    width: 48px;
-    height: 54px;
+    width: 58px;
+    height: 64px;
   }
 
-  .key-outer-halo {
-    width: 50px;
-    height: 50px;
-  }
-
-  .key-dial-puck {
-    width: 44px;
-    height: 44px;
+  .key-dial-puck.enlarged-key {
+    width: 78px;
+    height: 78px;
   }
 
   .voice-orb {
-    width: 30px;
-    height: 30px;
-    font-size: 0.36rem;
+    width: 28px;
+    height: 28px;
+    font-size: 0.35rem;
   }
 
   .voice-mini-readout {
@@ -1387,16 +1594,21 @@ canvas#redWaveCanvas {
   }
 
   .answer-box-panel {
-    min-height: 78px;
+    min-height: 74px;
   }
 
   .bottom-dock-bar {
-    height: 50px;
-    padding: 0 8px;
+    height: 58px;
+    padding: 2px 4px;
   }
 
   .dock-orb {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .dock-sub-label {
+    font-size: 0.42rem;
+    max-width: 54px;
   }
 }
