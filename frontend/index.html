@@ -37,7 +37,7 @@
   <!-- MAIN SINGLE-SCREEN HACKING WORKSPACE -->
   <main class="hud-workspace" id="mainGrid">
 
-    <!-- LEFT TELEMETRY & RED WAVE COLUMN -->
+    <!-- LEFT COLUMN: CLOCK, AI VAULT BOXES (1, 2, 3), COUNTERS, SPECTRUM IDLE & RED GRAPH -->
     <aside class="col-left">
       <div class="left-sidebar-strip">
         <div class="strip-icon" title="System">◈</div>
@@ -49,7 +49,7 @@
         <div class="strip-icon" title="Reload" onclick="location.reload()">⏻</div>
       </div>
 
-      <!-- TOP-LEFT: SMALL INDICATOR POINTS & LIVE CLOCK -->
+      <!-- TOP-LEFT: INDICATOR POINTS & LIVE CLOCK -->
       <div class="top-left-cluster">
         <div class="indicator-points-row" id="indicatorPoints" title="Live Node Telemetry Points">
           <span class="node-pt active"><i></i>01</span>
@@ -75,19 +75,51 @@
 
           <div class="weekday-box">
             <div class="day-name" id="hudWeekday">MONDAY</div>
-            <div class="mini-time" id="hudMiniClock">00:32<small>:00</small></div>
+            <div class="mini-time" id="hudMiniClock">03:18<small>:00</small></div>
           </div>
         </div>
       </div>
 
-      <!-- COMPACT VAULT COUNTERS (NO HEAVY BOX HEADER) -->
+      <!-- FULL-HEIGHT STACK FOR AI-CONNECTED BOXES 1, 2 & 3 -->
+      <div class="left-vault-stack">
+
+        <!-- BOX 1: YOUR DIARY (AI CONNECTED + KEY-DROP ONLY) -->
+        <div class="diary-glow-box vault-fill-slot" id="diaryBox" data-expandable="true" data-box-id="diary-panel" data-modal-target="diary-modal">
+          <div class="vault-box-header">
+            <span class="diary-glow-title">✦ YOUR DIARY</span>
+            <span class="ai-link-chip">◈ AI LINKED</span>
+          </div>
+          <div class="diary-meta-sub" id="diaryLatestMeta">BOX 1 // TEXT &amp; PHOTOS • AI CONNECTED</div>
+        </div>
+
+        <!-- BOX 2: MEDIA VAULT (AI CONNECTED + KEY-DROP ONLY) -->
+        <div class="media-vault-box vault-fill-slot" id="mediaBox" data-expandable="true" data-box-id="media-panel" data-modal-target="media-modal">
+          <div class="vault-box-header">
+            <span>MEDIA // BOX 2</span>
+            <span class="ai-link-chip">◈ AI LINKED</span>
+          </div>
+          <div class="vault-mini-preview" id="mediaMiniStrip">PHOTOS &amp; VIDEOS • AI CONNECTED</div>
+        </div>
+
+        <!-- BOX 3: YOUR PERSONAL DETAILS (AI LOCKED — NO PASSCODE SHOWN ON SCREEN) -->
+        <div class="personal-vault-box vault-fill-slot" id="personalBox" data-expandable="true" data-box-id="personal-panel" data-modal-target="personal-modal">
+          <div class="vault-box-header">
+            <span>YOUR PERSONAL DETAILS</span>
+            <span id="personalLockBadge" class="ai-link-chip">AI LOCKED</span>
+          </div>
+          <div class="vault-mini-preview">THIS IS AI LOCKED • AI CONNECTED</div>
+        </div>
+
+      </div>
+
+      <!-- COMPACT COUNTERS -->
       <div class="metrics-strip-3" data-expandable="true" data-box-id="telemetry-panel">
         <div class="metric-chip">
-          <span class="metric-label">MEM</span>
+          <span class="metric-label">DIARY</span>
           <span class="metric-value" id="memCount">0</span>
         </div>
         <div class="metric-chip">
-          <span class="metric-label">3D</span>
+          <span class="metric-label">MEDIA</span>
           <span class="metric-value" id="file3dCount">0</span>
         </div>
         <div class="metric-chip">
@@ -96,31 +128,23 @@
         </div>
       </div>
 
-      <!-- AUDIO SPECTRUM & QUICK TRIGGERS -->
-      <div class="eq-strip" data-expandable="true" data-box-id="eq-panel">
-        <div class="strip-subline">
-          <span>SPECTRUM</span>
-          <span id="speechIndicator">IDLE</span>
-        </div>
-        <div class="equalizer-bars" id="equalizer"></div>
-        <div class="quick-action-row">
-          <button class="hud-mini-btn" onclick="document.getElementById('img-input').click()">GALLERY</button>
-          <button class="hud-mini-btn" onclick="handleHardcoded('open memory')">MEMORY</button>
-          <button class="hud-mini-btn" onclick="handleHardcoded('open history')">HISTORY</button>
-        </div>
+      <!-- SPECTRUM IDLE BLUE BAR GRAPH (FROM REFERENCE DESIGN) -->
+      <div class="spectrum-idle-zone" data-expandable="true" data-box-id="spectrum-panel">
+        <div class="spectrum-idle-title">SPECTRUM IDLE</div>
+        <div class="spectrum-bars-frame" id="spectrumBarsFrame"></div>
       </div>
 
-      <!-- DOWN-LEFT: RED WAVE SIGNAL GRAPH -->
+      <!-- DOWN-LEFT: PRESERVED RED WAVE SIGNAL GRAPH -->
       <div class="red-wave-zone" data-expandable="true" data-box-id="net-panel">
         <div class="strip-subline red-tag">
           <span>RED_PULSE_WAVE</span>
           <span id="status-badge">[ONLINE]</span>
         </div>
-        <canvas id="redWaveCanvas" width="260" height="64"></canvas>
+        <canvas id="redWaveCanvas" width="260" height="44"></canvas>
       </div>
     </aside>
 
-    <!-- CENTER & RIGHT TACTICAL STAGE: MARK VII HIGHLIGHT + SKULL (TOP-RIGHT) + KEY (DOWN-RIGHT) + ANSWER BOX -->
+    <!-- CENTER & RIGHT TACTICAL STAGE -->
     <section class="col-stage">
 
       <!-- TOP BANNER -->
@@ -136,25 +160,24 @@
       <!-- CORE MATRIX: MARK VII (CENTER) + SKULL (TOP-RIGHT) + KEY (DOWN-RIGHT) -->
       <div class="core-matrix-area">
 
-        <!-- HIGHLIGHTED IRON MAN / MARK VII DIAGNOSTICS -->
+        <!-- MARK VII CENTRAL HIGHLIGHT (OLD ARC REACTOR FRAME + SPINNING INNER HEART DESIGN, NO OUTER RING) -->
         <div class="mark-vii-spotlight" id="markViiSpotlight" data-expandable="true" data-box-id="ironman-hud-panel">
           <div class="spotlight-meta">
             <span>MARK VII // CORE</span>
-            <span id="coreArcTime">00:32</span>
+            <span id="coreArcTime">03:18</span>
           </div>
           <div class="ironman-hud-viewport">
-            <canvas id="circularVibrationCanvas" class="vibration-circle-canvas" width="320" height="320"></canvas>
-            <svg class="jarvis-svg-hud" viewBox="0 0 720 460">
+            <svg class="jarvis-svg-hud enlarged-figure" viewBox="0 0 720 460">
               <defs>
                 <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
                   <stop offset="0%" stop-color="#e0f7ff" stop-opacity="0.98" />
-                  <stop offset="35%" stop-color="#3be8ff" stop-opacity="0.65" />
-                  <stop offset="75%" stop-color="#0284c7" stop-opacity="0.24" />
+                  <stop offset="40%" stop-color="#3be8ff" stop-opacity="0.62" />
+                  <stop offset="78%" stop-color="#0284c7" stop-opacity="0.22" />
                   <stop offset="100%" stop-color="#020810" stop-opacity="0" />
                 </radialGradient>
                 <linearGradient id="hudPanelGrad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stop-color="rgba(14, 165, 233, 0.36)" />
-                  <stop offset="100%" stop-color="rgba(3, 22, 42, 0.86)" />
+                  <stop offset="0%" stop-color="rgba(14, 165, 233, 0.34)" />
+                  <stop offset="100%" stop-color="rgba(3, 22, 42, 0.85)" />
                 </linearGradient>
                 <filter id="neonGlow" x="-25%" y="-25%" width="150%" height="150%">
                   <feGaussianBlur stdDeviation="4" result="blur" />
@@ -165,23 +188,13 @@
                 </filter>
               </defs>
 
-              <circle cx="360" cy="230" r="205" fill="url(#coreGlow)" />
+              <circle cx="360" cy="230" r="210" fill="url(#coreGlow)" />
 
-              <g class="spin-cw">
-                <circle cx="360" cy="230" r="194" fill="none" stroke="rgba(59,232,255,0.55)" stroke-width="2" stroke-dasharray="14 6 3 6" />
-                <circle cx="360" cy="230" r="176" fill="none" stroke="#3be8ff" stroke-width="3.5" stroke-dasharray="90 35 15 35" opacity="0.92" />
-              </g>
-
-              <g class="spin-ccw">
-                <circle cx="360" cy="230" r="158" fill="none" stroke="rgba(59,232,255,0.75)" stroke-width="6" stroke-dasharray="4 8" />
-                <circle cx="360" cy="230" r="142" fill="none" stroke="#0ea5e9" stroke-width="2.5" stroke-dasharray="65 25" />
-              </g>
-
-              <!-- Left Suit Schematic -->
-              <g transform="translate(82, 92)">
+              <!-- Left Suit Schematic (Enlarged) -->
+              <g transform="translate(50, 66) scale(1.16)">
                 <polygon points="45,0 165,48 165,222 68,268 18,195 18,65"
                          fill="url(#hudPanelGrad)" stroke="#8cf3ff" stroke-width="2.2" />
-                <g transform="translate(64, 52)" stroke="#3be8ff" fill="rgba(59,232,255,0.2)" stroke-width="1.6" filter="url(#neonGlow)">
+                <g transform="translate(64, 52)" stroke="#3be8ff" fill="rgba(59,232,255,0.22)" stroke-width="1.7" filter="url(#neonGlow)">
                   <path d="M36,6 Q45,4 54,6 L57,20 L51,29 L39,29 L33,20 Z" />
                   <line x1="38" y1="16" x2="43" y2="17" stroke="#fff" stroke-width="1.8" />
                   <line x1="47" y1="17" x2="52" y2="16" stroke="#fff" stroke-width="1.8" />
@@ -195,8 +208,8 @@
                 </g>
               </g>
 
-              <!-- Right Flight Telemetry -->
-              <g transform="translate(472, 118)">
+              <!-- Right Flight Telemetry (Enlarged) -->
+              <g transform="translate(466, 94) scale(1.14)">
                 <polygon points="0,35 118,0 148,72 148,162 96,214 0,175"
                          fill="url(#hudPanelGrad)" stroke="#8cf3ff" stroke-width="2.2" />
                 <circle cx="52" cy="112" r="32" fill="rgba(3,20,38,0.88)" stroke="#67efff" stroke-width="1.8" />
@@ -214,21 +227,25 @@
                 </g>
               </g>
 
-              <!-- Central Arc Reactor Core -->
-              <g class="pulse-core">
-                <circle cx="360" cy="230" r="88" fill="rgba(4, 24, 46, 0.9)" stroke="#8cf3ff" stroke-width="3.2" />
-                <circle cx="360" cy="230" r="74" fill="none" stroke="#3be8ff" stroke-width="6" stroke-dasharray="18 10" />
-                <circle cx="360" cy="230" r="56" fill="none" stroke="#bae6fd" stroke-width="2.2" />
-                <circle cx="360" cy="230" r="40" fill="rgba(14, 165, 233, 0.35)" stroke="#3be8ff" stroke-width="2.4" />
-                <polygon points="360,206 382,244 338,244" fill="rgba(59,232,255,0.48)" stroke="#ffffff" stroke-width="2" />
-                <circle cx="360" cy="231" r="7" fill="#ffffff" />
+              <!-- STATIC OUTER ARC REACTOR DESIGN FRAME (FROM OLD PROJECT) -->
+              <circle cx="360" cy="230" r="106" fill="none" stroke="rgba(140, 243, 255, 0.55)" stroke-width="1.6" stroke-dasharray="6 6" />
+              <circle cx="360" cy="230" r="95" fill="rgba(4, 24, 46, 0.92)" stroke="#8cf3ff" stroke-width="3.2" />
+              <circle cx="360" cy="230" r="85" fill="none" stroke="#3be8ff" stroke-width="2" />
+
+              <!-- ROTATING INNER ARC REACTOR CORE / HEART DESIGN -->
+              <g class="heart-inner-spin" style="transform-origin: 360px 230px;">
+                <circle cx="360" cy="230" r="72" fill="none" stroke="#3be8ff" stroke-width="7" stroke-dasharray="18 10" />
+                <circle cx="360" cy="230" r="52" fill="none" stroke="#bae6fd" stroke-width="2.4" stroke-dasharray="12 6" />
+                <circle cx="360" cy="230" r="38" fill="rgba(14, 165, 233, 0.42)" stroke="#3be8ff" stroke-width="2.6" />
+                <polygon points="360,204 384,244 336,244" fill="rgba(59,232,255,0.6)" stroke="#ffffff" stroke-width="2.2" />
+                <circle cx="360" cy="230" r="7.5" fill="#ffffff" />
               </g>
             </svg>
           </div>
           <p class="boss-quote">ALWAYS AT YOUR SERVICE, BOSS BHARANI</p>
         </div>
 
-        <!-- TOP-RIGHT OF MARK VII: COMPACT HACKING SKULL + ORBITAL RINGS -->
+        <!-- TOP-RIGHT OF MARK VII: HACKING SKULL -->
         <div class="skull-top-right" id="skullContainer" data-expandable="true" data-box-id="skull-stage">
           <div class="skull-mini-assembly">
             <div class="skull-ring ring-a"></div>
@@ -281,14 +298,13 @@
           </div>
         </div>
 
-        <!-- DOWN-RIGHT OF MARK VII: ROTARY KEY + VOICE CONTROLS -->
+        <!-- DOWN-RIGHT OF MARK VII: ENLARGED KEY FRAME (NO SIDE CIRCLE) + VOICE CONTROLS -->
         <div class="key-down-right">
-          <div class="key-ring-stage" id="keyRingStage" data-expandable="true" data-box-id="fx-panel" title="Turn left 3 times to unlock, then drag onto any panel">
-            <div class="key-outer-halo"></div>
-            <div class="key-dial-puck" id="keyDialPuck">
+          <div class="key-ring-stage" id="keyRingStage" data-expandable="true" data-box-id="fx-panel" title="Turn left 3 times to unlock, then drag onto any frame">
+            <div class="key-dial-puck enlarged-key" id="keyDialPuck">
               <svg class="key-dial-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="18 7 4 7" />
-                <circle cx="60" cy="60" r="39" fill="rgba(4, 20, 38, 0.9)" stroke="currentColor" stroke-width="1.5" stroke-dasharray="6 4" />
+                <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="18 7 4 7" />
+                <circle cx="60" cy="60" r="39" fill="rgba(4, 20, 38, 0.9)" stroke="currentColor" stroke-width="1.6" stroke-dasharray="6 4" />
                 <line x1="60" y1="4" x2="60" y2="14" stroke="currentColor" stroke-width="2.5" />
                 <line x1="60" y1="106" x2="60" y2="116" stroke="currentColor" stroke-width="2.5" />
                 <line x1="4" y1="60" x2="14" y2="60" stroke="currentColor" stroke-width="2.5" />
@@ -332,43 +348,155 @@
 
   </main>
 
-  <!-- BOTTOM ARC REACTOR LAUNCHER DOCK -->
+  <!-- BOTTOM ARC REACTOR LAUNCHER DOCK (6 LABELED SPINNING-FRAME BUTTONS) -->
   <footer class="bottom-dock-bar" id="arcDock"></footer>
 
   <div class="os-task-strip">
     <span>STARK OS v4.2 // MARK VII HACKING HUD</span>
-    <span id="bottomClock">00:32:00</span>
+    <span id="bottomClock">03:18:00</span>
   </div>
 
   <!-- MODAL 1: HISTORY LOG POPUP -->
   <div id="history-modal" class="modal">
-    <div class="modal-content">
+    <div class="modal-content fullscreen-module-card">
       <div class="modal-header">
         <h2>HISTORY LOG</h2>
         <span id="close-history" class="close-btn">&times;</span>
       </div>
-      <div id="history-list" class="history-container"></div>
+      <div id="history-list" class="history-container scrollable-module-body"></div>
       <button id="clear-all-history" class="btn btn-danger" style="width: 100%; margin-top: 10px;">CLEAR ALL HISTORY</button>
     </div>
   </div>
 
-  <!-- MODAL 2: MEMORY & FILES BOX -->
-  <div id="memory-modal" class="modal">
-    <div class="modal-content neon-flame-box">
+  <!-- MODAL 2: YOUR DIARY (BOX 1 — FULLSCREEN SCROLLABLE TEXT + PHOTO UPLOAD + AI) -->
+  <div id="diary-modal" class="modal">
+    <div class="modal-content neon-flame-box fullscreen-module-card">
       <div class="modal-header">
-        <h2>MY FILES & DETAILS</h2>
-        <span id="close-memory-modal" class="close-btn">&times;</span>
+        <h2>YOUR DIARY // BOX 1 (AI CONNECTED)</h2>
+        <span id="close-diary-modal" class="close-btn">&times;</span>
       </div>
-      <div class="memory-body">
-        <input type="text" id="memory-search-input" placeholder="Search or type new memory details here, Boss..." />
-        <textarea id="custom-memory-input" placeholder="Add detailed notes, family details, or facts here..."></textarea>
-        <button id="save-custom-memory" class="neon-btn">SAVE TO MEMORY</button>
-        <div id="saved-memory-list" class="history-container" style="margin-top: 12px;"></div>
+      <div class="memory-body scrollable-module-body">
+        <input type="text" id="diary-search-input" placeholder="Search diary or ask Box 1 AI (e.g. Box 1 File 1)..." />
+        <textarea id="diary-text-input" class="large-scroll-textarea" placeholder="Write your full diary entry here, Boss (scrollable when long, date & time logged automatically)..."></textarea>
+        <div class="modal-action-row">
+          <button type="button" class="btn" onclick="document.getElementById('diary-img-input').click()">+ UPLOAD PHOTO</button>
+          <span id="diaryPendingPhotoBadge" class="upload-status-chip">NO PHOTO</span>
+          <button type="button" id="save-diary-entry" class="neon-btn">SAVE DIARY LOG</button>
+        </div>
+        <div class="ai-sub-assist">
+          <input type="text" id="diary-ai-input" placeholder="Ask Diary AI about Box 1 / File 1..." />
+          <button type="button" id="ask-diary-ai-btn" class="btn">ASK AI</button>
+        </div>
+        <div id="diary-entries-list" class="history-container scrollable-module-body" style="margin-top: 10px;"></div>
       </div>
     </div>
   </div>
 
-  <input id="img-input" type="file" accept="image/*" multiple style="display:none" />
+  <!-- MODAL 3: MEDIA VAULT (BOX 2 — FULLSCREEN PHOTO & VIDEO UPLOAD + AI) -->
+  <div id="media-modal" class="modal">
+    <div class="modal-content neon-flame-box fullscreen-module-card">
+      <div class="modal-header">
+        <h2>MEDIA VAULT // BOX 2 (AI CONNECTED)</h2>
+        <span id="close-media-modal" class="close-btn">&times;</span>
+      </div>
+      <div class="memory-body scrollable-module-body">
+        <div class="modal-action-row">
+          <button type="button" class="neon-btn" onclick="document.getElementById('media-files-input').click()">+ UPLOAD PHOTOS / VIDEOS</button>
+        </div>
+        <div class="ai-sub-assist">
+          <input type="text" id="media-ai-input" placeholder="Ask Media AI (e.g. Box 2 File 1)..." />
+          <button type="button" id="ask-media-ai-btn" class="btn">ASK AI</button>
+        </div>
+        <div id="media-gallery-grid" class="media-grid-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: YOUR PERSONAL DETAILS (BOX 3 — AI LOCKED KEYPAD + AI) -->
+  <div id="personal-modal" class="modal">
+    <div class="modal-content neon-flame-box fullscreen-module-card">
+      <div class="modal-header">
+        <h2>YOUR PERSONAL DETAILS // AI LOCKED</h2>
+        <span id="close-personal-modal" class="close-btn">&times;</span>
+      </div>
+      <div id="personal-lock-screen" class="keypad-lock-panel">
+        <div class="keypad-banner">THIS IS AI LOCKED — ENTER SECURITY CODE</div>
+        <div class="keypad-display" id="keypadDisplay">• • • •</div>
+        <div class="flame-keypad-grid" id="flameKeypadGrid">
+          <button type="button" class="flame-key-btn" data-digit="1">1</button>
+          <button type="button" class="flame-key-btn" data-digit="2">2</button>
+          <button type="button" class="flame-key-btn" data-digit="3">3</button>
+          <button type="button" class="flame-key-btn" data-digit="4">4</button>
+          <button type="button" class="flame-key-btn" data-digit="5">5</button>
+          <button type="button" class="flame-key-btn" data-digit="6">6</button>
+          <button type="button" class="flame-key-btn" data-digit="7">7</button>
+          <button type="button" class="flame-key-btn" data-digit="8">8</button>
+          <button type="button" class="flame-key-btn" data-digit="9">9</button>
+          <button type="button" class="flame-key-btn" id="keypadClearBtn">CLR</button>
+          <button type="button" class="flame-key-btn" data-digit="0">0</button>
+          <button type="button" class="flame-key-btn" id="keypadEnterBtn">OK</button>
+        </div>
+        <div id="personal-danger-alert" class="danger-alert-text"></div>
+      </div>
+
+      <div id="personal-unlocked-content" class="scrollable-module-body" style="display:none;">
+        <textarea id="personal-detail-input" class="large-scroll-textarea" placeholder="Store personal details, text, or notes, Boss..."></textarea>
+        <div class="modal-action-row">
+          <button type="button" class="btn" onclick="document.getElementById('personal-img-input').click()">+ UPLOAD PHOTO</button>
+          <span id="personalPendingPhotoBadge" class="upload-status-chip">NO PHOTO</span>
+          <button type="button" id="save-personal-detail" class="neon-btn">SAVE PERSONAL DETAIL</button>
+        </div>
+        <div class="ai-sub-assist">
+          <input type="text" id="personal-ai-input" placeholder="Ask Personal AI (AI locked until verified)..." />
+          <button type="button" id="ask-personal-ai-btn" class="btn">ASK AI</button>
+        </div>
+        <div id="personal-entries-list" class="history-container scrollable-module-body" style="margin-top: 10px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: CLEAR CHAT CHOICE (HISTORY vs MEMORY) -->
+  <div id="clear-choice-modal" class="modal">
+    <div class="modal-content neon-flame-box">
+      <div class="modal-header">
+        <h2>SAVE CLEARED CHAT WHERE?</h2>
+        <span id="close-clear-choice" class="close-btn">&times;</span>
+      </div>
+      <p style="font-size:0.8rem;margin-bottom:10px;color:#d8f8ff;">
+        Choose where to save this chat before clearing, Boss:
+      </p>
+      <div class="modal-action-row">
+        <button type="button" id="saveClearToHistoryOnly" class="btn" style="flex:1;">HISTORY</button>
+        <button type="button" id="saveClearToMemoryAndHistory" class="neon-btn" style="flex:1;">MEMORY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: 3D WORKPLACE & GAMES VIEWER -->
+  <div id="workspace-tool-modal" class="modal">
+    <div class="modal-content neon-flame-box" style="max-width:560px;">
+      <div class="modal-header">
+        <h2 id="workspaceToolTitle">3D WORKPLACE</h2>
+        <span id="close-workspace-tool" class="close-btn">&times;</span>
+      </div>
+      <div id="workspaceToolBody"></div>
+    </div>
+  </div>
+
+  <!-- FULLSCREEN MEDIA LIGHTBOX -->
+  <div id="media-lightbox-modal" class="modal" onclick="closeModal('media-lightbox-modal')">
+    <div class="modal-content neon-flame-box" style="max-width:680px;text-align:center;" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="lightboxTitle">MEDIA PREVIEW</h2>
+        <span id="close-lightbox" class="close-btn" onclick="closeModal('media-lightbox-modal')">&times;</span>
+      </div>
+      <div id="lightboxContent" style="max-height:70vh;overflow:auto;"></div>
+    </div>
+  </div>
+
+  <input id="diary-img-input" type="file" accept="image/*" style="display:none" />
+  <input id="media-files-input" type="file" accept="image/*,video/*" multiple style="display:none" />
+  <input id="personal-img-input" type="file" accept="image/*" style="display:none" />
 
   <script src="script.js"></script>
 </body>
