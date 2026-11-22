@@ -1,63 +1,343 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>J.A.R.V.I.S - Advanced Personal AI Assistant</title>
-<link rel="stylesheet" href="style.css">
-<!-- Three.js for 3D Animated Head/Face -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>STARK INDUSTRIES — J.A.R.V.I.S. Hacking HUD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
-<body>
+<body class="hacking-wall-hud">
 
-  <!-- HEADER -->
-  <header>
-    <button id="settings-btn" class="settings-icon" title="View History Log">📜</button>
-    <button id="api-key-btn" class="api-key-icon" title="Set Gemini API Key">🔑</button>
-    <h1>J.A.R.V.I.S</h1>
-    <p>ADVANCED PERSONAL AI ASSISTANT</p>
-  </header>
+  <!-- AMBIENT HACKING WALL GRID & SCANLINES -->
+  <div class="wall-grid-bg" aria-hidden="true"></div>
+  <div class="wall-scan-overlay" aria-hidden="true"></div>
 
-  <!-- TOP HALF: 3D ANIMATED FACE & VOICE WAVEFORM SECTION -->
-  <div class="core-container">
-    <div id="face-container"></div>
-    
-    <!-- Audio Waveform Visualizer Bar under Face -->
-    <div class="audio-wave-container">
-      <span class="status-dot">●</span>
-      <span class="status-state" id="status-text">SYSTEM ONLINE</span>
-      <div class="wave-bars">
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-        <div class="bar"></div>
-      </div>
+  <!-- TOP NUMBERED TIMELINE RULER (01 - 30) -->
+  <header class="top-ruler" id="topRuler"></header>
+
+  <!-- TOP COMMAND & NAVIGATION STRIP -->
+  <nav class="navbar" data-expandable="true" data-box-id="navbar">
+    <div class="brand">
+      <span class="brand-icon">◈</span>
+      <span>J.A.R.V.I.S // MARK VII</span>
     </div>
-
-    <!-- Custom Quote under Animated Face -->
-    <p class="boss-quote">ALWAYS AT YOUR SERVICE, BOSS BHARANI</p>
-  </div>
-
-  <!-- BOTTOM HALF: CHAT CONVERSATION & CONTROL INPUT AREA -->
-  <div class="bottom-section">
-    <div class="chat" id="chat"></div>
-
-    <div class="input-area">
-      <div class="input-row">
-        <input id="msg" type="text" placeholder="Enter command or speak 'open my details'..." />
-        <button id="execute-btn" class="btn btn-primary">EXECUTE</button>
-      </div>
-      <div class="input-row">
-        <button id="mic-btn" class="btn" title="Voice Input" style="flex: 1;">🎙️ MIC</button>
-        <button id="gallery-btn" class="btn" title="Upload Gallery Image" style="flex: 1;">🖼️ GALLERY</button>
-        <button id="files-btn" class="btn" title="Open Memory Box" style="flex: 1;">📁 FILES</button>
-        <button id="clear-btn" class="btn btn-danger" title="Clear Active Chat" style="flex: 1;">CLEAR</button>
-      </div>
-      <!-- Direct File Input for Gallery Only (No Camera Access) -->
-      <input id="img-input" type="file" accept="image/*" style="display:none">
+    <div class="nav-breadcrumb">
+      <span>HACK_WALL</span> &gt; <span>NEURAL_CORE</span> &gt; <span class="active" id="status-text">SYSTEM ONLINE</span>
     </div>
+    <div class="input-inline">
+      <input id="msg" type="text" placeholder="Command or speak, Boss..." autocomplete="off" />
+      <button id="execute-btn" class="exec-btn">SCAN</button>
+    </div>
+  </nav>
+
+  <!-- MAIN SINGLE-SCREEN HACKING WORKSPACE -->
+  <main class="hud-workspace" id="mainGrid">
+
+    <!-- LEFT TELEMETRY & RED WAVE COLUMN -->
+    <aside class="col-left">
+      <div class="left-sidebar-strip">
+        <div class="strip-icon" title="System">◈</div>
+        <div class="strip-icon" title="Target">⌖</div>
+        <div class="strip-dots">
+          <i></i><i></i><i></i><i></i><i></i>
+        </div>
+        <div class="strip-icon" title="Audio">♪</div>
+        <div class="strip-icon" title="Reload" onclick="location.reload()">⏻</div>
+      </div>
+
+      <!-- TOP-LEFT: SMALL INDICATOR POINTS & LIVE CLOCK -->
+      <div class="top-left-cluster">
+        <div class="indicator-points-row" id="indicatorPoints" title="Live Node Telemetry Points">
+          <span class="node-pt active"><i></i>01</span>
+          <span class="node-pt"><i></i>02</span>
+          <span class="node-pt"><i></i>03</span>
+          <span class="node-pt"><i></i>04</span>
+          <span class="node-pt"><i></i>05</span>
+          <span class="node-pt"><i></i>06</span>
+        </div>
+
+        <div class="date-clock-row">
+          <div class="date-ring-widget">
+            <svg viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(59,232,255,0.45)" stroke-width="2" />
+              <circle cx="50" cy="50" r="40" fill="none" stroke="#3be8ff" stroke-width="3" stroke-dasharray="180 75" />
+              <circle cx="50" cy="50" r="33" fill="rgba(4,24,44,0.75)" stroke="#8cf3ff" stroke-width="1.4" />
+            </svg>
+            <div class="date-ring-inner">
+              <div class="month" id="hudMonth">NOV</div>
+              <div class="day-num" id="hudDayNum">23</div>
+            </div>
+          </div>
+
+          <div class="weekday-box">
+            <div class="day-name" id="hudWeekday">MONDAY</div>
+            <div class="mini-time" id="hudMiniClock">00:32<small>:00</small></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPACT VAULT COUNTERS (NO HEAVY BOX HEADER) -->
+      <div class="metrics-strip-3" data-expandable="true" data-box-id="telemetry-panel">
+        <div class="metric-chip">
+          <span class="metric-label">MEM</span>
+          <span class="metric-value" id="memCount">0</span>
+        </div>
+        <div class="metric-chip">
+          <span class="metric-label">3D</span>
+          <span class="metric-value" id="file3dCount">0</span>
+        </div>
+        <div class="metric-chip">
+          <span class="metric-label">MSGS</span>
+          <span class="metric-value" id="msgCount">0</span>
+        </div>
+      </div>
+
+      <!-- AUDIO SPECTRUM & QUICK TRIGGERS -->
+      <div class="eq-strip" data-expandable="true" data-box-id="eq-panel">
+        <div class="strip-subline">
+          <span>SPECTRUM</span>
+          <span id="speechIndicator">IDLE</span>
+        </div>
+        <div class="equalizer-bars" id="equalizer"></div>
+        <div class="quick-action-row">
+          <button class="hud-mini-btn" onclick="document.getElementById('img-input').click()">GALLERY</button>
+          <button class="hud-mini-btn" onclick="handleHardcoded('open memory')">MEMORY</button>
+          <button class="hud-mini-btn" onclick="handleHardcoded('open history')">HISTORY</button>
+        </div>
+      </div>
+
+      <!-- DOWN-LEFT: RED WAVE SIGNAL GRAPH -->
+      <div class="red-wave-zone" data-expandable="true" data-box-id="net-panel">
+        <div class="strip-subline red-tag">
+          <span>RED_PULSE_WAVE</span>
+          <span id="status-badge">[ONLINE]</span>
+        </div>
+        <canvas id="redWaveCanvas" width="260" height="64"></canvas>
+      </div>
+    </aside>
+
+    <!-- CENTER & RIGHT TACTICAL STAGE: MARK VII HIGHLIGHT + SKULL (TOP-RIGHT) + KEY (DOWN-RIGHT) + ANSWER BOX -->
+    <section class="col-stage">
+
+      <!-- TOP BANNER -->
+      <div class="stage-top-strip">
+        <div class="live-tag"><span class="dot-live"></span> BOSS BHARANI</div>
+        <div class="ironman-logo-wrap">
+          <h1 class="ironman-title">J.A.R.V.I.S.</h1>
+          <div class="ironman-subbar"></div>
+        </div>
+        <div class="stark-tag">STARK INDUSTRIES</div>
+      </div>
+
+      <!-- CORE MATRIX: MARK VII (CENTER) + SKULL (TOP-RIGHT) + KEY (DOWN-RIGHT) -->
+      <div class="core-matrix-area">
+
+        <!-- HIGHLIGHTED IRON MAN / MARK VII DIAGNOSTICS -->
+        <div class="mark-vii-spotlight" id="markViiSpotlight" data-expandable="true" data-box-id="ironman-hud-panel">
+          <div class="spotlight-meta">
+            <span>MARK VII // CORE</span>
+            <span id="coreArcTime">00:32</span>
+          </div>
+          <div class="ironman-hud-viewport">
+            <canvas id="circularVibrationCanvas" class="vibration-circle-canvas" width="320" height="320"></canvas>
+            <svg class="jarvis-svg-hud" viewBox="0 0 720 460">
+              <defs>
+                <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="#e0f7ff" stop-opacity="0.98" />
+                  <stop offset="35%" stop-color="#3be8ff" stop-opacity="0.65" />
+                  <stop offset="75%" stop-color="#0284c7" stop-opacity="0.24" />
+                  <stop offset="100%" stop-color="#020810" stop-opacity="0" />
+                </radialGradient>
+                <linearGradient id="hudPanelGrad" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="rgba(14, 165, 233, 0.36)" />
+                  <stop offset="100%" stop-color="rgba(3, 22, 42, 0.86)" />
+                </linearGradient>
+                <filter id="neonGlow" x="-25%" y="-25%" width="150%" height="150%">
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              <circle cx="360" cy="230" r="205" fill="url(#coreGlow)" />
+
+              <g class="spin-cw">
+                <circle cx="360" cy="230" r="194" fill="none" stroke="rgba(59,232,255,0.55)" stroke-width="2" stroke-dasharray="14 6 3 6" />
+                <circle cx="360" cy="230" r="176" fill="none" stroke="#3be8ff" stroke-width="3.5" stroke-dasharray="90 35 15 35" opacity="0.92" />
+              </g>
+
+              <g class="spin-ccw">
+                <circle cx="360" cy="230" r="158" fill="none" stroke="rgba(59,232,255,0.75)" stroke-width="6" stroke-dasharray="4 8" />
+                <circle cx="360" cy="230" r="142" fill="none" stroke="#0ea5e9" stroke-width="2.5" stroke-dasharray="65 25" />
+              </g>
+
+              <!-- Left Suit Schematic -->
+              <g transform="translate(82, 92)">
+                <polygon points="45,0 165,48 165,222 68,268 18,195 18,65"
+                         fill="url(#hudPanelGrad)" stroke="#8cf3ff" stroke-width="2.2" />
+                <g transform="translate(64, 52)" stroke="#3be8ff" fill="rgba(59,232,255,0.2)" stroke-width="1.6" filter="url(#neonGlow)">
+                  <path d="M36,6 Q45,4 54,6 L57,20 L51,29 L39,29 L33,20 Z" />
+                  <line x1="38" y1="16" x2="43" y2="17" stroke="#fff" stroke-width="1.8" />
+                  <line x1="47" y1="17" x2="52" y2="16" stroke="#fff" stroke-width="1.8" />
+                  <path d="M22,34 L34,30 L56,30 L68,34 L76,54 L64,62 L60,88 L30,88 L26,62 L14,54 Z" />
+                  <circle cx="45" cy="52" r="6" fill="#e0f7ff" stroke="#3be8ff" stroke-width="1.6" />
+                  <path d="M14,54 L6,88 L12,118 L20,116 L20,88 L26,64" />
+                  <path d="M76,54 L84,88 L78,118 L70,116 L70,88 L64,64" />
+                  <path d="M30,88 L60,88 L56,108 L34,108 Z" />
+                  <path d="M32,108 L26,154 L23,190 L35,190 L41,152 L43,108" />
+                  <path d="M58,108 L64,154 L67,190 L55,190 L49,152 L47,108" />
+                </g>
+              </g>
+
+              <!-- Right Flight Telemetry -->
+              <g transform="translate(472, 118)">
+                <polygon points="0,35 118,0 148,72 148,162 96,214 0,175"
+                         fill="url(#hudPanelGrad)" stroke="#8cf3ff" stroke-width="2.2" />
+                <circle cx="52" cy="112" r="32" fill="rgba(3,20,38,0.88)" stroke="#67efff" stroke-width="1.8" />
+                <circle cx="52" cy="112" r="22" fill="none" stroke="#3be8ff" stroke-width="3" stroke-dasharray="45 20" />
+                <text x="52" y="115" text-anchor="middle" fill="#fff" font-family="Orbitron" font-size="8">FLIGHT</text>
+                <g transform="translate(92, 48)" font-family="Share Tech Mono" font-size="9" fill="#bae6fd">
+                  <text x="0" y="0">REPULSOR</text>
+                  <rect x="0" y="4" width="46" height="5" fill="#3be8ff" />
+                  <text x="0" y="22">THRUST</text>
+                  <rect x="0" y="26" width="38" height="5" fill="#0ea5e9" />
+                  <text x="0" y="44">ARMOR</text>
+                  <rect x="0" y="48" width="46" height="5" fill="#3be8ff" />
+                  <text x="0" y="66">TARGET</text>
+                  <rect x="0" y="70" width="32" height="5" fill="#38bdf8" />
+                </g>
+              </g>
+
+              <!-- Central Arc Reactor Core -->
+              <g class="pulse-core">
+                <circle cx="360" cy="230" r="88" fill="rgba(4, 24, 46, 0.9)" stroke="#8cf3ff" stroke-width="3.2" />
+                <circle cx="360" cy="230" r="74" fill="none" stroke="#3be8ff" stroke-width="6" stroke-dasharray="18 10" />
+                <circle cx="360" cy="230" r="56" fill="none" stroke="#bae6fd" stroke-width="2.2" />
+                <circle cx="360" cy="230" r="40" fill="rgba(14, 165, 233, 0.35)" stroke="#3be8ff" stroke-width="2.4" />
+                <polygon points="360,206 382,244 338,244" fill="rgba(59,232,255,0.48)" stroke="#ffffff" stroke-width="2" />
+                <circle cx="360" cy="231" r="7" fill="#ffffff" />
+              </g>
+            </svg>
+          </div>
+          <p class="boss-quote">ALWAYS AT YOUR SERVICE, BOSS BHARANI</p>
+        </div>
+
+        <!-- TOP-RIGHT OF MARK VII: COMPACT HACKING SKULL + ORBITAL RINGS -->
+        <div class="skull-top-right" id="skullContainer" data-expandable="true" data-box-id="skull-stage">
+          <div class="skull-mini-assembly">
+            <div class="skull-ring ring-a"></div>
+            <div class="skull-ring ring-b"></div>
+            <svg class="skull-svg" id="jarvisSkull" viewBox="0 0 220 240" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <filter id="skullNeonFilter" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="3.2" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+              <path class="skull-hull" filter="url(#skullNeonFilter)" d="
+                M 110 18
+                C 64 18, 40 48, 42 88
+                C 43 110, 52 125, 66 136
+                L 72 166
+                L 84 178
+                L 84 204
+                C 84 211, 90 215, 97 215
+                L 123 215
+                C 130 215, 136 211, 136 204
+                L 136 178
+                L 148 166
+                L 154 136
+                C 168 125, 177 110, 178 88
+                C 180 48, 156 18, 110 18 Z
+              " />
+              <circle cx="110" cy="46" r="9" fill="rgba(59,232,255,0.2)" stroke="#9bf7ff" stroke-width="1.6" />
+              <circle cx="110" cy="46" r="3.5" fill="#ffffff" />
+              <path class="circuit-trace" d="M 101 46 L 76 46 L 62 60 L 52 60" />
+              <path class="circuit-trace" d="M 119 46 L 144 46 L 158 60 L 168 60" />
+              <path class="circuit-trace" d="M 46 92 L 62 98 L 68 116" />
+              <path class="circuit-trace" d="M 174 92 L 158 98 L 152 116" />
+              <path class="socket-pit" d="M 60 80 C 70 70, 90 72, 96 86 C 99 98, 90 112, 76 112 C 62 112, 55 96, 60 80 Z" />
+              <path class="socket-pit" d="M 160 80 C 150 70, 130 72, 124 86 C 121 98, 130 112, 144 112 C 158 112, 165 96, 160 80 Z" />
+              <circle class="iris-node eye-glow" cx="78" cy="92" r="7" />
+              <circle class="iris-node eye-glow" cx="142" cy="92" r="7" />
+              <path class="socket-pit" d="M 110 108 L 99 135 L 110 141 L 121 135 Z" />
+              <line x1="86" y1="176" x2="134" y2="176" class="circuit-trace" />
+              <line x1="88" y1="194" x2="132" y2="194" class="circuit-trace" />
+              <line x1="92" y1="176" x2="92" y2="212" class="circuit-trace" />
+              <line x1="101" y1="176" x2="101" y2="212" class="circuit-trace" />
+              <line x1="110" y1="176" x2="110" y2="212" class="circuit-trace" />
+              <line x1="119" y1="176" x2="119" y2="212" class="circuit-trace" />
+              <line x1="128" y1="176" x2="128" y2="212" class="circuit-trace" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- DOWN-RIGHT OF MARK VII: ROTARY KEY + VOICE CONTROLS -->
+        <div class="key-down-right">
+          <div class="key-ring-stage" id="keyRingStage" data-expandable="true" data-box-id="fx-panel" title="Turn left 3 times to unlock, then drag onto any panel">
+            <div class="key-outer-halo"></div>
+            <div class="key-dial-puck" id="keyDialPuck">
+              <svg class="key-dial-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="18 7 4 7" />
+                <circle cx="60" cy="60" r="39" fill="rgba(4, 20, 38, 0.9)" stroke="currentColor" stroke-width="1.5" stroke-dasharray="6 4" />
+                <line x1="60" y1="4" x2="60" y2="14" stroke="currentColor" stroke-width="2.5" />
+                <line x1="60" y1="106" x2="60" y2="116" stroke="currentColor" stroke-width="2.5" />
+                <line x1="4" y1="60" x2="14" y2="60" stroke="currentColor" stroke-width="2.5" />
+                <line x1="106" y1="60" x2="116" y2="60" stroke="currentColor" stroke-width="2.5" />
+                <circle cx="60" cy="46" r="11" fill="none" stroke="currentColor" stroke-width="2.5" />
+                <circle cx="60" cy="46" r="4" fill="currentColor" />
+                <path d="M60 57 L60 84 M60 71 L69 71 M60 79 L67 79" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+              </svg>
+              <div class="key-turn-badge" id="keyTurnBadge">0/3</div>
+            </div>
+            <span class="key-state-tag" id="keyLockState">LOCKED</span>
+          </div>
+
+          <div class="voice-controls-row">
+            <div class="voice-orb" id="mic-btn" title="Toggle Continuous Voice Recognition">
+              MIC<br>LINK
+            </div>
+            <div class="voice-orb" id="rightOrb" onclick="if(typeof toggleJarvisMode==='function') toggleJarvisMode();" title="Toggle Strict Jarvis Mode">
+              JARVIS<br>MODE
+            </div>
+            <div class="voice-mini-readout">
+              <div><span id="voiceStatus">STANDBY</span></div>
+              <div>MODE: <span id="modeIndicator" class="highlight">STD</span></div>
+              <div>API: <span id="apiFallbackBadge" class="highlight">HYBRID</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- KEPT BOXED: NEURAL CHAT / ANSWER OUTPUT BOX -->
+      <section class="answer-box-panel" data-expandable="true" data-box-id="chat-panel">
+        <div class="answer-box-header">
+          <span>◈ NEURAL_ANSWER_STREAM</span>
+          <span id="engineBadge">ENGINE: GEMINI + AUTO-WEB</span>
+        </div>
+        <div class="chat" id="chat"></div>
+      </section>
+
+    </section>
+
+  </main>
+
+  <!-- BOTTOM ARC REACTOR LAUNCHER DOCK -->
+  <footer class="bottom-dock-bar" id="arcDock"></footer>
+
+  <div class="os-task-strip">
+    <span>STARK OS v4.2 // MARK VII HACKING HUD</span>
+    <span id="bottomClock">00:32:00</span>
   </div>
 
   <!-- MODAL 1: HISTORY LOG POPUP -->
@@ -87,6 +367,8 @@
       </div>
     </div>
   </div>
+
+  <input id="img-input" type="file" accept="image/*" multiple style="display:none" />
 
   <script src="script.js"></script>
 </body>
