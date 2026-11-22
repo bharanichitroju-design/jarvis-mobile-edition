@@ -3,7 +3,7 @@
    - Multi-Model Gemini Chain + Automatic Google Web Fallback
    - 6 Dock Buttons: YouTube, 3D work, Games, Voice, Exist, Clear
    - Box 1 (Your Diary), Box 2 (Media), Box 3 (Personal + 5030 + AI)
-   - 3-Turn Left Keyframe FX Dial + Drag-to-Expand
+   - Key-Drop-Only Fullscreen Activation + Auto Key Deactivation
    ========================================================= */
 
 // ==================== 1. CONFIGURATION & STATE ====================
@@ -38,6 +38,7 @@ const STORAGE_KEYS = {
 };
 
 const PERSONAL_PASSCODE = "5030";
+const WRONG_PASS_MESSAGE = "You are danger. This password is incorrect.";
 
 let chatHistory = JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY) || "[]");
 let memoryStore = JSON.parse(localStorage.getItem(STORAGE_KEYS.MEMORY) || "[]");
@@ -52,7 +53,9 @@ let recognition = null;
 let audioWaveLevel = 0.08;
 
 let pendingDiaryPhoto = "";
+let pendingDiaryPhotoName = "";
 let pendingPersonalPhoto = "";
+let pendingPersonalPhotoName = "";
 let personalUnlocked = false;
 let keypadBuffer = "";
 
@@ -171,9 +174,11 @@ function buildArcDock() {
     slot.innerHTML = `
       <div class="dock-orb" title="${btn.label}">
         <svg viewBox="0 0 64 64">
-          <circle cx="32" cy="32" r="28" fill="rgba(4,24,46,0.9)" stroke="#3be8ff" stroke-width="2" stroke-dasharray="10 5" />
-          <circle cx="32" cy="32" r="20" fill="none" stroke="#8cf3ff" stroke-width="1.5" />
-          <circle cx="32" cy="32" r="11" fill="rgba(14,165,233,0.35)" stroke="#ffffff" stroke-width="1.5" />
+          <g class="dock-rot-frame" style="transform-origin:32px 32px;">
+            <circle cx="32" cy="32" r="28" fill="rgba(4,24,46,0.9)" stroke="#3be8ff" stroke-width="2" stroke-dasharray="10 5" />
+            <circle cx="32" cy="32" r="21" fill="none" stroke="#8cf3ff" stroke-width="1.4" stroke-dasharray="6 4" />
+          </g>
+          <circle cx="32" cy="32" r="12" fill="rgba(14,165,233,0.35)" stroke="#ffffff" stroke-width="1.5" />
           <text x="32" y="35" text-anchor="middle" fill="#ffffff" font-family="Orbitron" font-size="8" font-weight="700">0${idx + 1}</text>
         </svg>
       </div>
@@ -195,7 +200,7 @@ function updateTelemetryCounts() {
       const latest = diaryEntries[diaryEntries.length - 1];
       diaryLatestMeta.textContent = `${latest.fileLabel} // ${latest.timestamp}`;
     } else {
-      diaryLatestMeta.textContent = "BOX 1 // DAILY LOG + AI";
+      diaryLatestMeta.textContent = "BOX 1 // TEXT & PHOTOS + AI";
     }
   }
 
@@ -254,7 +259,6 @@ function finalizeClearChat(saveToBothMemoryAndHistory) {
     }
   }
 
-  // Keep snapshot in history log; clear active chat panel
   localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory.slice(-150)));
   if (chatBox) {
     chatBox.innerHTML = "";
@@ -263,7 +267,7 @@ function finalizeClearChat(saveToBothMemoryAndHistory) {
   closeModal("clear-choice-modal");
 
   const statusMsg = saveToBothMemoryAndHistory
-    ? "Chat cleared and saved to both Memory and History, Boss."
+    ? "Chat cleared and saved to Memory and History, Boss."
     : "Chat cleared and saved to History only, Boss.";
   appendMessage("ai", statusMsg, false);
 }
@@ -296,6 +300,9 @@ function openModal(id) {
 function closeModal(id) {
   const modal = document.getElementById(id);
   if (modal) modal.style.display = "none";
+  if (id === "diary-modal" || id === "media-modal" || id === "personal-modal") {
+    resetRotaryKeyLock();
+  }
 }
 
 function setupModals() {
@@ -318,29 +325,19 @@ function setupModals() {
 
   window.addEventListener("click", (e) => {
     if (e.target.classList && e.target.classList.contains("modal")) {
+      const mId = e.target.id;
       e.target.style.display = "none";
+      if (mId === "diary-modal" || mId === "media-modal" || mId === "personal-modal") {
+        resetRotaryKeyLock();
+      }
     }
   });
 }
 
 // ==================== 5. BOX 1 (YOUR DIARY), BOX 2 (MEDIA) & BOX 3 (PERSONAL + 5030 + AI) ====================
-function handleDiaryBoxClick(e) {
-  if (e && e.stopPropagation) e.stopPropagation();
-  openModal("diary-modal");
-}
-
-function handleMediaBoxClick(e) {
-  if (e && e.stopPropagation) e.stopPropagation();
-  openModal("media-modal");
-}
-
-function handlePersonalBoxClick(e) {
-  if (e && e.stopPropagation) e.stopPropagation();
-  openModal("personal-modal");
-}
-
 function setupDiaryBox1() {
   const imgInp = document.getElementById("diary-img-input");
+  const badge = document.getElementById("diaryPendingPhotoBadge");
   const saveBtn = document.getElementById("save-diary-entry");
   const searchInp = document.getElementById("diary-search-input");
   const askAiBtn = document.getElementById("ask-diary-ai-btn");
@@ -352,7 +349,8 @@ function setupDiaryBox1() {
     const reader = new FileReader();
     reader.onload = () => {
       pendingDiaryPhoto = reader.result;
-      appendMessage("ai", `Diary photo ready for Box 1 (${file.name}), Boss. Click SAVE DIARY LOG.`);
+      pendingDiaryPhotoName = file.name;
+      if (badge) badge.textContent = `PHOTO: ${file.name}`;
     };
     reader.readAsDataURL(file);
     imgInp.value = "";
@@ -370,13 +368,19 @@ function setupDiaryBox1() {
       fileLabel: `Box 1 File ${fileNum}`,
       text: txt,
       image: pendingDiaryPhoto || "",
+      photoName: pendingDiaryPhotoName || "",
       timestamp: new Date().toLocaleString()
     };
 
     diaryEntries.push(entry);
-    localStorage.setItem(STORAGE_KEYS.DIARY, JSON.stringify(diaryEntries));
+    try {
+      localStorage.setItem(STORAGE_KEYS.DIARY, JSON.stringify(diaryEntries.slice(-40)));
+    } catch (_) {}
+
     if (textInp) textInp.value = "";
     pendingDiaryPhoto = "";
+    pendingDiaryPhotoName = "";
+    if (badge) badge.textContent = "NO PHOTO";
     updateTelemetryCounts();
     renderDiaryList(searchInp?.value || "");
     appendMessage("ai", `Saved ${entry.fileLabel} to Your Diary (${entry.timestamp}), Boss.`);
@@ -414,8 +418,8 @@ function renderDiaryList(filter = "") {
   list.innerHTML = rows.slice().reverse().map(d => `
     <div class="history-item">
       <strong>${d.fileLabel}</strong> — <small>${d.timestamp}</small>
-      ${d.text ? `<div style="margin-top:3px;">${d.text}</div>` : ""}
-      ${d.image ? `<img src="${d.image}" alt="${d.fileLabel}" style="max-width:100%;max-height:110px;border-radius:3px;margin-top:4px;cursor:pointer;" onclick="openLightbox('${d.fileLabel}', '${d.image}', 'image')" />` : ""}
+      ${d.text ? `<div style="margin-top:4px;white-space:pre-wrap;">${d.text}</div>` : ""}
+      ${d.image ? `<img src="${d.image}" alt="${d.fileLabel}" style="max-width:100%;max-height:130px;border:1px solid #3be8ff;border-radius:3px;margin-top:6px;cursor:pointer;" onclick="openLightbox('${d.fileLabel}', '${d.image}', 'image')" />` : ""}
     </div>
   `).join("");
 }
@@ -423,7 +427,7 @@ function renderDiaryList(filter = "") {
 function answerFromBox1Diary(query) {
   const lower = query.toLowerCase();
   if (!lower.includes("box 1") && !lower.includes("file") && !lower.includes("diary")) {
-    return "Please mention Box 1 or the specific File number (e.g., Box 1 File 1) so I can inspect that entry for you, Boss.";
+    return "Please mention Box 1 or a specific File number (e.g., Box 1 File 1) so I can answer from that entry, Boss.";
   }
 
   const fileMatch = lower.match(/file\s*(\d+)/);
@@ -433,7 +437,7 @@ function answerFromBox1Diary(query) {
     if (!found) {
       return `Box 1 File ${targetNum} is not found in Your Diary, Boss.`;
     }
-    return `<strong>[${found.fileLabel} — ${found.timestamp}]</strong><br/>${found.text || "Photo attached in this diary entry."}`;
+    return `<strong>[${found.fileLabel} — ${found.timestamp}]</strong><br/>${found.text || (found.image ? `Uploaded Photo: ${found.photoName || "Image"}` : "Empty entry")}`;
   }
 
   if (!diaryEntries.length) {
@@ -441,7 +445,7 @@ function answerFromBox1Diary(query) {
   }
 
   const latest = diaryEntries[diaryEntries.length - 1];
-  return `<strong>[Box 1 Latest — ${latest.fileLabel} (${latest.timestamp})]</strong><br/>${latest.text || "Photo log saved."}`;
+  return `<strong>[Box 1 Latest — ${latest.fileLabel} (${latest.timestamp})]</strong><br/>${latest.text || (latest.image ? `Uploaded Photo: ${latest.photoName || "Image"}` : "Photo log saved.")}`;
 }
 
 function setupMediaBox2() {
@@ -469,9 +473,8 @@ function setupMediaBox2() {
         };
         mediaItems.push(item);
         try {
-          localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(mediaItems.slice(-40)));
+          localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(mediaItems.slice(-30)));
         } catch (_) {
-          // Fallback if localStorage quota is full for large video
           mediaItems[mediaItems.length - 1].src = URL.createObjectURL(file);
         }
         updateTelemetryCounts();
@@ -526,9 +529,9 @@ function openLightbox(title, src, type) {
   if (!titleEl || !bodyEl) return;
   titleEl.textContent = title;
   if (type === "video") {
-    bodyEl.innerHTML = `<video src="${src}" controls autoplay style="width:100%;max-height:64vh;border:1px solid #3be8ff;border-radius:4px;"></video>`;
+    bodyEl.innerHTML = `<video src="${src}" controls autoplay style="width:100%;max-height:66vh;border:1px solid #3be8ff;border-radius:4px;"></video>`;
   } else {
-    bodyEl.innerHTML = `<img src="${src}" alt="${title}" style="max-width:100%;max-height:64vh;border:1px solid #3be8ff;border-radius:4px;" />`;
+    bodyEl.innerHTML = `<img src="${src}" alt="${title}" style="max-width:100%;max-height:66vh;border:1px solid #3be8ff;border-radius:4px;" />`;
   }
   openModal("media-lightbox-modal");
 }
@@ -554,6 +557,7 @@ function setupPersonalBox3() {
   const displayEl = document.getElementById("keypadDisplay");
   const alertEl = document.getElementById("personal-danger-alert");
   const imgInp = document.getElementById("personal-img-input");
+  const photoBadge = document.getElementById("personalPendingPhotoBadge");
   const saveBtn = document.getElementById("save-personal-detail");
   const askAiBtn = document.getElementById("ask-personal-ai-btn");
   const aiInp = document.getElementById("personal-ai-input");
@@ -592,7 +596,7 @@ function setupPersonalBox3() {
       keypadBuffer = "";
       syncKeypadDisplay();
       if (alertEl) {
-        alertEl.textContent = "You are in danger. My boss, can you see in your face? Your work is danger.";
+        alertEl.textContent = WRONG_PASS_MESSAGE;
       }
     }
   });
@@ -603,7 +607,8 @@ function setupPersonalBox3() {
     const reader = new FileReader();
     reader.onload = () => {
       pendingPersonalPhoto = reader.result;
-      appendMessage("ai", `Personal photo ready (${file.name}), Boss.`);
+      pendingPersonalPhotoName = file.name;
+      if (photoBadge) photoBadge.textContent = `PHOTO: ${file.name}`;
     };
     reader.readAsDataURL(file);
     imgInp.value = "";
@@ -611,7 +616,7 @@ function setupPersonalBox3() {
 
   saveBtn?.addEventListener("click", () => {
     if (!personalUnlocked) {
-      alert("Password 5030 required first, Boss.");
+      alert("Password required first, Boss.");
       return;
     }
     const inp = document.getElementById("personal-detail-input");
@@ -621,23 +626,28 @@ function setupPersonalBox3() {
     personalDetails.push({
       text: txt,
       image: pendingPersonalPhoto || "",
+      photoName: pendingPersonalPhotoName || "",
       timestamp: new Date().toLocaleString()
     });
-    localStorage.setItem(STORAGE_KEYS.PERSONAL, JSON.stringify(personalDetails));
+    try {
+      localStorage.setItem(STORAGE_KEYS.PERSONAL, JSON.stringify(personalDetails.slice(-40)));
+    } catch (_) {}
+
     if (inp) inp.value = "";
     pendingPersonalPhoto = "";
+    pendingPersonalPhotoName = "";
+    if (photoBadge) photoBadge.textContent = "NO PHOTO";
     renderPersonalEntries();
-    appendMessage("ai", "Personal detail encrypted and stored in your private vault, Boss.");
+    appendMessage("ai", "Personal detail stored in your private vault, Boss.");
   });
 
   askAiBtn?.addEventListener("click", () => {
     const q = (aiInp?.value || "").trim();
     if (!q) return;
     if (!personalUnlocked) {
-      const codeAttempt = prompt("Security AI locked. Enter 4-digit access code to read or update personal details, Boss:");
+      const codeAttempt = prompt("Personal AI locked. Enter the password to access personal details, Boss:");
       if (codeAttempt !== PERSONAL_PASSCODE) {
-        const warn = "You are in danger. My boss, can you see in your face? Your work is danger.";
-        appendMessage("ai", warn);
+        appendMessage("ai", WRONG_PASS_MESSAGE);
         if (aiInp) aiInp.value = "";
         return;
       }
@@ -647,7 +657,7 @@ function setupPersonalBox3() {
     }
 
     const summary = personalDetails.length
-      ? personalDetails.map((p, i) => `Detail ${i + 1} (${p.timestamp}): ${p.text || "[Photo]"}`).join("<br/>")
+      ? personalDetails.map((p, i) => `Record ${i + 1} (${p.timestamp}): ${p.text || (p.image ? `Photo (${p.photoName || "Image"})` : "")}`).join("<br/>")
       : "No personal details stored yet, Boss.";
     appendMessage("user", `[Personal AI] ${q}`);
     appendMessage("ai", `<strong>[PERSONAL VAULT AI — VERIFIED]</strong><br/>${summary}`);
@@ -679,8 +689,8 @@ function renderPersonalEntries() {
   list.innerHTML = personalDetails.slice().reverse().map((p, idx) => `
     <div class="history-item">
       <strong>Record #${personalDetails.length - idx}</strong> — <small>${p.timestamp}</small>
-      ${p.text ? `<div style="margin-top:3px;">${p.text}</div>` : ""}
-      ${p.image ? `<img src="${p.image}" alt="Personal detail" style="max-width:100%;max-height:110px;border-radius:3px;margin-top:4px;cursor:pointer;" onclick="openLightbox('Personal Record', '${p.image}', 'image')" />` : ""}
+      ${p.text ? `<div style="margin-top:4px;white-space:pre-wrap;">${p.text}</div>` : ""}
+      ${p.image ? `<img src="${p.image}" alt="Personal detail" style="max-width:100%;max-height:130px;border:1px solid #3be8ff;border-radius:3px;margin-top:6px;cursor:pointer;" onclick="openLightbox('Personal Record', '${p.image}', 'image')" />` : ""}
     </div>
   `).join("");
 }
@@ -744,14 +754,18 @@ function openGamesModal() {
 function triggerExistBackAction() {
   const openModals = Array.from(document.querySelectorAll(".modal")).filter(m => m.style.display === "block");
   if (openModals.length > 0) {
-    openModals[openModals.length - 1].style.display = "none";
+    const topModal = openModals[openModals.length - 1];
+    topModal.style.display = "none";
+    resetRotaryKeyLock();
     return;
   }
   if (expandedElement) {
     collapseExpandedPanel();
+    resetRotaryKeyLock();
     return;
   }
-  appendMessage("ai", "Returned to base HUD view, Boss.");
+  resetRotaryKeyLock();
+  appendMessage("ai", "Returned to base HUD view and deactivated key, Boss.");
 }
 
 // ==================== 7. MULTI-MODEL GEMINI CHAIN + GOOGLE WEB FALLBACK ====================
@@ -886,7 +900,6 @@ async function handleUserCommand(rawText) {
 
   const lower = text.toLowerCase();
 
-  // Box 1 / Box 2 / Box 3 targeted queries
   if (lower.includes("box 1") || (lower.includes("diary") && lower.includes("file"))) {
     appendMessage("ai", answerFromBox1Diary(text));
     return;
@@ -897,27 +910,13 @@ async function handleUserCommand(rawText) {
   }
   if (lower.includes("box 3") || lower.includes("personal detail")) {
     if (!personalUnlocked) {
-      appendMessage("ai", "Personal details are locked. Enter password 5030 in the Your Personal Details frame first, Boss.");
-      openModal("personal-modal");
+      appendMessage("ai", "Personal details are locked. Unlock Box 3 with the key and enter your security code first, Boss.");
       return;
     }
     const info = personalDetails.length
       ? personalDetails.map((p, idx) => `#${idx + 1} (${p.timestamp}): ${p.text || "[Photo]"}`).join("<br/>")
       : "No personal details recorded yet, Boss.";
     appendMessage("ai", info);
-    return;
-  }
-
-  if (lower === "open memory" || lower === "memory") {
-    openModal("diary-modal");
-    appendMessage("ai", "Opening Your Diary (Box 1), Boss.");
-    speakText("Opening Your Diary, Boss.");
-    return;
-  }
-  if (lower === "open history" || lower === "history") {
-    openModal("history-modal");
-    appendMessage("ai", "Opening Command History Log, Boss.");
-    speakText("Opening History Log, Boss.");
     return;
   }
 
@@ -928,10 +927,6 @@ async function handleUserCommand(rawText) {
   if (plainTextForSpeech) {
     speakText(plainTextForSpeech.slice(0, 260));
   }
-}
-
-function handleHardcoded(cmd) {
-  handleUserCommand(cmd);
 }
 
 function setSystemState(mainStatus, badgeStatus) {
@@ -1125,8 +1120,9 @@ function renderVisualizers() {
   requestAnimationFrame(renderVisualizers);
 }
 
-// ==================== 10. KEYFRAME FX DIAL (3 LEFT TURNS + DRAG TO EXPAND) ====================
+// ==================== 10. KEYFRAME FX DIAL (3 LEFT TURNS + DRAG TO EXPAND + AUTO DEACTIVATE) ====================
 let expandedElement = null;
+let resetRotaryKeyLock = () => {};
 
 function collapseExpandedPanel() {
   if (expandedElement) {
@@ -1179,6 +1175,17 @@ function setupRotaryKey() {
       puck.classList.remove("key-activated");
     }
   }
+
+  resetRotaryKeyLock = function () {
+    isRotating = false;
+    isDraggingPanel = false;
+    lastAngle = null;
+    totalCounterClockwiseDeg = 0;
+    unlocked = false;
+    hoveredBox = null;
+    collapseExpandedPanel();
+    updateDialVisual(0);
+  };
 
   function onPointerDown(e) {
     e.preventDefault();
@@ -1256,14 +1263,26 @@ function setupRotaryKey() {
       });
 
       if (hoveredBox) {
-        if (expandedElement && expandedElement !== hoveredBox) {
-          expandedElement.classList.remove("expanded-fullscreen");
-        }
-        hoveredBox.classList.add("expanded-fullscreen");
-        expandedElement = hoveredBox;
-        puck.classList.add("docked-return");
+        const modalTargetId = hoveredBox.getAttribute("data-modal-target");
+        puck.classList.remove("floating-key", "docked-return");
         puck.style.left = "";
         puck.style.top = "";
+        stage.appendChild(puck);
+
+        // Automatically deactivate key upon opening / entering expanded view
+        unlocked = false;
+        totalCounterClockwiseDeg = 0;
+        updateDialVisual(0);
+
+        if (modalTargetId) {
+          openModal(modalTargetId);
+        } else {
+          if (expandedElement && expandedElement !== hoveredBox) {
+            expandedElement.classList.remove("expanded-fullscreen");
+          }
+          hoveredBox.classList.add("expanded-fullscreen");
+          expandedElement = hoveredBox;
+        }
       } else {
         puck.classList.remove("floating-key", "docked-return");
         puck.style.left = "";
@@ -1283,10 +1302,7 @@ function setupRotaryKey() {
 
   puck.addEventListener("click", () => {
     if (expandedElement) {
-      collapseExpandedPanel();
-      unlocked = false;
-      totalCounterClockwiseDeg = 0;
-      updateDialVisual(0);
+      resetRotaryKeyLock();
     }
   });
 }
