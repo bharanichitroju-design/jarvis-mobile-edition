@@ -319,7 +319,7 @@ function buildContextualSystemInstruction() {
 async function tryTextModel(modelName, apiKey, promptText, systemInstruction) {
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const timeoutId = setTimeout(() => controller.abort(), 6500);
 
   try {
     const response = await fetch(endpoint, {
@@ -460,6 +460,27 @@ function speakText(text) {
     };
     window.speechSynthesis.speak(utter);
   } catch (_) {}
+}
+
+function startAutoVoiceAccess() {
+  if (!recognition) setupSpeechRecognition();
+  if (!recognition || isMicListening) return;
+  isMicListening = true;
+  try {
+    recognition.start();
+  } catch (_) {
+    isMicListening = false;
+    const armOnce = () => {
+      if (!isMicListening && recognition) {
+        isMicListening = true;
+        try { recognition.start(); } catch (_) { isMicListening = false; }
+      }
+      window.removeEventListener("pointerdown", armOnce);
+      window.removeEventListener("keydown", armOnce);
+    };
+    window.addEventListener("pointerdown", armOnce, { once: true });
+    window.addEventListener("keydown", armOnce, { once: true });
+  }
 }
 
 function setupSpeechRecognition() {
@@ -822,6 +843,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupModals();
   setupRotaryKey();
   setupSpeechRecognition();
+  startAutoVoiceAccess();
   setupGalleryUpload();
   renderVisualizers();
 
