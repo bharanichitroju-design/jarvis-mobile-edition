@@ -1,8 +1,9 @@
 /* =========================================================
    STARK INDUSTRIES // J.A.R.V.I.S. HACKING WALL HUD CSS
    - Single-screen fit with high-intensity neon-cyan glow
-   - Unboxed floating hacker layout (except Answer Box)
-   - Enlarged Mark VII figure + spinning core + larger Skull & Key
+   - Full-height left sidebar modules + persistent Red Wave
+   - Enlarged Mark VII figure, spinning inner core, Skull & Key
+   - Continuous rotating frames on all 6 bottom dock buttons
    ========================================================= */
 :root {
   --bg-void: #020810;
@@ -228,7 +229,7 @@ body.hacking-wall-hud {
 .hud-workspace {
   flex: 1;
   display: grid;
-  grid-template-columns: 242px minmax(0, 1fr);
+  grid-template-columns: 244px minmax(0, 1fr);
   gap: 10px;
   padding: 5px 12px 4px 12px;
   min-height: 0;
@@ -240,7 +241,7 @@ body.hacking-wall-hud {
   z-index: 10;
 }
 
-/* ================= LEFT COLUMN (CLOCK + DIARY + MEDIA + PERSONAL + RED WAVE) ================= */
+/* ================= LEFT COLUMN (FULL-HEIGHT VAULT STACK + RED GRAPH) ================= */
 .col-left {
   display: flex;
   flex-direction: column;
@@ -250,6 +251,7 @@ body.hacking-wall-hud {
   position: relative;
   min-height: 0;
   min-width: 0;
+  height: 100%;
 }
 
 .left-sidebar-strip {
@@ -343,8 +345,8 @@ body.hacking-wall-hud {
 }
 
 .date-ring-widget {
-  width: 64px;
-  height: 64px;
+  width: 60px;
+  height: 60px;
   position: relative;
   display: flex;
   align-items: center;
@@ -367,14 +369,14 @@ body.hacking-wall-hud {
 
 .date-ring-inner .month {
   font-family: var(--font-display);
-  font-size: 8px;
+  font-size: 7.5px;
   color: #9bf7ff;
   letter-spacing: 1px;
 }
 
 .date-ring-inner .day-num {
   font-family: var(--font-display);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1.05;
   color: #ffffff;
@@ -394,7 +396,7 @@ body.hacking-wall-hud {
 
 .weekday-box .day-name {
   font-family: var(--font-display);
-  font-size: 8.8px;
+  font-size: 8.5px;
   letter-spacing: 1px;
   color: #a5f3fc;
   border-bottom: 1px solid rgba(92, 240, 255, 0.5);
@@ -404,38 +406,48 @@ body.hacking-wall-hud {
 
 .weekday-box .mini-time {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 13.5px;
   color: #ffffff;
   text-shadow: var(--glow-soft);
 }
 
 .weekday-box .mini-time small {
-  font-size: 9px;
+  font-size: 8.5px;
   color: var(--cyan-bright);
+}
+
+/* FULL-HEIGHT STACK FOR THE THREE KEY-DROP VAULT BOXES */
+.left-vault-stack {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 0;
+}
+
+.vault-fill-slot {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: transform 0.16s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 /* GLOWING "YOUR DIARY" BOX */
 .diary-glow-box {
-  padding: 5px 8px;
-  border-radius: 4px;
   background: linear-gradient(135deg, rgba(14, 165, 233, 0.24), rgba(3, 22, 44, 0.9));
   border: 1.4px solid var(--cyan-ultra);
   box-shadow: 0 0 16px rgba(59, 232, 255, 0.72), inset 0 0 10px rgba(59, 232, 255, 0.25);
-  cursor: pointer;
-  transition: transform 0.16s ease, box-shadow 0.2s ease;
-  flex-shrink: 0;
-}
-
-.diary-glow-box:hover {
-  transform: scale(1.015);
-  box-shadow: var(--glow-heavy);
 }
 
 .diary-glow-title {
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 800;
-  letter-spacing: 1.4px;
+  letter-spacing: 1.3px;
   color: #ffffff;
   text-shadow: 0 0 10px var(--cyan-bright), 0 0 22px var(--cyan-mid);
   animation: diaryGlowPulse 2.2s infinite alternate;
@@ -443,30 +455,20 @@ body.hacking-wall-hud {
 
 .diary-meta-sub {
   font-family: var(--font-mono);
-  font-size: 0.52rem;
+  font-size: 0.5rem;
   color: #a5f3fc;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 2px;
 }
 
 /* MEDIA BOX & PERSONAL DETAILS BOX */
 .media-vault-box,
 .personal-vault-box {
-  padding: 5px 8px;
-  border-radius: 4px;
   background: rgba(4, 24, 46, 0.78);
   border: 1.2px solid rgba(92, 240, 255, 0.78);
   box-shadow: 0 0 12px rgba(59, 232, 255, 0.36);
-  cursor: pointer;
-  transition: transform 0.16s ease, box-shadow 0.2s ease;
-  flex-shrink: 0;
-}
-
-.media-vault-box:hover,
-.personal-vault-box:hover {
-  transform: scale(1.015);
-  box-shadow: var(--glow-cyan);
 }
 
 .personal-vault-box {
@@ -479,20 +481,20 @@ body.hacking-wall-hud {
   justify-content: space-between;
   align-items: center;
   font-family: var(--font-display);
-  font-size: 0.58rem;
+  font-size: 0.56rem;
   font-weight: 700;
-  letter-spacing: 0.9px;
+  letter-spacing: 0.85px;
   color: #ffffff;
 }
 
 .vault-mini-preview {
   font-family: var(--font-mono);
-  font-size: 0.5rem;
+  font-size: 0.48rem;
   color: #9bf7ff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 /* COUNTERS */
@@ -516,19 +518,19 @@ body.hacking-wall-hud {
 
 .metric-label {
   font-family: var(--font-mono);
-  font-size: 0.5rem;
+  font-size: 0.48rem;
   color: #9bf7ff;
 }
 
 .metric-value {
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: #ffffff;
   font-weight: 700;
   text-shadow: var(--glow-soft);
 }
 
-/* DOWN-LEFT: RED WAVE SIGNAL GRAPH */
+/* DOWN-LEFT: PERSISTENT RED WAVE SIGNAL GRAPH */
 .red-wave-zone {
   display: flex;
   flex-direction: column;
@@ -634,7 +636,7 @@ canvas#redWaveCanvas {
 .core-matrix-area {
   flex: 1.3;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 174px;
+  grid-template-columns: minmax(0, 1fr) 178px;
   grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
   min-height: 0;
@@ -701,12 +703,12 @@ canvas#redWaveCanvas {
 }
 
 .jarvis-svg-hud.enlarged-figure {
-  transform: scale(1.14);
+  transform: scale(1.16);
 }
 
-/* Spinning Iron Man Heart / Arc Reactor Core */
-.heart-spin-group {
-  animation: heartCoreSpin 7s linear infinite;
+/* Spinning Inner Iron Man Heart / Core Design */
+.heart-inner-spin {
+  animation: heartCoreSpin 6.5s linear infinite;
 }
 
 .boss-quote {
@@ -735,12 +737,12 @@ canvas#redWaveCanvas {
   min-width: 0;
 }
 
-.skull-mini-assembly {
+.skull-mini-assembly.enlarged-skull {
   position: relative;
   width: 100%;
   height: 100%;
-  max-width: 168px;
-  max-height: 168px;
+  max-width: 174px;
+  max-height: 174px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -753,16 +755,16 @@ canvas#redWaveCanvas {
 }
 
 .skull-ring.ring-a {
-  width: 128px;
-  height: 128px;
+  width: 136px;
+  height: 136px;
   border: 1.5px dashed var(--cyan-bright);
   box-shadow: 0 0 14px rgba(59, 232, 255, 0.6);
   animation: spinClockwise 15s linear infinite;
 }
 
 .skull-ring.ring-b {
-  width: 106px;
-  height: 106px;
+  width: 114px;
+  height: 114px;
   border: 1.5px solid var(--cyan-ultra);
   border-left-color: transparent;
   border-right-color: transparent;
@@ -771,8 +773,8 @@ canvas#redWaveCanvas {
 }
 
 .skull-svg {
-  width: 92px;
-  height: 102px;
+  width: 102px;
+  height: 112px;
   z-index: 4;
   filter: drop-shadow(0 0 16px rgba(59, 232, 255, 0.98));
 }
@@ -823,12 +825,12 @@ canvas#redWaveCanvas {
   align-items: center;
   justify-content: center;
   position: relative;
-  min-height: 62px;
+  min-height: 68px;
 }
 
 .key-outer-halo.enlarged-halo {
-  width: 82px;
-  height: 82px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   border: 1.5px dashed rgba(59, 232, 255, 0.72);
   border-top-color: var(--cyan-ultra);
@@ -840,8 +842,8 @@ canvas#redWaveCanvas {
 
 .key-dial-puck.enlarged-key {
   position: relative;
-  width: 72px;
-  height: 72px;
+  width: 80px;
+  height: 80px;
   border-radius: 50%;
   color: var(--cyan-bright);
   display: flex;
@@ -914,8 +916,8 @@ canvas#redWaveCanvas {
   bottom: 18px !important;
   left: auto !important;
   top: auto !important;
-  width: 64px !important;
-  height: 64px !important;
+  width: 66px !important;
+  height: 66px !important;
   z-index: 2200 !important;
   background: rgba(2, 16, 32, 0.96);
   border: 1.5px solid var(--cyan-bright);
@@ -1051,7 +1053,7 @@ canvas#redWaveCanvas {
 .drop-target-hover {
   border-color: #ffffff !important;
   box-shadow: 0 0 26px #3be8ff, 0 0 44px #0ea5e9, inset 0 0 18px rgba(59, 232, 255, 0.45) !important;
-  transform: scale(1.01);
+  transform: scale(1.015);
 }
 
 .expanded-fullscreen,
@@ -1075,9 +1077,9 @@ canvas#redWaveCanvas {
   overflow: auto !important;
 }
 
-/* ================= BOTTOM ARC REACTOR DOCK (6 LABELED BUTTONS) ================= */
+/* ================= BOTTOM ARC REACTOR DOCK (6 CONTINUOUSLY ROTATING FRAMES) ================= */
 .bottom-dock-bar {
-  height: 66px;
+  height: 68px;
   width: 100%;
   max-width: 100vw;
   display: flex;
@@ -1102,8 +1104,8 @@ canvas#redWaveCanvas {
 }
 
 .dock-orb {
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   position: relative;
   display: flex;
@@ -1123,6 +1125,10 @@ canvas#redWaveCanvas {
   height: 100%;
 }
 
+.dock-rot-frame {
+  animation: dockFrameSpin 8s linear infinite;
+}
+
 .dock-sub-label {
   font-family: var(--font-display);
   font-size: 0.48rem;
@@ -1131,7 +1137,7 @@ canvas#redWaveCanvas {
   color: #d8f8ff;
   text-shadow: 0 0 6px rgba(59, 232, 255, 0.65);
   white-space: nowrap;
-  max-width: 66px;
+  max-width: 68px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1153,27 +1159,44 @@ canvas#redWaveCanvas {
   z-index: 15;
 }
 
-/* ================= MODALS, DIARY, MEDIA & BLUE-FLAME KEYPAD ================= */
+/* ================= FULLSCREEN MODULE MODALS & BLUE-FLAME KEYPAD ================= */
 .modal {
   display: none;
   position: fixed;
   inset: 0;
   z-index: 2500;
-  background-color: rgba(2, 8, 16, 0.9);
+  background-color: rgba(2, 8, 16, 0.92);
   backdrop-filter: blur(4px);
   overflow-y: auto;
-  padding: 14px;
+  padding: 10px;
 }
 
 .modal-content {
   background: rgba(3, 18, 34, 0.98);
-  margin: 5% auto;
+  margin: 2% auto;
   padding: 14px;
   border: 1.5px solid #8cf3ff;
-  width: 95%;
-  max-width: 480px;
+  width: 96%;
+  max-width: 540px;
   border-radius: 6px;
   box-shadow: var(--glow-heavy);
+}
+
+.fullscreen-module-card {
+  width: 96vw !important;
+  max-width: 920px !important;
+  min-height: 86vh;
+  max-height: 92vh;
+  margin: 2vh auto !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.scrollable-module-body {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--cyan-bright) transparent;
 }
 
 .neon-flame-box {
@@ -1188,24 +1211,23 @@ canvas#redWaveCanvas {
   margin-bottom: 10px;
   border-bottom: 1px solid rgba(92, 240, 255, 0.55);
   padding-bottom: 6px;
+  flex-shrink: 0;
 }
 
 .modal-header h2 {
   font-family: var(--font-display);
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   letter-spacing: 1.5px;
   color: #ffffff;
 }
 
 .close-btn {
   color: var(--cyan-bright);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: bold;
   cursor: pointer;
 }
 
-#memory-search-input,
-#custom-memory-input,
 #diary-search-input,
 #diary-text-input,
 #diary-ai-input,
@@ -1216,47 +1238,58 @@ canvas#redWaveCanvas {
   background: rgba(2, 12, 24, 0.92);
   border: 1px solid #5cf0ff;
   color: #ffffff;
-  padding: 7px;
+  padding: 8px;
   border-radius: 4px;
   font-family: var(--font-mono);
-  font-size: 0.76rem;
+  font-size: 0.8rem;
   outline: none;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
   user-select: text;
   -webkit-user-select: text;
 }
 
-#custom-memory-input,
-#diary-text-input,
-#personal-detail-input {
-  height: 58px;
-  resize: none;
+.large-scroll-textarea {
+  min-height: 150px;
+  max-height: 280px;
+  resize: vertical;
+  overflow-y: auto;
+}
+
+.upload-status-chip {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: #9bf7ff;
+  padding: 4px 8px;
+  border: 1px dashed rgba(155, 247, 255, 0.6);
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
 .modal-action-row,
 .ai-sub-assist {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
 }
 
 .ai-sub-assist input {
   margin-bottom: 0 !important;
   flex: 1;
+  min-width: 180px;
 }
 
 .neon-btn {
-  width: 100%;
   background: var(--cyan-bright);
   color: #020810;
   font-family: var(--font-display);
   font-weight: 700;
   border: none;
-  padding: 8px;
+  padding: 8px 12px;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   letter-spacing: 1px;
   box-shadow: var(--glow-cyan);
 }
@@ -1269,7 +1302,7 @@ canvas#redWaveCanvas {
   cursor: pointer;
   font-weight: bold;
   border-radius: 4px;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   white-space: nowrap;
 }
 
@@ -1280,14 +1313,14 @@ canvas#redWaveCanvas {
 }
 
 .history-container {
-  max-height: 175px;
+  max-height: 230px;
   overflow-y: auto;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
 }
 
 .history-item {
   margin-bottom: 6px;
-  padding: 6px;
+  padding: 7px;
   background: rgba(6, 30, 54, 0.75);
   border: 1px solid rgba(92, 240, 255, 0.45);
   border-radius: 4px;
@@ -1295,9 +1328,9 @@ canvas#redWaveCanvas {
 
 .media-grid-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
-  gap: 8px;
-  max-height: 210px;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 10px;
+  max-height: 320px;
   overflow-y: auto;
   margin-top: 8px;
 }
@@ -1306,7 +1339,7 @@ canvas#redWaveCanvas {
   background: rgba(4, 24, 46, 0.85);
   border: 1px solid #5cf0ff;
   border-radius: 4px;
-  padding: 4px;
+  padding: 5px;
   cursor: pointer;
   text-align: center;
 }
@@ -1314,7 +1347,7 @@ canvas#redWaveCanvas {
 .media-thumb-card img,
 .media-thumb-card video {
   width: 100%;
-  height: 76px;
+  height: 88px;
   object-fit: cover;
   border-radius: 3px;
 }
@@ -1322,20 +1355,20 @@ canvas#redWaveCanvas {
 /* Blue Flame 5030 Keypad */
 .keypad-lock-panel {
   text-align: center;
-  padding: 6px;
+  padding: 10px 6px;
 }
 
 .keypad-banner {
   font-family: var(--font-display);
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   letter-spacing: 1.4px;
   color: #9bf7ff;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .keypad-display {
   font-family: var(--font-display);
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   letter-spacing: 8px;
   color: #ffffff;
   background: rgba(2, 16, 32, 0.95);
@@ -1343,26 +1376,27 @@ canvas#redWaveCanvas {
   box-shadow: 0 0 18px rgba(59, 232, 255, 0.75), inset 0 0 12px rgba(14, 165, 233, 0.35);
   border-radius: 4px;
   padding: 8px 12px;
-  margin-bottom: 10px;
+  margin: 0 auto 12px auto;
+  max-width: 260px;
 }
 
 .flame-keypad-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  max-width: 240px;
+  max-width: 260px;
   margin: 0 auto;
 }
 
 .flame-key-btn {
-  padding: 10px 0;
+  padding: 11px 0;
   border-radius: 5px;
   border: 1.5px solid #8cf3ff;
   background: radial-gradient(circle at 50% 65%, rgba(59, 232, 255, 0.42), rgba(3, 24, 48, 0.94));
   box-shadow: 0 0 14px rgba(59, 232, 255, 0.65), inset 0 -4px 10px rgba(14, 165, 233, 0.45);
   color: #ffffff;
   font-family: var(--font-display);
-  font-size: 0.85rem;
+  font-size: 0.88rem;
   font-weight: 700;
   cursor: pointer;
   transition: transform 0.12s ease, box-shadow 0.15s ease;
@@ -1374,17 +1408,22 @@ canvas#redWaveCanvas {
 }
 
 .danger-alert-text {
-  margin-top: 10px;
+  margin-top: 12px;
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   font-weight: 700;
   color: #ff6b85;
   text-shadow: 0 0 12px rgba(255, 51, 85, 0.85);
-  min-height: 18px;
+  min-height: 20px;
 }
 
 /* ================= ANIMATIONS ================= */
 @keyframes heartCoreSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes dockFrameSpin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
@@ -1429,7 +1468,7 @@ canvas#redWaveCanvas {
   }
 
   .hud-workspace {
-    grid-template-columns: 124px minmax(0, 1fr);
+    grid-template-columns: 126px minmax(0, 1fr);
     gap: 5px;
     padding: 4px 6px;
   }
@@ -1459,12 +1498,12 @@ canvas#redWaveCanvas {
   }
 
   .date-ring-widget {
-    width: 46px;
-    height: 46px;
+    width: 44px;
+    height: 44px;
   }
 
   .date-ring-inner .day-num {
-    font-size: 13px;
+    font-size: 12.5px;
   }
 
   .weekday-box {
@@ -1473,7 +1512,7 @@ canvas#redWaveCanvas {
   }
 
   .weekday-box .mini-time {
-    font-size: 10.5px;
+    font-size: 10px;
   }
 
   .diary-glow-title {
@@ -1491,33 +1530,33 @@ canvas#redWaveCanvas {
   }
 
   .core-matrix-area {
-    grid-template-columns: minmax(0, 1fr) 98px;
+    grid-template-columns: minmax(0, 1fr) 102px;
     gap: 5px;
   }
 
   .skull-ring.ring-a {
-    width: 82px;
-    height: 82px;
+    width: 88px;
+    height: 88px;
   }
 
   .skull-ring.ring-b {
+    width: 72px;
+    height: 72px;
+  }
+
+  .skull-svg {
+    width: 62px;
+    height: 68px;
+  }
+
+  .key-outer-halo.enlarged-halo {
     width: 66px;
     height: 66px;
   }
 
-  .skull-svg {
-    width: 56px;
-    height: 62px;
-  }
-
-  .key-outer-halo.enlarged-halo {
-    width: 60px;
-    height: 60px;
-  }
-
   .key-dial-puck.enlarged-key {
-    width: 52px;
-    height: 52px;
+    width: 58px;
+    height: 58px;
   }
 
   .voice-orb {
