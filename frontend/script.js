@@ -1,9 +1,9 @@
 /* =========================================================
    STARK INDUSTRIES // J.A.R.V.I.S. HACKING WALL SCRIPT
    - Multi-Model Gemini Chain + Automatic Google Web Fallback
-   - Live Clock, Node Points, Red Pulse Wave & Audio EQ
-   - 3-Turn Left Keyframe FX Dial + Drag-to-Expand
-   - Continuous Speech Recognition & Voice Synthesis
+   - 6 Dock Buttons: YouTube, 3D work, Games, Voice, Exist, Clear
+   - Box 1 (Your Diary), Box 2 (Media), Box 3 (Personal + AI Locked)
+   - Key-Drop-Only Fullscreen Activation + Auto Key Deactivation
    ========================================================= */
 
 // ==================== 1. CONFIGURATION & STATE ====================
@@ -32,18 +32,32 @@ const TEXT_MODELS = [
 const STORAGE_KEYS = {
   HISTORY: "jarvis_hud_history_v1",
   MEMORY: "jarvis_hud_memory_v1",
-  FILES_3D: "jarvis_hud_3d_files_v1"
+  DIARY: "jarvis_hud_diary_box1_v1",
+  MEDIA: "jarvis_hud_media_box2_v1",
+  PERSONAL: "jarvis_hud_personal_box3_v1"
 };
+
+const PERSONAL_PASSCODE = "5030";
+const WRONG_PASS_MESSAGE = "You are danger. This password is incorrect.";
 
 let chatHistory = JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY) || "[]");
 let memoryStore = JSON.parse(localStorage.getItem(STORAGE_KEYS.MEMORY) || "[]");
-let files3DStore = JSON.parse(localStorage.getItem(STORAGE_KEYS.FILES_3D) || "[]");
+let diaryEntries = JSON.parse(localStorage.getItem(STORAGE_KEYS.DIARY) || "[]");
+let mediaItems = JSON.parse(localStorage.getItem(STORAGE_KEYS.MEDIA) || "[]");
+let personalDetails = JSON.parse(localStorage.getItem(STORAGE_KEYS.PERSONAL) || "[]");
 
 let isMicListening = false;
 let isJarvisStrictMode = false;
 let isSpeaking = false;
 let recognition = null;
 let audioWaveLevel = 0.08;
+
+let pendingDiaryPhoto = "";
+let pendingDiaryPhotoName = "";
+let pendingPersonalPhoto = "";
+let pendingPersonalPhotoName = "";
+let personalUnlocked = false;
+let keypadBuffer = "";
 
 // ==================== 2. DOM REFERENCES ====================
 const msgInput = document.getElementById("msg");
@@ -58,13 +72,16 @@ const voiceStatus = document.getElementById("voiceStatus");
 const speechIndicator = document.getElementById("speechIndicator");
 const micBtn = document.getElementById("mic-btn");
 const rightOrb = document.getElementById("rightOrb");
-const imgInput = document.getElementById("img-input");
 
 const memCountEl = document.getElementById("memCount");
 const file3dCountEl = document.getElementById("file3dCount");
 const msgCountEl = document.getElementById("msgCount");
+const mediaCountBadge = document.getElementById("mediaCountBadge");
+const mediaMiniStrip = document.getElementById("mediaMiniStrip");
+const diaryLatestMeta = document.getElementById("diaryLatestMeta");
+const personalLockBadge = document.getElementById("personalLockBadge");
 
-// ==================== 3. RULER, CLOCK, NODE POINTS & BOTTOM ARC DOCK ====================
+// ==================== 3. RULER, CLOCK, NODE POINTS, SPECTRUM & 6-BUTTON ARC DOCK ====================
 function buildTopRuler() {
   const ruler = document.getElementById("topRuler");
   if (!ruler) return;
@@ -116,43 +133,119 @@ function startIndicatorPointsCycle() {
   }, 900);
 }
 
+function buildSpectrumBars() {
+  const frame = document.getElementById("spectrumBarsFrame");
+  if (!frame) return;
+  const barCount = 24;
+  frame.innerHTML = "";
+  const bars = [];
+  for (let i = 0; i < barCount; i++) {
+    const col = document.createElement("div");
+    col.className = "spectrum-bar-col";
+    col.style.height = "25%";
+    frame.appendChild(col);
+    bars.push(col);
+  }
+
+  let tick = 0;
+  setInterval(() => {
+    tick += 0.22;
+    const energy = isSpeaking ? 0.92 : (isMicListening ? 0.65 : 0.28);
+    bars.forEach((col, i) => {
+      const waveA = Math.abs(Math.sin(tick + i * 0.42));
+      const waveB = Math.abs(Math.cos(tick * 0.7 - i * 0.28));
+      const pct = Math.max(14, Math.min(96, Math.round((waveA * 0.65 + waveB * 0.35) * 100 * energy + 12)));
+      col.style.height = `${pct}%`;
+    });
+  }, 150);
+}
+
 function buildArcDock() {
   const dock = document.getElementById("arcDock");
   if (!dock) return;
-  const items = [
-    { label: "MEMORY", action: () => openModal("memory-modal") },
-    { label: "HISTORY", action: () => openModal("history-modal") },
-    { label: "GALLERY", action: () => imgInput && imgInput.click() },
-    { label: "WEB SEARCH", action: () => triggerWebSearchPrompt() },
-    { label: "VOICE LINK", action: () => toggleMic() },
-    { label: "RESET VIEW", action: () => collapseExpandedPanel() }
+
+  const buttons = [
+    {
+      label: "YouTube",
+      action: () => {
+        appendMessage("ai", "Launching YouTube, Boss.");
+        window.open("https://www.youtube.com", "_blank", "noopener,noreferrer");
+      }
+    },
+    {
+      label: "3D work",
+      action: () => open3DWorkplaceModal()
+    },
+    {
+      label: "Games",
+      action: () => openGamesModal()
+    },
+    {
+      label: "Voice",
+      action: () => toggleMic()
+    },
+    {
+      label: "Exist",
+      action: () => triggerExistBackAction()
+    },
+    {
+      label: "Clear",
+      action: () => openClearChatChoice()
+    }
   ];
 
   dock.innerHTML = "";
-  items.forEach((item, idx) => {
-    const orb = document.createElement("div");
-    orb.className = "dock-orb";
-    orb.innerHTML = `
-      <span class="orb-tooltip">${item.label}</span>
-      <svg viewBox="0 0 64 64">
-        <circle cx="32" cy="32" r="28" fill="rgba(4,24,46,0.9)" stroke="#3be8ff" stroke-width="2" stroke-dasharray="10 5" />
-        <circle cx="32" cy="32" r="20" fill="none" stroke="#8cf3ff" stroke-width="1.5" />
-        <circle cx="32" cy="32" r="11" fill="rgba(14,165,233,0.35)" stroke="#ffffff" stroke-width="1.5" />
-        <text x="32" y="35" text-anchor="middle" fill="#ffffff" font-family="Orbitron" font-size="8" font-weight="700">0${idx + 1}</text>
-      </svg>
+  buttons.forEach((btn, idx) => {
+    const slot = document.createElement("div");
+    slot.className = "dock-slot";
+    slot.innerHTML = `
+      <div class="dock-orb" title="${btn.label}">
+        <svg viewBox="0 0 64 64">
+          <g class="dock-rot-frame" style="transform-origin:32px 32px;">
+            <circle cx="32" cy="32" r="28" fill="rgba(4,24,46,0.9)" stroke="#3be8ff" stroke-width="2" stroke-dasharray="10 5" />
+            <circle cx="32" cy="32" r="21" fill="none" stroke="#8cf3ff" stroke-width="1.4" stroke-dasharray="6 4" />
+          </g>
+          <circle cx="32" cy="32" r="12" fill="rgba(14,165,233,0.35)" stroke="#ffffff" stroke-width="1.5" />
+          <text x="32" y="35" text-anchor="middle" fill="#ffffff" font-family="Orbitron" font-size="8" font-weight="700">0${idx + 1}</text>
+        </svg>
+      </div>
+      <span class="dock-sub-label">${btn.label}</span>
     `;
-    orb.addEventListener("click", item.action);
-    dock.appendChild(orb);
+    slot.addEventListener("click", btn.action);
+    dock.appendChild(slot);
   });
 }
 
 function updateTelemetryCounts() {
-  if (memCountEl) memCountEl.textContent = String(memoryStore.length);
-  if (file3dCountEl) file3dCountEl.textContent = String(files3DStore.length);
+  if (memCountEl) memCountEl.textContent = String(diaryEntries.length);
+  if (file3dCountEl) file3dCountEl.textContent = String(mediaItems.length);
   if (msgCountEl) msgCountEl.textContent = String(chatHistory.length);
+  if (mediaCountBadge) mediaCountBadge.textContent = String(mediaItems.length);
+
+  if (diaryLatestMeta) {
+    if (diaryEntries.length > 0) {
+      const latest = diaryEntries[diaryEntries.length - 1];
+      diaryLatestMeta.textContent = `${latest.fileLabel} // AI CONNECTED`;
+    } else {
+      diaryLatestMeta.textContent = "BOX 1 // TEXT & PHOTOS • AI CONNECTED";
+    }
+  }
+
+  if (mediaMiniStrip) {
+    if (mediaItems.length > 0) {
+      const latestMedia = mediaItems[mediaItems.length - 1];
+      mediaMiniStrip.textContent = `${latestMedia.fileLabel}: ${latestMedia.name}`;
+    } else {
+      mediaMiniStrip.textContent = "PHOTOS & VIDEOS • AI CONNECTED";
+    }
+  }
+
+  if (personalLockBadge) {
+    personalLockBadge.textContent = personalUnlocked ? "AI UNLOCKED" : "AI LOCKED";
+  }
 }
 
-// ==================== 4. CHAT, HISTORY & MEMORY ====================
+// ==================== 4. CHAT, HISTORY, MEMORY & CLEAR CHOICE ====================
 function appendMessage(sender, text, save = true) {
   if (!chatBox) return;
   const div = document.createElement("div");
@@ -167,9 +260,43 @@ function appendMessage(sender, text, save = true) {
       text,
       time: new Date().toLocaleTimeString()
     });
-    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory.slice(-120)));
+    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory.slice(-150)));
     updateTelemetryCounts();
   }
+}
+
+function openClearChatChoice() {
+  openModal("clear-choice-modal");
+}
+
+function finalizeClearChat(saveToBothMemoryAndHistory) {
+  const snapshot = chatHistory.slice();
+  const formatted = snapshot
+    .map(m => `[${m.sender.toUpperCase()} @ ${m.time || ""}]: ${m.text.replace(/<[^>]*>/g, "")}`)
+    .join(" | ");
+
+  if (formatted) {
+    const record = {
+      text: `Cleared Chat Log: ${formatted.slice(0, 1200)}`,
+      time: new Date().toLocaleString()
+    };
+    if (saveToBothMemoryAndHistory) {
+      memoryStore.push(record);
+      localStorage.setItem(STORAGE_KEYS.MEMORY, JSON.stringify(memoryStore));
+    }
+  }
+
+  localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory.slice(-150)));
+  if (chatBox) {
+    chatBox.innerHTML = "";
+  }
+  updateTelemetryCounts();
+  closeModal("clear-choice-modal");
+
+  const statusMsg = saveToBothMemoryAndHistory
+    ? "Chat cleared and saved to Memory and History, Boss."
+    : "Chat cleared and saved to History only, Boss.";
+  appendMessage("ai", statusMsg, false);
 }
 
 function renderSavedHistory() {
@@ -187,42 +314,31 @@ function renderSavedHistory() {
   `).join("");
 }
 
-function renderSavedMemory(filter = "") {
-  const list = document.getElementById("saved-memory-list");
-  if (!list) return;
-  const q = filter.trim().toLowerCase();
-  const filtered = q
-    ? memoryStore.filter(m => m.text.toLowerCase().includes(q))
-    : memoryStore;
-
-  if (!filtered.length) {
-    list.innerHTML = `<div class="history-item">No saved memory entries matching "${filter}".</div>`;
-    return;
-  }
-  list.innerHTML = filtered.slice().reverse().map(entry => `
-    <div class="history-item">
-      <small>${entry.time}</small><br/>
-      <div>${entry.text}</div>
-    </div>
-  `).join("");
-}
-
 function openModal(id) {
   const modal = document.getElementById(id);
   if (!modal) return;
   modal.style.display = "block";
   if (id === "history-modal") renderSavedHistory();
-  if (id === "memory-modal") renderSavedMemory(document.getElementById("memory-search-input")?.value || "");
+  if (id === "diary-modal") renderDiaryList(document.getElementById("diary-search-input")?.value || "");
+  if (id === "media-modal") renderMediaGrid();
+  if (id === "personal-modal") refreshPersonalModalState();
 }
 
 function closeModal(id) {
   const modal = document.getElementById(id);
   if (modal) modal.style.display = "none";
+  if (id === "diary-modal" || id === "media-modal" || id === "personal-modal") {
+    resetRotaryKeyLock();
+  }
 }
 
 function setupModals() {
   document.getElementById("close-history")?.addEventListener("click", () => closeModal("history-modal"));
-  document.getElementById("close-memory-modal")?.addEventListener("click", () => closeModal("memory-modal"));
+  document.getElementById("close-diary-modal")?.addEventListener("click", () => closeModal("diary-modal"));
+  document.getElementById("close-media-modal")?.addEventListener("click", () => closeModal("media-modal"));
+  document.getElementById("close-personal-modal")?.addEventListener("click", () => closeModal("personal-modal"));
+  document.getElementById("close-clear-choice")?.addEventListener("click", () => closeModal("clear-choice-modal"));
+  document.getElementById("close-workspace-tool")?.addEventListener("click", () => closeModal("workspace-tool-modal"));
 
   document.getElementById("clear-all-history")?.addEventListener("click", () => {
     chatHistory = [];
@@ -231,33 +347,455 @@ function setupModals() {
     renderSavedHistory();
   });
 
-  document.getElementById("save-custom-memory")?.addEventListener("click", () => {
-    const input = document.getElementById("custom-memory-input");
-    const val = (input?.value || "").trim();
-    if (!val) return;
-    memoryStore.push({
-      text: val,
-      time: new Date().toLocaleString()
-    });
-    localStorage.setItem(STORAGE_KEYS.MEMORY, JSON.stringify(memoryStore));
-    input.value = "";
-    updateTelemetryCounts();
-    renderSavedMemory();
-    appendMessage("ai", `Saved to Vault Memory, Boss: "${val}"`);
-  });
-
-  document.getElementById("memory-search-input")?.addEventListener("input", (e) => {
-    renderSavedMemory(e.target.value);
-  });
+  document.getElementById("saveClearToHistoryOnly")?.addEventListener("click", () => finalizeClearChat(false));
+  document.getElementById("saveClearToMemoryAndHistory")?.addEventListener("click", () => finalizeClearChat(true));
 
   window.addEventListener("click", (e) => {
     if (e.target.classList && e.target.classList.contains("modal")) {
+      const mId = e.target.id;
       e.target.style.display = "none";
+      if (mId === "diary-modal" || mId === "media-modal" || mId === "personal-modal") {
+        resetRotaryKeyLock();
+      }
     }
   });
 }
 
-// ==================== 5. MULTI-MODEL GEMINI CHAIN + GOOGLE WEB FALLBACK ====================
+// ==================== 5. BOX 1 (YOUR DIARY), BOX 2 (MEDIA) & BOX 3 (PERSONAL + AI LOCKED) ====================
+function setupDiaryBox1() {
+  const imgInp = document.getElementById("diary-img-input");
+  const badge = document.getElementById("diaryPendingPhotoBadge");
+  const saveBtn = document.getElementById("save-diary-entry");
+  const searchInp = document.getElementById("diary-search-input");
+  const askAiBtn = document.getElementById("ask-diary-ai-btn");
+  const aiInp = document.getElementById("diary-ai-input");
+
+  imgInp?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingDiaryPhoto = reader.result;
+      pendingDiaryPhotoName = file.name;
+      if (badge) badge.textContent = `PHOTO: ${file.name}`;
+    };
+    reader.readAsDataURL(file);
+    imgInp.value = "";
+  });
+
+  saveBtn?.addEventListener("click", () => {
+    const textInp = document.getElementById("diary-text-input");
+    const txt = (textInp?.value || "").trim();
+    if (!txt && !pendingDiaryPhoto) return;
+
+    const fileNum = diaryEntries.length + 1;
+    const entry = {
+      box: 1,
+      fileNumber: fileNum,
+      fileLabel: `Box 1 File ${fileNum}`,
+      text: txt,
+      image: pendingDiaryPhoto || "",
+      photoName: pendingDiaryPhotoName || "",
+      timestamp: new Date().toLocaleString()
+    };
+
+    diaryEntries.push(entry);
+    try {
+      localStorage.setItem(STORAGE_KEYS.DIARY, JSON.stringify(diaryEntries.slice(-40)));
+    } catch (_) {}
+
+    if (textInp) textInp.value = "";
+    pendingDiaryPhoto = "";
+    pendingDiaryPhotoName = "";
+    if (badge) badge.textContent = "NO PHOTO";
+    updateTelemetryCounts();
+    renderDiaryList(searchInp?.value || "");
+    appendMessage("ai", `Saved ${entry.fileLabel} to Your Diary (${entry.timestamp}), Boss.`);
+  });
+
+  searchInp?.addEventListener("input", (e) => renderDiaryList(e.target.value));
+
+  askAiBtn?.addEventListener("click", () => {
+    const q = (aiInp?.value || "").trim();
+    if (!q) return;
+    const ans = answerFromBox1Diary(q);
+    appendMessage("user", `[Diary AI] ${q}`);
+    appendMessage("ai", ans);
+    if (aiInp) aiInp.value = "";
+  });
+}
+
+function renderDiaryList(filter = "") {
+  const list = document.getElementById("diary-entries-list");
+  if (!list) return;
+  const q = filter.trim().toLowerCase();
+  const rows = q
+    ? diaryEntries.filter(d =>
+        (d.text && d.text.toLowerCase().includes(q)) ||
+        (d.fileLabel && d.fileLabel.toLowerCase().includes(q)) ||
+        (d.timestamp && d.timestamp.toLowerCase().includes(q))
+      )
+    : diaryEntries;
+
+  if (!rows.length) {
+    list.innerHTML = `<div class="history-item">No diary entries in Box 1 yet, Boss.</div>`;
+    return;
+  }
+
+  list.innerHTML = rows.slice().reverse().map(d => `
+    <div class="history-item">
+      <strong>${d.fileLabel}</strong> — <small>${d.timestamp}</small>
+      ${d.text ? `<div style="margin-top:4px;white-space:pre-wrap;">${d.text}</div>` : ""}
+      ${d.image ? `<img src="${d.image}" alt="${d.fileLabel}" style="max-width:100%;max-height:130px;border:1px solid #3be8ff;border-radius:3px;margin-top:6px;cursor:pointer;" onclick="openLightbox('${d.fileLabel}', '${d.image}', 'image')" />` : ""}
+    </div>
+  `).join("");
+}
+
+function answerFromBox1Diary(query) {
+  const lower = query.toLowerCase();
+  if (!lower.includes("box 1") && !lower.includes("file") && !lower.includes("diary")) {
+    return "Please mention Box 1 or a specific File number (e.g., Box 1 File 1) so I can answer from that entry, Boss.";
+  }
+
+  const fileMatch = lower.match(/file\s*(\d+)/);
+  if (fileMatch) {
+    const targetNum = parseInt(fileMatch[1], 10);
+    const found = diaryEntries.find(d => d.fileNumber === targetNum);
+    if (!found) {
+      return `Box 1 File ${targetNum} is not found in Your Diary, Boss.`;
+    }
+    return `<strong>[${found.fileLabel} — ${found.timestamp}]</strong><br/>${found.text || (found.image ? `Uploaded Photo: ${found.photoName || "Image"}` : "Empty entry")}`;
+  }
+
+  if (!diaryEntries.length) {
+    return "Box 1 currently has no saved diary entries, Boss.";
+  }
+
+  const latest = diaryEntries[diaryEntries.length - 1];
+  return `<strong>[Box 1 Latest — ${latest.fileLabel} (${latest.timestamp})]</strong><br/>${latest.text || (latest.image ? `Uploaded Photo: ${latest.photoName || "Image"}` : "Photo log saved.")}`;
+}
+
+function setupMediaBox2() {
+  const mediaInp = document.getElementById("media-files-input");
+  const askAiBtn = document.getElementById("ask-media-ai-btn");
+  const aiInp = document.getElementById("media-ai-input");
+
+  mediaInp?.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    files.forEach(file => {
+      const isVideo = file.type.startsWith("video/");
+      const reader = new FileReader();
+      reader.onload = () => {
+        const fileNum = mediaItems.length + 1;
+        const item = {
+          box: 2,
+          fileNumber: fileNum,
+          fileLabel: `Box 2 File ${fileNum}`,
+          name: file.name,
+          type: isVideo ? "video" : "image",
+          src: reader.result,
+          timestamp: new Date().toLocaleString()
+        };
+        mediaItems.push(item);
+        try {
+          localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(mediaItems.slice(-30)));
+        } catch (_) {
+          mediaItems[mediaItems.length - 1].src = URL.createObjectURL(file);
+        }
+        updateTelemetryCounts();
+        renderMediaGrid();
+        appendMessage("ai", `Added ${item.fileLabel} (${item.name}) to Media Box, Boss.`);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    mediaInp.value = "";
+  });
+
+  askAiBtn?.addEventListener("click", () => {
+    const q = (aiInp?.value || "").trim();
+    if (!q) return;
+    const ans = answerFromBox2Media(q);
+    appendMessage("user", `[Media AI] ${q}`);
+    appendMessage("ai", ans);
+    if (aiInp) aiInp.value = "";
+  });
+}
+
+function renderMediaGrid() {
+  const grid = document.getElementById("media-gallery-grid");
+  if (!grid) return;
+  if (!mediaItems.length) {
+    grid.innerHTML = `<div class="history-item" style="grid-column:1/-1;">No photos or videos in Media Box yet, Boss.</div>`;
+    return;
+  }
+
+  grid.innerHTML = mediaItems.slice().reverse().map(item => `
+    <div class="media-thumb-card" onclick="openMediaItemById(${item.fileNumber})">
+      ${item.type === "video"
+        ? `<video src="${item.src}" muted preload="metadata"></video>`
+        : `<img src="${item.src}" alt="${item.fileLabel}" />`
+      }
+      <div style="font-family:var(--font-mono);font-size:0.58rem;margin-top:3px;color:#ffffff;">${item.fileLabel}</div>
+      <div style="font-family:var(--font-mono);font-size:0.5rem;color:#9bf7ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
+    </div>
+  `).join("");
+}
+
+function openMediaItemById(fileNumber) {
+  const item = mediaItems.find(m => m.fileNumber === fileNumber);
+  if (!item) return;
+  openLightbox(`${item.fileLabel} — ${item.name}`, item.src, item.type);
+}
+
+function openLightbox(title, src, type) {
+  const titleEl = document.getElementById("lightboxTitle");
+  const bodyEl = document.getElementById("lightboxContent");
+  if (!titleEl || !bodyEl) return;
+  titleEl.textContent = title;
+  if (type === "video") {
+    bodyEl.innerHTML = `<video src="${src}" controls autoplay style="width:100%;max-height:66vh;border:1px solid #3be8ff;border-radius:4px;"></video>`;
+  } else {
+    bodyEl.innerHTML = `<img src="${src}" alt="${title}" style="max-width:100%;max-height:66vh;border:1px solid #3be8ff;border-radius:4px;" />`;
+  }
+  openModal("media-lightbox-modal");
+}
+
+function answerFromBox2Media(query) {
+  const lower = query.toLowerCase();
+  if (!lower.includes("box 2") && !lower.includes("file") && !lower.includes("media")) {
+    return "Mention Box 2 and the File number (e.g., Box 2 File 1) to inspect that media item, Boss.";
+  }
+  const m = lower.match(/file\s*(\d+)/);
+  if (m) {
+    const num = parseInt(m[1], 10);
+    const found = mediaItems.find(x => x.fileNumber === num);
+    if (!found) return `Box 2 File ${num} was not found in Media Box, Boss.`;
+    return `<strong>[${found.fileLabel}]</strong> Type: ${found.type.toUpperCase()} | File Name: ${found.name} | Added: ${found.timestamp}`;
+  }
+  if (!mediaItems.length) return "Media Box has no files stored yet, Boss.";
+  const latest = mediaItems[mediaItems.length - 1];
+  return `<strong>[Box 2 Latest — ${latest.fileLabel}]</strong> ${latest.type.toUpperCase()}: ${latest.name} (${latest.timestamp})`;
+}
+
+function setupPersonalBox3() {
+  const displayEl = document.getElementById("keypadDisplay");
+  const alertEl = document.getElementById("personal-danger-alert");
+  const imgInp = document.getElementById("personal-img-input");
+  const photoBadge = document.getElementById("personalPendingPhotoBadge");
+  const saveBtn = document.getElementById("save-personal-detail");
+  const askAiBtn = document.getElementById("ask-personal-ai-btn");
+  const aiInp = document.getElementById("personal-ai-input");
+
+  function syncKeypadDisplay() {
+    if (!displayEl) return;
+    const slots = [0, 1, 2, 3].map(i => (keypadBuffer[i] ? keypadBuffer[i] : "•"));
+    displayEl.textContent = slots.join(" ");
+  }
+
+  document.querySelectorAll("#flameKeypadGrid .flame-key-btn[data-digit]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (keypadBuffer.length < 4) {
+        keypadBuffer += btn.getAttribute("data-digit");
+        syncKeypadDisplay();
+        if (alertEl) alertEl.textContent = "";
+      }
+    });
+  });
+
+  document.getElementById("keypadClearBtn")?.addEventListener("click", () => {
+    keypadBuffer = "";
+    syncKeypadDisplay();
+    if (alertEl) alertEl.textContent = "";
+  });
+
+  document.getElementById("keypadEnterBtn")?.addEventListener("click", () => {
+    if (keypadBuffer === PERSONAL_PASSCODE) {
+      personalUnlocked = true;
+      keypadBuffer = "";
+      syncKeypadDisplay();
+      if (alertEl) alertEl.textContent = "";
+      refreshPersonalModalState();
+      updateTelemetryCounts();
+    } else {
+      keypadBuffer = "";
+      syncKeypadDisplay();
+      if (alertEl) {
+        alertEl.textContent = WRONG_PASS_MESSAGE;
+      }
+    }
+  });
+
+  imgInp?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingPersonalPhoto = reader.result;
+      pendingPersonalPhotoName = file.name;
+      if (photoBadge) photoBadge.textContent = `PHOTO: ${file.name}`;
+    };
+    reader.readAsDataURL(file);
+    imgInp.value = "";
+  });
+
+  saveBtn?.addEventListener("click", () => {
+    if (!personalUnlocked) {
+      alert("This is AI locked, Boss.");
+      return;
+    }
+    const inp = document.getElementById("personal-detail-input");
+    const txt = (inp?.value || "").trim();
+    if (!txt && !pendingPersonalPhoto) return;
+
+    personalDetails.push({
+      text: txt,
+      image: pendingPersonalPhoto || "",
+      photoName: pendingPersonalPhotoName || "",
+      timestamp: new Date().toLocaleString()
+    });
+    try {
+      localStorage.setItem(STORAGE_KEYS.PERSONAL, JSON.stringify(personalDetails.slice(-40)));
+    } catch (_) {}
+
+    if (inp) inp.value = "";
+    pendingPersonalPhoto = "";
+    pendingPersonalPhotoName = "";
+    if (photoBadge) photoBadge.textContent = "NO PHOTO";
+    renderPersonalEntries();
+    appendMessage("ai", "Personal detail stored in your private AI vault, Boss.");
+  });
+
+  askAiBtn?.addEventListener("click", () => {
+    const q = (aiInp?.value || "").trim();
+    if (!q) return;
+    if (!personalUnlocked) {
+      const codeAttempt = prompt("This is AI locked. Enter security code, Boss:");
+      if (codeAttempt !== PERSONAL_PASSCODE) {
+        appendMessage("ai", WRONG_PASS_MESSAGE);
+        if (aiInp) aiInp.value = "";
+        return;
+      }
+      personalUnlocked = true;
+      refreshPersonalModalState();
+      updateTelemetryCounts();
+    }
+
+    const summary = personalDetails.length
+      ? personalDetails.map((p, i) => `Record ${i + 1} (${p.timestamp}): ${p.text || (p.image ? `Photo (${p.photoName || "Image"})` : "")}`).join("<br/>")
+      : "No personal details stored yet, Boss.";
+    appendMessage("user", `[Personal AI] ${q}`);
+    appendMessage("ai", `<strong>[PERSONAL VAULT AI — VERIFIED]</strong><br/>${summary}`);
+    if (aiInp) aiInp.value = "";
+  });
+}
+
+function refreshPersonalModalState() {
+  const lockScreen = document.getElementById("personal-lock-screen");
+  const unlockedContent = document.getElementById("personal-unlocked-content");
+  if (!lockScreen || !unlockedContent) return;
+  if (personalUnlocked) {
+    lockScreen.style.display = "none";
+    unlockedContent.style.display = "block";
+    renderPersonalEntries();
+  } else {
+    lockScreen.style.display = "block";
+    unlockedContent.style.display = "none";
+  }
+}
+
+function renderPersonalEntries() {
+  const list = document.getElementById("personal-entries-list");
+  if (!list) return;
+  if (!personalDetails.length) {
+    list.innerHTML = `<div class="history-item">No personal details saved yet, Boss.</div>`;
+    return;
+  }
+  list.innerHTML = personalDetails.slice().reverse().map((p, idx) => `
+    <div class="history-item">
+      <strong>Record #${personalDetails.length - idx}</strong> — <small>${p.timestamp}</small>
+      ${p.text ? `<div style="margin-top:4px;white-space:pre-wrap;">${p.text}</div>` : ""}
+      ${p.image ? `<img src="${p.image}" alt="Personal detail" style="max-width:100%;max-height:130px;border:1px solid #3be8ff;border-radius:3px;margin-top:6px;cursor:pointer;" onclick="openLightbox('Personal Record', '${p.image}', 'image')" />` : ""}
+    </div>
+  `).join("");
+}
+
+// ==================== 6. 3D WORKPLACE & GAMES MODALS ====================
+function open3DWorkplaceModal() {
+  const titleEl = document.getElementById("workspaceToolTitle");
+  const bodyEl = document.getElementById("workspaceToolBody");
+  if (titleEl) titleEl.textContent = "3D WORKPLACE";
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+      <p style="font-size:0.78rem;color:#d8f8ff;margin-bottom:8px;">
+        Three-dimensional workspace ready for your Mark VII models, Boss.
+      </p>
+      <canvas id="threePreviewCanvas" width="480" height="210" style="width:100%;height:210px;border:1px solid #3be8ff;border-radius:4px;background:#020b16;"></canvas>
+    `;
+  }
+  openModal("workspace-tool-modal");
+
+  setTimeout(() => {
+    const canvas = document.getElementById("threePreviewCanvas");
+    if (!canvas || typeof THREE === "undefined") return;
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setSize(canvas.clientWidth || 460, 210, false);
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, (canvas.clientWidth || 460) / 210, 0.1, 1000);
+    camera.position.z = 4.2;
+
+    const geo = new THREE.TorusKnotGeometry(1.05, 0.3, 100, 16);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x3be8ff, wireframe: true });
+    const mesh = new THREE.Mesh(geo, mat);
+    scene.add(mesh);
+
+    function animate3D() {
+      if (!document.getElementById("threePreviewCanvas")) return;
+      mesh.rotation.x += 0.012;
+      mesh.rotation.y += 0.018;
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate3D);
+    }
+    animate3D();
+  }, 40);
+}
+
+function openGamesModal() {
+  const titleEl = document.getElementById("workspaceToolTitle");
+  const bodyEl = document.getElementById("workspaceToolBody");
+  if (titleEl) titleEl.textContent = "GAMES BAY";
+  if (bodyEl) {
+    bodyEl.innerHTML = `
+      <p style="font-size:0.78rem;color:#d8f8ff;margin-bottom:10px;">Select tactical simulation or arcade launch, Boss:</p>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button type="button" class="neon-btn" onclick="window.open('https://chess.com','_blank','noopener,noreferrer')">3D CHESS ARENA</button>
+        <button type="button" class="btn" onclick="window.open('https://poki.com','_blank','noopener,noreferrer')">ARCADE SIMULATION BAY</button>
+      </div>
+    `;
+  }
+  openModal("workspace-tool-modal");
+}
+
+function triggerExistBackAction() {
+  const openModals = Array.from(document.querySelectorAll(".modal")).filter(m => m.style.display === "block");
+  if (openModals.length > 0) {
+    const topModal = openModals[openModals.length - 1];
+    topModal.style.display = "none";
+    resetRotaryKeyLock();
+    return;
+  }
+  if (expandedElement) {
+    collapseExpandedPanel();
+    resetRotaryKeyLock();
+    return;
+  }
+  resetRotaryKeyLock();
+  appendMessage("ai", "Returned to base HUD view and deactivated key, Boss.");
+}
+
+// ==================== 7. MULTI-MODEL GEMINI CHAIN + GOOGLE WEB FALLBACK ====================
 async function fetchGoogleWebFallback(query) {
   if (apiFallbackBadge) apiFallbackBadge.textContent = "GOOGLE-WEB";
   if (engineBadge) engineBadge.textContent = "ENGINE: AUTO-WEB FALLBACK";
@@ -388,29 +926,25 @@ async function handleUserCommand(rawText) {
   if (msgInput) msgInput.value = "";
 
   const lower = text.toLowerCase();
-  if (lower === "open memory" || lower === "memory") {
-    openModal("memory-modal");
-    appendMessage("ai", "Opening Vault Memory & Details, Boss.");
-    speakText("Opening Vault Memory, Boss.");
+
+  if (lower.includes("box 1") || (lower.includes("diary") && lower.includes("file"))) {
+    appendMessage("ai", answerFromBox1Diary(text));
     return;
   }
-  if (lower === "open history" || lower === "history") {
-    openModal("history-modal");
-    appendMessage("ai", "Opening Command History Log, Boss.");
-    speakText("Opening History Log, Boss.");
+  if (lower.includes("box 2") || (lower.includes("media") && lower.includes("file"))) {
+    appendMessage("ai", answerFromBox2Media(text));
     return;
   }
-  if (lower.startsWith("remember ") || lower.startsWith("save memory ")) {
-    const fact = text.replace(/^(remember|save memory)\s+/i, "").trim();
-    if (fact) {
-      memoryStore.push({ text: fact, time: new Date().toLocaleString() });
-      localStorage.setItem(STORAGE_KEYS.MEMORY, JSON.stringify(memoryStore));
-      updateTelemetryCounts();
-      const confirmation = `Noted in Vault Memory, Boss: "${fact}"`;
-      appendMessage("ai", confirmation);
-      speakText(confirmation);
+  if (lower.includes("box 3") || lower.includes("personal detail")) {
+    if (!personalUnlocked) {
+      appendMessage("ai", "This is AI locked. Unlock Box 3 with the key and enter your security code first, Boss.");
       return;
     }
+    const info = personalDetails.length
+      ? personalDetails.map((p, idx) => `#${idx + 1} (${p.timestamp}): ${p.text || "[Photo]"}`).join("<br/>")
+      : "No personal details recorded yet, Boss.";
+    appendMessage("ai", info);
+    return;
   }
 
   const aiReply = await queryGeminiOrFallback(text);
@@ -422,23 +956,12 @@ async function handleUserCommand(rawText) {
   }
 }
 
-function handleHardcoded(cmd) {
-  handleUserCommand(cmd);
-}
-
-function triggerWebSearchPrompt() {
-  const q = (msgInput?.value || "").trim() || prompt("Enter search query for Google Web Fallback, Boss:");
-  if (!q) return;
-  appendMessage("user", `Web Search: ${q}`);
-  fetchGoogleWebFallback(q).then(html => appendMessage("ai", html));
-}
-
 function setSystemState(mainStatus, badgeStatus) {
   if (statusText) statusText.textContent = mainStatus;
   if (statusBadge) statusBadge.textContent = badgeStatus;
 }
 
-// ==================== 6. VOICE RECOGNITION & SPEECH SYNTHESIS ====================
+// ==================== 8. VOICE RECOGNITION & SPEECH SYNTHESIS ====================
 function speakText(text) {
   if (!("speechSynthesis" in window)) return;
   try {
@@ -559,25 +1082,13 @@ function toggleJarvisMode() {
   speakText(msg);
 }
 
-// ==================== 7. RED SIGNAL WAVE, EQUALIZER & CIRCULAR VIBRATION ====================
-function initEqualizer() {
-  const eq = document.getElementById("equalizer");
-  if (!eq) return;
-  eq.innerHTML = "";
-  for (let i = 0; i < 24; i++) {
-    const bar = document.createElement("div");
-    bar.className = "eq-bar";
-    eq.appendChild(bar);
-  }
-}
-
+// ==================== 9. RED SIGNAL WAVE ====================
 let wavePhase = 0;
 function renderVisualizers() {
   wavePhase += 0.085;
   const activeBoost = isSpeaking ? 0.58 : (isMicListening ? 0.36 : 0.08);
   audioWaveLevel += (activeBoost - audioWaveLevel) * 0.15;
 
-  // Down-Left Red Pulse Wave Canvas
   const redCanvas = document.getElementById("redWaveCanvas");
   if (redCanvas) {
     const ctx = redCanvas.getContext("2d");
@@ -608,45 +1119,12 @@ function renderVisualizers() {
     ctx.shadowBlur = 0;
   }
 
-  // Audio Spectrum Equalizer Bars
-  const bars = document.querySelectorAll("#equalizer .eq-bar");
-  bars.forEach((bar, idx) => {
-    const wave = Math.abs(Math.sin(wavePhase * 1.3 + idx * 0.45));
-    const pct = Math.min(100, Math.max(12, Math.round((14 + wave * 58) * (0.65 + audioWaveLevel * 1.4))));
-    bar.style.height = `${pct}%`;
-  });
-
-  // Circular Waveform around Mark VII Core
-  const vibCanvas = document.getElementById("circularVibrationCanvas");
-  if (vibCanvas) {
-    const vctx = vibCanvas.getContext("2d");
-    const cx = vibCanvas.width / 2;
-    const cy = vibCanvas.height / 2;
-    const baseR = 112;
-    vctx.clearRect(0, 0, vibCanvas.width, vibCanvas.height);
-
-    vctx.strokeStyle = "#8cf3ff";
-    vctx.lineWidth = 1.8;
-    vctx.beginPath();
-    const points = 72;
-    for (let i = 0; i <= points; i++) {
-      const angle = (i / points) * Math.PI * 2;
-      const ripple = Math.sin(angle * 10 + wavePhase * 2.2) * (4 + audioWaveLevel * 22);
-      const r = baseR + ripple;
-      const px = cx + Math.cos(angle) * r;
-      const py = cy + Math.sin(angle) * r;
-      if (i === 0) vctx.moveTo(px, py);
-      else vctx.lineTo(px, py);
-    }
-    vctx.closePath();
-    vctx.stroke();
-  }
-
   requestAnimationFrame(renderVisualizers);
 }
 
-// ==================== 8. KEYFRAME FX DIAL (3 LEFT TURNS + DRAG TO EXPAND) ====================
+// ==================== 10. KEYFRAME FX DIAL (3 LEFT TURNS + DRAG TO EXPAND + AUTO DEACTIVATE) ====================
 let expandedElement = null;
+let resetRotaryKeyLock = () => {};
 
 function collapseExpandedPanel() {
   if (expandedElement) {
@@ -656,7 +1134,7 @@ function collapseExpandedPanel() {
   const puck = document.getElementById("keyDialPuck");
   const stage = document.getElementById("keyRingStage");
   if (puck && stage && puck.parentElement !== stage) {
-    puck.classList.remove("floating-key", "docked-return", "dragging");
+    puck.classList.remove("floating-key", "dragging");
     puck.style.left = "";
     puck.style.top = "";
     puck.style.right = "";
@@ -700,6 +1178,17 @@ function setupRotaryKey() {
     }
   }
 
+  resetRotaryKeyLock = function () {
+    isRotating = false;
+    isDraggingPanel = false;
+    lastAngle = null;
+    totalCounterClockwiseDeg = 0;
+    unlocked = false;
+    hoveredBox = null;
+    collapseExpandedPanel();
+    updateDialVisual(0);
+  };
+
   function onPointerDown(e) {
     e.preventDefault();
     const pt = e.touches ? e.touches[0] : e;
@@ -710,7 +1199,6 @@ function setupRotaryKey() {
       dragOffsetX = pt.clientX - (rect.left + rect.width / 2);
       dragOffsetY = pt.clientY - (rect.top + rect.height / 2);
       puck.classList.add("floating-key", "dragging");
-      puck.classList.remove("docked-return");
       document.body.appendChild(puck);
       puck.style.left = `${rect.left}px`;
       puck.style.top = `${rect.top}px`;
@@ -776,16 +1264,28 @@ function setupRotaryKey() {
       });
 
       if (hoveredBox) {
-        if (expandedElement && expandedElement !== hoveredBox) {
-          expandedElement.classList.remove("expanded-fullscreen");
-        }
-        hoveredBox.classList.add("expanded-fullscreen");
-        expandedElement = hoveredBox;
-        puck.classList.add("docked-return");
+        const modalTargetId = hoveredBox.getAttribute("data-modal-target");
+        puck.classList.remove("floating-key");
         puck.style.left = "";
         puck.style.top = "";
+        stage.appendChild(puck);
+
+        // Automatically deactivate key upon opening / entering expanded view
+        unlocked = false;
+        totalCounterClockwiseDeg = 0;
+        updateDialVisual(0);
+
+        if (modalTargetId) {
+          openModal(modalTargetId);
+        } else {
+          if (expandedElement && expandedElement !== hoveredBox) {
+            expandedElement.classList.remove("expanded-fullscreen");
+          }
+          hoveredBox.classList.add("expanded-fullscreen");
+          expandedElement = hoveredBox;
+        }
       } else {
-        puck.classList.remove("floating-key", "docked-return");
+        puck.classList.remove("floating-key");
         puck.style.left = "";
         puck.style.top = "";
         stage.appendChild(puck);
@@ -803,48 +1303,28 @@ function setupRotaryKey() {
 
   puck.addEventListener("click", () => {
     if (expandedElement) {
-      collapseExpandedPanel();
-      unlocked = false;
-      totalCounterClockwiseDeg = 0;
-      updateDialVisual(0);
+      resetRotaryKeyLock();
     }
   });
 }
 
-// ==================== 9. GALLERY UPLOAD & INITIALIZATION ====================
-function setupGalleryUpload() {
-  imgInput?.addEventListener("change", (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        appendMessage(
-          "ai",
-          `<div><strong>[GALLERY ASSET LOADED: ${file.name}]</strong></div>` +
-          `<img src="${reader.result}" alt="${file.name}" style="max-width:100%;max-height:160px;border:1px solid #3be8ff;border-radius:4px;margin-top:4px;" />`
-        );
-      };
-      reader.readAsDataURL(file);
-    });
-    imgInput.value = "";
-  });
-}
-
+// ==================== 11. INITIALIZATION ====================
 document.addEventListener("DOMContentLoaded", () => {
   buildTopRuler();
   updateClockAndDate();
   setInterval(updateClockAndDate, 1000);
 
   startIndicatorPointsCycle();
+  buildSpectrumBars();
   buildArcDock();
-  initEqualizer();
   updateTelemetryCounts();
   setupModals();
+  setupDiaryBox1();
+  setupMediaBox2();
+  setupPersonalBox3();
   setupRotaryKey();
   setupSpeechRecognition();
   startAutoVoiceAccess();
-  setupGalleryUpload();
   renderVisualizers();
 
   executeBtn?.addEventListener("click", () => handleUserCommand(msgInput?.value || ""));
