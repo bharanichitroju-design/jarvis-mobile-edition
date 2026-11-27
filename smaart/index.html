@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>MARK I PROJECT — J.A.R.V.I.S. Hacking HUD</title>
+  <title>STARK INDUSTRIES — J.A.R.V.I.S. Hacking HUD</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
@@ -23,13 +23,13 @@
   <nav class="navbar" data-expandable="true" data-box-id="navbar">
     <div class="brand">
       <span class="brand-icon">◈</span>
-      <span>J.A.R.V.I.S // MARK I</span>
+      <span>J.A.R.V.I.S // MARK VII</span>
     </div>
     <div class="nav-breadcrumb">
-      <span>MARK_I_PROJECT</span> &gt; <span>NEURAL_CORE</span> &gt; <span class="active" id="status-text">SYSTEM ONLINE</span>
+      <span>HACK_WALL</span> &gt; <span>NEURAL_CORE</span> &gt; <span class="active" id="status-text">SYSTEM ONLINE</span>
     </div>
     <div class="input-inline">
-      <input id="msg" type="text" placeholder="Command or speak, Boss..." autocomplete="off" />
+      <input id="msg" type="text" placeholder="Command or speak, Boss... (e.g. YOUR DIARY LIBRARY [Diary 1])" autocomplete="off" />
       <button id="execute-btn" class="exec-btn">SCAN</button>
     </div>
   </nav>
@@ -37,7 +37,7 @@
   <!-- MAIN SINGLE-SCREEN HACKING WORKSPACE -->
   <main class="hud-workspace" id="mainGrid">
 
-    <!-- LEFT COLUMN: EXACT STEPPED ORDER -->
+    <!-- LEFT COLUMN: CLOCK, AI VAULT BOXES (1, 2, 3), COUNTERS, SPECTRUM IDLE & RED GRAPH -->
     <aside class="col-left">
       <div class="left-sidebar-strip">
         <div class="strip-icon" title="System">◈</div>
@@ -49,8 +49,17 @@
         <div class="strip-icon" title="Reload" onclick="location.reload()">⏻</div>
       </div>
 
-      <!-- 1. LIVE DATE & CLOCK -->
+      <!-- TOP-LEFT: INDICATOR POINTS & LIVE CLOCK -->
       <div class="top-left-cluster">
+        <div class="indicator-points-row" id="indicatorPoints" title="Live Node Telemetry Points">
+          <span class="node-pt active"><i></i>01</span>
+          <span class="node-pt"><i></i>02</span>
+          <span class="node-pt"><i></i>03</span>
+          <span class="node-pt"><i></i>04</span>
+          <span class="node-pt"><i></i>05</span>
+          <span class="node-pt"><i></i>06</span>
+        </div>
+
         <div class="date-clock-row">
           <div class="date-ring-widget">
             <svg viewBox="0 0 100 100">
@@ -60,57 +69,72 @@
             </svg>
             <div class="date-ring-inner">
               <div class="month" id="hudMonth">NOV</div>
-              <div class="day-num" id="hudDayNum">23</div>
+              <div class="day-num" id="hudDayNum">27</div>
             </div>
           </div>
 
           <div class="weekday-box">
-            <div class="day-name" id="hudWeekday">MONDAY</div>
-            <div class="mini-time" id="hudMiniClock">03:44<small>:00</small></div>
+            <div class="day-name" id="hudWeekday">FRIDAY</div>
+            <div class="mini-time" id="hudMiniClock">05:23<small>:00</small></div>
           </div>
         </div>
       </div>
 
-      <!-- 2. BOX 1: YOUR DIARY (AI LINKED) -->
-      <div class="diary-glow-box vault-fill-slot" id="diaryBox" data-expandable="true" data-box-id="diary-panel" data-modal-target="diary-modal">
-        <div class="vault-box-header">
-          <span class="diary-glow-title">YOUR DIARY</span>
-          <span class="ai-link-chip">AI LINKED</span>
+      <!-- FULL-HEIGHT STACK FOR AI-CONNECTED BOXES 1, 2 & 3 -->
+      <div class="left-vault-stack">
+
+        <!-- BOX 1: YOUR DIARY LIBRARY (AI CONNECTED) -->
+        <div class="diary-glow-box vault-fill-slot" id="diaryBox" data-expandable="true" data-box-id="diary-panel" data-modal-target="diary-modal">
+          <div class="vault-box-header">
+            <span class="diary-glow-title">✦ YOUR DIARY LIBRARY</span>
+            <span class="ai-link-chip">◈ AI LINKED</span>
+          </div>
+          <div class="diary-meta-sub" id="diaryLatestMeta">BOX 1 // DIARIES &amp; FILES • AI CONNECTED</div>
         </div>
-        <div class="diary-meta-sub" id="diaryLatestMeta">BOX 1 // TEXT &amp; PHOTOS • AI LINKED</div>
+
+        <!-- BOX 2: MEDIA VAULT LIBRARY (AI CONNECTED) -->
+        <div class="media-vault-box vault-fill-slot" id="mediaBox" data-expandable="true" data-box-id="media-panel" data-modal-target="media-modal">
+          <div class="vault-box-header">
+            <span>MEDIA // BOX 2</span>
+            <span class="ai-link-chip">◈ AI LINKED</span>
+          </div>
+          <div class="vault-mini-preview" id="mediaMiniStrip">PHOTOS &amp; VIDEOS • AI CONNECTED</div>
+        </div>
+
+        <!-- BOX 3: YOUR PERSONAL DETAILS LIBRARY (DEDICATED SECURE AI + CODE 503020) -->
+        <div class="personal-vault-box vault-fill-slot" id="personalBox" data-expandable="true" data-box-id="personal-panel" data-modal-target="personal-modal">
+          <div class="vault-box-header">
+            <span>YOUR PERSONAL DETAILS</span>
+            <span id="personalLockBadge" class="ai-link-chip">AI LOCKED</span>
+          </div>
+          <div class="vault-mini-preview" id="personalMiniPreview">SECURE AI VAULT • CODE PROTECTED</div>
+        </div>
+
       </div>
 
-      <!-- 3. SPECTRUM IDLE BLUE BAR GRAPH -->
+      <!-- COMPACT COUNTERS -->
+      <div class="metrics-strip-3" data-expandable="true" data-box-id="telemetry-panel">
+        <div class="metric-chip">
+          <span class="metric-label">DIARY</span>
+          <span class="metric-value" id="memCount">0</span>
+        </div>
+        <div class="metric-chip">
+          <span class="metric-label">MEDIA</span>
+          <span class="metric-value" id="file3dCount">0</span>
+        </div>
+        <div class="metric-chip">
+          <span class="metric-label">MSGS</span>
+          <span class="metric-value" id="msgCount">0</span>
+        </div>
+      </div>
+
+      <!-- SPECTRUM IDLE BLUE BAR GRAPH -->
       <div class="spectrum-idle-zone" data-expandable="true" data-box-id="spectrum-panel">
         <div class="spectrum-idle-title">SPECTRUM IDLE</div>
         <div class="spectrum-bars-frame" id="spectrumBarsFrame"></div>
       </div>
 
-      <!-- 4. BOX 2: MEDIA VAULT (AI LINKED) -->
-      <div class="media-vault-box vault-fill-slot" id="mediaBox" data-expandable="true" data-box-id="media-panel" data-modal-target="media-modal">
-        <div class="vault-box-header">
-          <span>MEDIA // BOX 2</span>
-          <span class="ai-link-chip">AI LINKED</span>
-        </div>
-        <div class="vault-mini-preview" id="mediaMiniStrip">PHOTOS &amp; VIDEOS • AI LINKED</div>
-      </div>
-
-      <!-- 5. ACTIVE ANSWER SOURCE / MODEL INDICATOR (REPLACES OLD NUMBERS ROW) -->
-      <div class="model-source-banner" id="modelSourceBanner" data-expandable="true" data-box-id="model-source-panel">
-        <span class="model-source-label">SOURCE MODEL</span>
-        <span class="model-source-value" id="activeModelSource">READY // AWAITING QUERY</span>
-      </div>
-
-      <!-- 6. BOX 3: YOUR PERSONAL DETAILS (AI LOCKED — NO PASSCODE SHOWN ON SCREEN) -->
-      <div class="personal-vault-box vault-fill-slot" id="personalBox" data-expandable="true" data-box-id="personal-panel" data-modal-target="personal-modal">
-        <div class="vault-box-header">
-          <span>YOUR PERSONAL DETAILS</span>
-          <span id="personalLockBadge" class="ai-link-chip">AI LOCKED</span>
-        </div>
-        <div class="vault-mini-preview">THIS IS AI LOCKED • AI LINKED</div>
-      </div>
-
-      <!-- 7. LAST: PRESERVED RED WAVE SIGNAL GRAPH -->
+      <!-- DOWN-LEFT: PRESERVED RED WAVE SIGNAL GRAPH -->
       <div class="red-wave-zone" data-expandable="true" data-box-id="net-panel">
         <div class="strip-subline red-tag">
           <span>RED_PULSE_WAVE</span>
@@ -130,17 +154,17 @@
           <h1 class="ironman-title">J.A.R.V.I.S.</h1>
           <div class="ironman-subbar"></div>
         </div>
-        <div class="stark-tag">MARK I PROJECT</div>
+        <div class="stark-tag">STARK INDUSTRIES</div>
       </div>
 
-      <!-- CORE MATRIX: MARK I (CENTER) + SKULL (TOP-RIGHT) + KEY (DOWN-RIGHT) -->
+      <!-- CORE MATRIX: MARK VII (CENTER) + SKULL (TOP-RIGHT) + KEY (DOWN-RIGHT) -->
       <div class="core-matrix-area">
 
-        <!-- MARK I CENTRAL HIGHLIGHT (OLD ARC REACTOR FRAME + SPINNING INNER HEART DESIGN + IRON MAN HUD) -->
+        <!-- MARK VII CENTRAL HIGHLIGHT (ARC REACTOR + LEFT IRON MAN + RIGHT TELEMETRY) -->
         <div class="mark-vii-spotlight" id="markViiSpotlight" data-expandable="true" data-box-id="ironman-hud-panel">
           <div class="spotlight-meta">
-            <span>MARK I // CORE</span>
-            <span id="coreArcTime">03:44</span>
+            <span>MARK VII // CORE</span>
+            <span id="coreArcTime">05:23</span>
           </div>
           <div class="ironman-hud-viewport">
             <svg class="jarvis-svg-hud enlarged-figure" viewBox="0 0 720 460">
@@ -166,7 +190,7 @@
 
               <circle cx="360" cy="230" r="210" fill="url(#coreGlow)" />
 
-              <!-- Left Iron Man Suit Schematic -->
+              <!-- Left Suit Schematic -->
               <g transform="translate(50, 66) scale(1.16)">
                 <polygon points="45,0 165,48 165,222 68,268 18,195 18,65"
                          fill="url(#hudPanelGrad)" stroke="#8cf3ff" stroke-width="2.2" />
@@ -184,7 +208,7 @@
                 </g>
               </g>
 
-              <!-- Right Iron Man Flight & Suit Telemetry -->
+              <!-- Right Flight Telemetry -->
               <g transform="translate(466, 94) scale(1.14)">
                 <polygon points="0,35 118,0 148,72 148,162 96,214 0,175"
                          fill="url(#hudPanelGrad)" stroke="#8cf3ff" stroke-width="2.2" />
@@ -196,14 +220,14 @@
                   <rect x="0" y="4" width="46" height="5" fill="#3be8ff" />
                   <text x="0" y="22">THRUST</text>
                   <rect x="0" y="26" width="38" height="5" fill="#0ea5e9" />
-                  <text x="0" y="44">MARK I ARMOR</text>
+                  <text x="0" y="44">ARMOR</text>
                   <rect x="0" y="48" width="46" height="5" fill="#3be8ff" />
                   <text x="0" y="66">TARGET</text>
                   <rect x="0" y="70" width="32" height="5" fill="#38bdf8" />
                 </g>
               </g>
 
-              <!-- STATIC OUTER ARC REACTOR DESIGN FRAME (NO OUTER SPINNING LAYER) -->
+              <!-- STATIC OUTER ARC REACTOR DESIGN FRAME -->
               <circle cx="360" cy="230" r="106" fill="none" stroke="rgba(140, 243, 255, 0.55)" stroke-width="1.6" stroke-dasharray="6 6" />
               <circle cx="360" cy="230" r="95" fill="rgba(4, 24, 46, 0.92)" stroke="#8cf3ff" stroke-width="3.2" />
               <circle cx="360" cy="230" r="85" fill="none" stroke="#3be8ff" stroke-width="2" />
@@ -221,7 +245,7 @@
           <p class="boss-quote">ALWAYS AT YOUR SERVICE, BOSS BHARANI</p>
         </div>
 
-        <!-- TOP-RIGHT OF MARK I: HACKING SKULL -->
+        <!-- TOP-RIGHT OF MARK VII: HACKING SKULL -->
         <div class="skull-top-right" id="skullContainer" data-expandable="true" data-box-id="skull-stage">
           <div class="skull-mini-assembly">
             <div class="skull-ring ring-a"></div>
@@ -274,7 +298,7 @@
           </div>
         </div>
 
-        <!-- DOWN-RIGHT OF MARK I: ENLARGED KEY FRAME (NO SIDE CIRCLE) + VOICE CONTROLS -->
+        <!-- DOWN-RIGHT OF MARK VII: ENLARGED KEY FRAME + GALLERY & JARVIS MODE CONTROLS -->
         <div class="key-down-right">
           <div class="key-ring-stage" id="keyRingStage" data-expandable="true" data-box-id="fx-panel" title="Turn left 3 times to unlock, then drag onto any frame">
             <div class="key-dial-puck enlarged-key" id="keyDialPuck">
@@ -295,8 +319,8 @@
           </div>
 
           <div class="voice-controls-row">
-            <div class="voice-orb" id="mic-btn" title="Toggle Continuous Voice Recognition">
-              MIC<br>LINK
+            <div class="voice-orb" id="mic-btn" onclick="openModal('media-modal')" title="Open Gallery Vault">
+              GALLERY<br>VAULT
             </div>
             <div class="voice-orb" id="rightOrb" onclick="if(typeof toggleJarvisMode==='function') toggleJarvisMode();" title="Toggle Strict Jarvis Mode">
               JARVIS<br>MODE
@@ -314,8 +338,8 @@
       <!-- KEPT BOXED: NEURAL CHAT / ANSWER OUTPUT BOX -->
       <section class="answer-box-panel" data-expandable="true" data-box-id="chat-panel">
         <div class="answer-box-header">
-          <span>NEURAL_ANSWER_STREAM</span>
-          <span id="engineBadge">ENGINE: MULTI-MODEL + GOOGLE</span>
+          <span>◈ NEURAL_ANSWER_STREAM</span>
+          <span id="engineBadge">ENGINE: GEMINI + AUTO-WEB</span>
         </div>
         <div class="chat" id="chat"></div>
       </section>
@@ -328,8 +352,8 @@
   <footer class="bottom-dock-bar" id="arcDock"></footer>
 
   <div class="os-task-strip">
-    <span>MARK I PROJECT OS // BOSS BHARANI HUD</span>
-    <span id="bottomClock">03:44:00</span>
+    <span>STARK OS v4.2 // MARK VII HACKING HUD</span>
+    <span id="bottomClock">05:23:00</span>
   </div>
 
   <!-- MODAL 1: HISTORY LOG POPUP -->
@@ -344,15 +368,16 @@
     </div>
   </div>
 
-  <!-- MODAL 2: YOUR DIARY (BOX 1 — FULLSCREEN SCROLLABLE TEXT + PHOTO UPLOAD + AI) -->
+  <!-- MODAL 2: YOUR DIARY LIBRARY (BOX 1 — DIARY NAME + FILES + SEARCH + AI) -->
   <div id="diary-modal" class="modal">
     <div class="modal-content neon-flame-box fullscreen-module-card">
       <div class="modal-header">
-        <h2>YOUR DIARY // BOX 1 (AI LINKED)</h2>
+        <h2>YOUR DIARY LIBRARY // BOX 1 (AI CONNECTED)</h2>
         <span id="close-diary-modal" class="close-btn">&times;</span>
       </div>
       <div class="memory-body scrollable-module-body">
-        <input type="text" id="diary-search-input" placeholder="Search diary or ask Box 1 AI (e.g. Box 1 File 1)..." />
+        <input type="text" id="diary-name-input" placeholder="Diary Name (e.g. Diary 1, Secret Diary)..." />
+        <input type="text" id="diary-search-input" placeholder="Search diary or ask Box 1 AI (e.g. YOUR DIARY LIBRARY [Diary 1])..." />
         <textarea id="diary-text-input" class="large-scroll-textarea" placeholder="Write your full diary entry here, Boss (scrollable when long, date & time logged automatically)..."></textarea>
         <div class="modal-action-row">
           <button type="button" class="btn" onclick="document.getElementById('diary-img-input').click()">+ UPLOAD PHOTO</button>
@@ -360,7 +385,7 @@
           <button type="button" id="save-diary-entry" class="neon-btn">SAVE DIARY LOG</button>
         </div>
         <div class="ai-sub-assist">
-          <input type="text" id="diary-ai-input" placeholder="Ask Diary AI about Box 1 / File 1..." />
+          <input type="text" id="diary-ai-input" placeholder="Ask Diary AI (e.g. YOUR DIARY LIBRARY [Diary 1])..." />
           <button type="button" id="ask-diary-ai-btn" class="btn">ASK AI</button>
         </div>
         <div id="diary-entries-list" class="history-container scrollable-module-body" style="margin-top: 10px;"></div>
@@ -368,11 +393,11 @@
     </div>
   </div>
 
-  <!-- MODAL 3: MEDIA VAULT (BOX 2 — FULLSCREEN PHOTO & VIDEO UPLOAD + AI) -->
+  <!-- MODAL 3: MEDIA VAULT (BOX 2 — FULLSCREEN PHOTO & VIDEO UPLOAD + SEARCH + AI) -->
   <div id="media-modal" class="modal">
     <div class="modal-content neon-flame-box fullscreen-module-card">
       <div class="modal-header">
-        <h2>MEDIA VAULT // BOX 2 (AI LINKED)</h2>
+        <h2>MEDIA VAULT // BOX 2 (AI CONNECTED)</h2>
         <span id="close-media-modal" class="close-btn">&times;</span>
       </div>
       <div class="memory-body scrollable-module-body">
@@ -380,7 +405,7 @@
           <button type="button" class="neon-btn" onclick="document.getElementById('media-files-input').click()">+ UPLOAD PHOTOS / VIDEOS</button>
         </div>
         <div class="ai-sub-assist">
-          <input type="text" id="media-ai-input" placeholder="Ask Media AI (e.g. Box 2 File 1)..." />
+          <input type="text" id="media-ai-input" placeholder="Ask Media AI (e.g. YOUR DIARY LIBRARY [Media 1] or Box 2 File 1)..." />
           <button type="button" id="ask-media-ai-btn" class="btn">ASK AI</button>
         </div>
         <div id="media-gallery-grid" class="media-grid-list"></div>
@@ -388,16 +413,40 @@
     </div>
   </div>
 
-  <!-- MODAL 4: YOUR PERSONAL DETAILS (BOX 3 — AI LOCKED KEYPAD + AI) -->
+  <!-- MODAL 4: YOUR PERSONAL DETAILS (BOX 3 — HACKING THEME + ANIMATED OWL + 503020 + 60s LOCKOUT + SECURE AI) -->
   <div id="personal-modal" class="modal">
     <div class="modal-content neon-flame-box fullscreen-module-card">
       <div class="modal-header">
-        <h2>YOUR PERSONAL DETAILS // AI LOCKED</h2>
+        <h2>YOUR PERSONAL DETAILS // BOX 3 SECURE AI VAULT</h2>
         <span id="close-personal-modal" class="close-btn">&times;</span>
       </div>
       <div id="personal-lock-screen" class="keypad-lock-panel">
-        <div class="keypad-banner">THIS IS AI LOCKED — ENTER SECURITY CODE</div>
-        <div class="keypad-display" id="keypadDisplay">• • • •</div>
+        <div class="keypad-banner">HACKING SECURITY GATEWAY — ANIMATED SENTINEL &amp; CODE REQUIRED</div>
+
+        <!-- ANIMATED SENTINEL OWL + LIVE SPEECH/TYPEWRITER READOUT -->
+        <div class="sentinel-owl-stage" id="sentinelOwlStage">
+          <svg class="sentinel-owl-svg" id="sentinelOwlSvg" viewBox="0 0 180 140" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="90" cy="72" r="54" fill="rgba(14,165,233,0.14)" stroke="#3be8ff" stroke-width="1.5" stroke-dasharray="6 4" />
+            <g class="owl-body-group" id="owlBodyGroup">
+              <ellipse cx="90" cy="84" rx="34" ry="38" fill="rgba(4,26,52,0.92)" stroke="#8cf3ff" stroke-width="2.2" />
+              <polygon points="62,52 54,34 74,46" fill="rgba(14,165,233,0.35)" stroke="#3be8ff" stroke-width="1.8" />
+              <polygon points="118,52 126,34 106,46" fill="rgba(14,165,233,0.35)" stroke="#3be8ff" stroke-width="1.8" />
+              <circle cx="76" cy="68" r="12" fill="#020c18" stroke="#3be8ff" stroke-width="2" />
+              <circle cx="104" cy="68" r="12" fill="#020c18" stroke="#3be8ff" stroke-width="2" />
+              <circle cx="76" cy="68" r="5" fill="#ffffff" />
+              <circle cx="104" cy="68" r="5" fill="#ffffff" />
+              <polygon points="90,74 84,84 96,84" fill="#3be8ff" stroke="#ffffff" stroke-width="1.2" />
+              <path class="owl-wing-left" d="M56,74 Q36,82 42,104 Q52,102 58,94" fill="rgba(59,232,255,0.22)" stroke="#8cf3ff" stroke-width="2" />
+              <path class="owl-wing-right" d="M124,74 Q144,82 138,104 Q128,102 122,94" fill="rgba(59,232,255,0.22)" stroke="#8cf3ff" stroke-width="2" />
+            </g>
+          </svg>
+          <div class="sentinel-line-divider"></div>
+          <div class="sentinel-typewriter-box" id="sentinelTypewriterText">
+            Access denied. You are not the Boss. State your identity immediately. This system is locked down to protect sensitive data from intruders.
+          </div>
+        </div>
+
+        <div class="keypad-display" id="keypadDisplay">• • • • • •</div>
         <div class="flame-keypad-grid" id="flameKeypadGrid">
           <button type="button" class="flame-key-btn" data-digit="1">1</button>
           <button type="button" class="flame-key-btn" data-digit="2">2</button>
@@ -416,6 +465,7 @@
       </div>
 
       <div id="personal-unlocked-content" class="scrollable-module-body" style="display:none;">
+        <input type="text" id="personal-record-name" placeholder="Personal Diary / Record Name (e.g. Vault 1)..." />
         <textarea id="personal-detail-input" class="large-scroll-textarea" placeholder="Store personal details, text, or notes, Boss..."></textarea>
         <div class="modal-action-row">
           <button type="button" class="btn" onclick="document.getElementById('personal-img-input').click()">+ UPLOAD PHOTO</button>
@@ -423,8 +473,8 @@
           <button type="button" id="save-personal-detail" class="neon-btn">SAVE PERSONAL DETAIL</button>
         </div>
         <div class="ai-sub-assist">
-          <input type="text" id="personal-ai-input" placeholder="Ask Personal AI..." />
-          <button type="button" id="ask-personal-ai-btn" class="btn">ASK AI</button>
+          <input type="text" id="personal-ai-input" placeholder="Ask Dedicated Box 3 Secure AI (e.g. YOUR DIARY LIBRARY [Vault 1])..." />
+          <button type="button" id="ask-personal-ai-btn" class="btn">ASK SECURE AI</button>
         </div>
         <div id="personal-entries-list" class="history-container scrollable-module-body" style="margin-top: 10px;"></div>
       </div>
