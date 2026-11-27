@@ -1,10 +1,9 @@
 /* =========================================================
-   MARK I PROJECT // J.A.R.V.I.S. HACKING WALL SCRIPT
+   STARK INDUSTRIES // J.A.R.V.I.S. HACKING WALL SCRIPT
    - Multi-Model Gemini Chain + Automatic Google Web Fallback
-   - Live Source Model Banner (#activeModelSource)
    - 6 Dock Buttons: YouTube, 3D work, Games, Voice, Exist, Clear
-   - Box 1 (Your Diary), Box 2 (Media), Box 3 (Personal + AI Locked)
-   - Key-Drop-Only Fullscreen Activation + Auto Key Deactivation
+   - Box 1 (Your Diary Library), Box 2 (Media), Box 3 (Personal + 503020 + 60s Lockout)
+   - Self-Speech Loop Guard + Single-Click (History) / Double-Click (Memory) Clear
    ========================================================= */
 
 // ==================== 1. CONFIGURATION & STATE ====================
@@ -38,8 +37,17 @@ const STORAGE_KEYS = {
   PERSONAL: "jarvis_hud_personal_box3_v1"
 };
 
-const PERSONAL_PASSCODE = "5030";
-const WRONG_PASS_MESSAGE = "You are danger. This password is incorrect.";
+const PERSONAL_PASSCODE = "503020";
+const LOCKOUT_DURATION_SEC = 60;
+
+const WRONG_PASS_QUOTES = [
+  "Access denied. You are not the Boss. State your identity immediately. This system is locked down to protect sensitive data from intruders.",
+  "Security breach imminent. Intruder alert logged. Your unauthorized attempt has triggered defensive protocols. Step away before countermeasures engage.",
+  "Unauthorized access detected. Locking down system. Your presence has been flagged as a severe threat, and local authorities are being notified."
+];
+
+const WELCOME_BOSS_QUOTE =
+  "Welcome, Boss. You are in a highly secure environment. Your personal library is now fully under your control.";
 
 let chatHistory = JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY) || "[]");
 let memoryStore = JSON.parse(localStorage.getItem(STORAGE_KEYS.MEMORY) || "[]");
@@ -50,6 +58,7 @@ let personalDetails = JSON.parse(localStorage.getItem(STORAGE_KEYS.PERSONAL) || 
 let isMicListening = false;
 let isJarvisStrictMode = false;
 let isSpeaking = false;
+let lastSpokeEndTime = 0;
 let recognition = null;
 let audioWaveLevel = 0.08;
 
@@ -59,6 +68,10 @@ let pendingPersonalPhoto = "";
 let pendingPersonalPhotoName = "";
 let personalUnlocked = false;
 let keypadBuffer = "";
+let failedAttemptsCount = 0;
+let lockoutUntilMs = 0;
+let lockoutIntervalId = null;
+let typewriterTimerId = null;
 
 // ==================== 2. DOM REFERENCES ====================
 const msgInput = document.getElementById("msg");
@@ -68,7 +81,6 @@ const statusText = document.getElementById("status-text");
 const statusBadge = document.getElementById("status-badge");
 const engineBadge = document.getElementById("engineBadge");
 const apiFallbackBadge = document.getElementById("apiFallbackBadge");
-const activeModelSourceEl = document.getElementById("activeModelSource");
 const modeIndicator = document.getElementById("modeIndicator");
 const voiceStatus = document.getElementById("voiceStatus");
 const speechIndicator = document.getElementById("speechIndicator");
@@ -82,15 +94,9 @@ const mediaCountBadge = document.getElementById("mediaCountBadge");
 const mediaMiniStrip = document.getElementById("mediaMiniStrip");
 const diaryLatestMeta = document.getElementById("diaryLatestMeta");
 const personalLockBadge = document.getElementById("personalLockBadge");
+const personalMiniPreview = document.getElementById("personalMiniPreview");
 
-function setAnswerSourceModel(sourceLabel) {
-  const cleanLabel = (sourceLabel || "UNKNOWN").toUpperCase();
-  if (activeModelSourceEl) activeModelSourceEl.textContent = cleanLabel;
-  if (apiFallbackBadge) apiFallbackBadge.textContent = cleanLabel;
-  if (engineBadge) engineBadge.textContent = `SOURCE: ${cleanLabel}`;
-}
-
-// ==================== 3. RULER, CLOCK, SPECTRUM & 6-BUTTON ARC DOCK ====================
+// ==================== 3. RULER, CLOCK, NODE POINTS, SPECTRUM & 6-BUTTON ARC DOCK ====================
 function buildTopRuler() {
   const ruler = document.getElementById("topRuler");
   if (!ruler) return;
@@ -132,6 +138,16 @@ function updateClockAndDate() {
   if (bottomClock) bottomClock.textContent = `${hh}:${mm}:${ss}`;
 }
 
+function startIndicatorPointsCycle() {
+  const nodes = Array.from(document.querySelectorAll("#indicatorPoints .node-pt"));
+  if (!nodes.length) return;
+  let activeIdx = 0;
+  setInterval(() => {
+    nodes.forEach((n, idx) => n.classList.toggle("active", idx === activeIdx));
+    activeIdx = (activeIdx + 1) % nodes.length;
+  }, 900);
+}
+
 function buildSpectrumBars() {
   const frame = document.getElementById("spectrumBarsFrame");
   if (!frame) return;
@@ -166,6 +182,7 @@ function buildArcDock() {
   const buttons = [
     {
       label: "YouTube",
+      type: "click",
       action: () => {
         appendMessage("ai", "Launching YouTube, Boss.");
         window.open("https://www.youtube.com", "_blank", "noopener,noreferrer");
@@ -173,23 +190,29 @@ function buildArcDock() {
     },
     {
       label: "3D work",
+      type: "click",
       action: () => open3DWorkplaceModal()
     },
     {
       label: "Games",
+      type: "click",
       action: () => openGamesModal()
     },
     {
       label: "Voice",
+      type: "click",
       action: () => toggleMic()
     },
     {
       label: "Exist",
+      type: "click",
       action: () => triggerExistBackAction()
     },
     {
       label: "Clear",
-      action: () => openClearChatChoice()
+      type: "clear-split",
+      singleAction: () => saveAndClearChat("history"),
+      doubleAction: () => saveAndClearChat("memory")
     }
   ];
 
@@ -210,7 +233,25 @@ function buildArcDock() {
       </div>
       <span class="dock-sub-label">${btn.label}</span>
     `;
-    slot.addEventListener("click", btn.action);
+
+    if (btn.type === "clear-split") {
+      let clickTimer = null;
+      slot.addEventListener("click", () => {
+        if (clickTimer) {
+          clearTimeout(clickTimer);
+          clickTimer = null;
+          btn.doubleAction();
+        } else {
+          clickTimer = setTimeout(() => {
+            clickTimer = null;
+            btn.singleAction();
+          }, 260);
+        }
+      });
+    } else {
+      slot.addEventListener("click", btn.action);
+    }
+
     dock.appendChild(slot);
   });
 }
@@ -224,9 +265,9 @@ function updateTelemetryCounts() {
   if (diaryLatestMeta) {
     if (diaryEntries.length > 0) {
       const latest = diaryEntries[diaryEntries.length - 1];
-      diaryLatestMeta.textContent = `${latest.fileLabel} // AI LINKED`;
+      diaryLatestMeta.textContent = `${latest.fileLabel} (${latest.diaryName}) • AI LINKED`;
     } else {
-      diaryLatestMeta.textContent = "BOX 1 // TEXT & PHOTOS • AI LINKED";
+      diaryLatestMeta.textContent = "BOX 1 // DIARIES & FILES • AI CONNECTED";
     }
   }
 
@@ -235,16 +276,22 @@ function updateTelemetryCounts() {
       const latestMedia = mediaItems[mediaItems.length - 1];
       mediaMiniStrip.textContent = `${latestMedia.fileLabel}: ${latestMedia.name}`;
     } else {
-      mediaMiniStrip.textContent = "PHOTOS & VIDEOS • AI LINKED";
+      mediaMiniStrip.textContent = "PHOTOS & VIDEOS • AI CONNECTED";
     }
   }
 
   if (personalLockBadge) {
     personalLockBadge.textContent = personalUnlocked ? "AI UNLOCKED" : "AI LOCKED";
   }
+
+  if (personalMiniPreview) {
+    personalMiniPreview.textContent = personalUnlocked
+      ? `SECURE AI UNLOCKED • ${personalDetails.length} RECORDS`
+      : "SECURE AI VAULT • CODE PROTECTED";
+  }
 }
 
-// ==================== 4. CHAT, HISTORY, MEMORY & CLEAR CHOICE ====================
+// ==================== 4. CHAT, HISTORY, MEMORY & CLEAR LOGIC ====================
 function appendMessage(sender, text, save = true) {
   if (!chatBox) return;
   const div = document.createElement("div");
@@ -264,35 +311,36 @@ function appendMessage(sender, text, save = true) {
   }
 }
 
-function openClearChatChoice() {
-  openModal("clear-choice-modal");
-}
-
-function finalizeClearChat(saveToBothMemoryAndHistory) {
+function saveAndClearChat(targetMode) {
   const snapshot = chatHistory.slice();
   const formatted = snapshot
     .map(m => `[${m.sender.toUpperCase()} @ ${m.time || ""}]: ${m.text.replace(/<[^>]*>/g, "")}`)
     .join(" | ");
 
-  if (formatted && saveToBothMemoryAndHistory) {
+  if (targetMode === "memory" && formatted) {
     memoryStore.push({
-      text: `Cleared Chat Log: ${formatted.slice(0, 1200)}`,
+      text: `Cleared Chat Saved to Memory: ${formatted.slice(0, 1400)}`,
       time: new Date().toLocaleString()
     });
-    localStorage.setItem(STORAGE_KEYS.MEMORY, JSON.stringify(memoryStore));
+    localStorage.setItem(STORAGE_KEYS.MEMORY, JSON.stringify(memoryStore.slice(-60)));
   }
 
+  // Keep chatHistory in localStorage so History Log preserves it, clear live chat window
   localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory.slice(-150)));
   if (chatBox) {
     chatBox.innerHTML = "";
   }
   updateTelemetryCounts();
-  closeModal("clear-choice-modal");
 
-  const statusMsg = saveToBothMemoryAndHistory
-    ? "Chat cleared and saved to Memory and History, Boss."
-    : "Chat cleared and saved to History only, Boss.";
-  appendMessage("ai", statusMsg, false);
+  const confirmation = targetMode === "memory"
+    ? "Double-tap detected: Chat cleared and saved to Memory, Boss."
+    : "Single-tap detected: Chat cleared and saved to History, Boss.";
+  appendMessage("ai", confirmation, false);
+}
+
+function finalizeClearChat(saveToBothMemoryAndHistory) {
+  saveAndClearChat(saveToBothMemoryAndHistory ? "memory" : "history");
+  closeModal("clear-choice-modal");
 }
 
 function renderSavedHistory() {
@@ -357,7 +405,12 @@ function setupModals() {
   });
 }
 
-// ==================== 5. BOX 1 (YOUR DIARY), BOX 2 (MEDIA) & BOX 3 (PERSONAL + AI LOCKED) ====================
+// ==================== 5. BOX 1 (YOUR DIARY LIBRARY), BOX 2 (MEDIA) & BOX 3 (PERSONAL + 503020 + 60s LOCKOUT) ====================
+function extractBracketTarget(query) {
+  const match = query.match(/\[([^\]]+)\]/);
+  return match ? match[1].trim() : "";
+}
+
 function setupDiaryBox1() {
   const imgInp = document.getElementById("diary-img-input");
   const badge = document.getElementById("diaryPendingPhotoBadge");
@@ -380,7 +433,9 @@ function setupDiaryBox1() {
   });
 
   saveBtn?.addEventListener("click", () => {
+    const nameInp = document.getElementById("diary-name-input");
     const textInp = document.getElementById("diary-text-input");
+    const diaryName = ((nameInp?.value || "").trim()) || `Diary ${diaryEntries.length + 1}`;
     const txt = (textInp?.value || "").trim();
     if (!txt && !pendingDiaryPhoto) return;
 
@@ -388,7 +443,8 @@ function setupDiaryBox1() {
     const entry = {
       box: 1,
       fileNumber: fileNum,
-      fileLabel: `Box 1 File ${fileNum}`,
+      fileLabel: `File ${fileNum}`,
+      diaryName,
       text: txt,
       image: pendingDiaryPhoto || "",
       photoName: pendingDiaryPhotoName || "",
@@ -397,7 +453,7 @@ function setupDiaryBox1() {
 
     diaryEntries.push(entry);
     try {
-      localStorage.setItem(STORAGE_KEYS.DIARY, JSON.stringify(diaryEntries.slice(-40)));
+      localStorage.setItem(STORAGE_KEYS.DIARY, JSON.stringify(diaryEntries.slice(-50)));
     } catch (_) {}
 
     if (textInp) textInp.value = "";
@@ -406,8 +462,7 @@ function setupDiaryBox1() {
     if (badge) badge.textContent = "NO PHOTO";
     updateTelemetryCounts();
     renderDiaryList(searchInp?.value || "");
-    setAnswerSourceModel("BOX 1 AI");
-    appendMessage("ai", `Saved ${entry.fileLabel} to Your Diary (${entry.timestamp}), Boss.`);
+    appendMessage("ai", `Saved [${diaryName}] — ${entry.fileLabel} to Your Diary Library (${entry.timestamp}), Boss.`);
   });
 
   searchInp?.addEventListener("input", (e) => renderDiaryList(e.target.value));
@@ -429,44 +484,64 @@ function renderDiaryList(filter = "") {
   const rows = q
     ? diaryEntries.filter(d =>
         (d.text && d.text.toLowerCase().includes(q)) ||
+        (d.diaryName && d.diaryName.toLowerCase().includes(q)) ||
         (d.fileLabel && d.fileLabel.toLowerCase().includes(q)) ||
         (d.timestamp && d.timestamp.toLowerCase().includes(q))
       )
     : diaryEntries;
 
   if (!rows.length) {
-    list.innerHTML = `<div class="history-item">No diary entries in Box 1 yet, Boss.</div>`;
+    list.innerHTML = `<div class="history-item">No diary entries in Your Diary Library yet, Boss.</div>`;
     return;
   }
 
   list.innerHTML = rows.slice().reverse().map(d => `
     <div class="history-item">
-      <strong>${d.fileLabel}</strong> — <small>${d.timestamp}</small>
+      <strong>[${d.diaryName || "Diary"}] — ${d.fileLabel}</strong> <small>(${d.timestamp})</small>
       ${d.text ? `<div style="margin-top:4px;white-space:pre-wrap;">${d.text}</div>` : ""}
-      ${d.image ? `<img src="${d.image}" alt="${d.fileLabel}" style="max-width:100%;max-height:130px;border:1px solid #3be8ff;border-radius:3px;margin-top:6px;cursor:pointer;" onclick="openLightbox('${d.fileLabel}', '${d.image}', 'image')" />` : ""}
+      ${d.image ? `<img src="${d.image}" alt="${d.fileLabel}" style="max-width:100%;max-height:130px;border:1px solid #3be8ff;border-radius:3px;margin-top:6px;cursor:pointer;" onclick="openLightbox('${d.diaryName} — ${d.fileLabel}', '${d.image}', 'image')" />` : ""}
     </div>
   `).join("");
 }
 
 function answerFromBox1Diary(query) {
-  setAnswerSourceModel("BOX 1 AI");
-  const lower = query.toLowerCase();
-  const fileMatch = lower.match(/file\s*(\d+)/);
-  if (fileMatch) {
-    const targetNum = parseInt(fileMatch[1], 10);
-    const found = diaryEntries.find(d => d.fileNumber === targetNum);
-    if (!found) {
-      return `Box 1 File ${targetNum} is not found in Your Diary, Boss.`;
-    }
-    return `<strong>[${found.fileLabel} — ${found.timestamp}]</strong><br/>${found.text || (found.image ? `Uploaded Photo: ${found.photoName || "Image"}` : "Empty entry")}`;
-  }
-
   if (!diaryEntries.length) {
-    return "Box 1 currently has no saved diary entries, Boss.";
+    return "YOUR DIARY LIBRARY currently has no saved diary entries, Boss.";
   }
 
-  const latest = diaryEntries[diaryEntries.length - 1];
-  return `<strong>[Box 1 Latest — ${latest.fileLabel} (${latest.timestamp})]</strong><br/>${latest.text || (latest.image ? `Uploaded Photo: ${latest.photoName || "Image"}` : "Photo log saved.")}`;
+  const bracketTarget = extractBracketTarget(query).toLowerCase();
+  const lower = query.toLowerCase();
+
+  let matched = [];
+  if (bracketTarget) {
+    matched = diaryEntries.filter(d =>
+      (d.diaryName && d.diaryName.toLowerCase().includes(bracketTarget)) ||
+      (d.fileLabel && d.fileLabel.toLowerCase() === bracketTarget) ||
+      (d.text && d.text.toLowerCase().includes(bracketTarget))
+    );
+  } else {
+    const fileMatch = lower.match(/file\s*(\d+)/);
+    if (fileMatch) {
+      const targetNum = parseInt(fileMatch[1], 10);
+      matched = diaryEntries.filter(d => d.fileNumber === targetNum);
+    } else {
+      matched = diaryEntries.filter(d =>
+        (d.diaryName && lower.includes(d.diaryName.toLowerCase())) ||
+        (d.text && d.text.toLowerCase().includes(lower.replace("your diary library", "").trim()))
+      );
+    }
+  }
+
+  if (!matched.length) {
+    matched = diaryEntries;
+  }
+
+  return matched
+    .map((d, idx) =>
+      `<strong>File ${idx + 1} [${d.diaryName || "Diary"} — ${d.fileLabel} • ${d.timestamp}]:</strong><br/>` +
+      `${d.text || (d.image ? `Uploaded Photo: ${d.photoName || "Image"}` : "Empty entry")}`
+    )
+    .join("<br/><br/>");
 }
 
 function setupMediaBox2() {
@@ -486,7 +561,7 @@ function setupMediaBox2() {
         const item = {
           box: 2,
           fileNumber: fileNum,
-          fileLabel: `Box 2 File ${fileNum}`,
+          fileLabel: `File ${fileNum}`,
           name: file.name,
           type: isVideo ? "video" : "image",
           src: reader.result,
@@ -500,7 +575,6 @@ function setupMediaBox2() {
         }
         updateTelemetryCounts();
         renderMediaGrid();
-        setAnswerSourceModel("BOX 2 AI");
         appendMessage("ai", `Added ${item.fileLabel} (${item.name}) to Media Box, Boss.`);
       };
       reader.readAsDataURL(file);
@@ -527,22 +601,25 @@ function renderMediaGrid() {
     return;
   }
 
-  grid.innerHTML = mediaItems.slice().reverse().map(item => `
-    <div class="media-thumb-card" onclick="openMediaItemById(${item.fileNumber})">
-      ${item.type === "video"
-        ? `<video src="${item.src}" muted preload="metadata"></video>`
-        : `<img src="${item.src}" alt="${item.fileLabel}" />`
-      }
-      <div style="font-family:var(--font-mono);font-size:0.58rem;margin-top:3px;color:#ffffff;">${item.fileLabel}</div>
-      <div style="font-family:var(--font-mono);font-size:0.5rem;color:#9bf7ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
-    </div>
-  `).join("");
+  grid.innerHTML = mediaItems.slice().reverse().map((item, revIdx) => {
+    const seqNum = mediaItems.length - revIdx;
+    return `
+      <div class="media-thumb-card" onclick="openMediaItemByIndex(${mediaItems.length - 1 - revIdx})">
+        ${item.type === "video"
+          ? `<video src="${item.src}" muted preload="metadata"></video>`
+          : `<img src="${item.src}" alt="File ${seqNum}" />`
+        }
+        <div style="font-family:var(--font-mono);font-size:0.58rem;margin-top:3px;color:#ffffff;">File ${seqNum}</div>
+        <div style="font-family:var(--font-mono);font-size:0.5rem;color:#9bf7ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
+      </div>
+    `;
+  }).join("");
 }
 
-function openMediaItemById(fileNumber) {
-  const item = mediaItems.find(m => m.fileNumber === fileNumber);
+function openMediaItemByIndex(idx) {
+  const item = mediaItems[idx];
   if (!item) return;
-  openLightbox(`${item.fileLabel} — ${item.name}`, item.src, item.type);
+  openLightbox(`File ${idx + 1} — ${item.name}`, item.src, item.type);
 }
 
 function openLightbox(title, src, type) {
@@ -559,18 +636,78 @@ function openLightbox(title, src, type) {
 }
 
 function answerFromBox2Media(query) {
-  setAnswerSourceModel("BOX 2 AI");
-  const lower = query.toLowerCase();
-  const m = lower.match(/file\s*(\d+)/);
-  if (m) {
-    const num = parseInt(m[1], 10);
-    const found = mediaItems.find(x => x.fileNumber === num);
-    if (!found) return `Box 2 File ${num} was not found in Media Box, Boss.`;
-    return `<strong>[${found.fileLabel}]</strong> Type: ${found.type.toUpperCase()} | File Name: ${found.name} | Added: ${found.timestamp}`;
+  if (!mediaItems.length) {
+    return "Media Box has no files stored yet, Boss.";
   }
-  if (!mediaItems.length) return "Media Box has no files stored yet, Boss.";
-  const latest = mediaItems[mediaItems.length - 1];
-  return `<strong>[Box 2 Latest — ${latest.fileLabel}]</strong> ${latest.type.toUpperCase()}: ${latest.name} (${latest.timestamp})`;
+
+  const bracketTarget = extractBracketTarget(query).toLowerCase();
+  const lower = query.toLowerCase();
+  const m = (bracketTarget || lower).match(/file\s*(\d+)|media\s*(\d+)/);
+
+  if (m) {
+    const num = parseInt(m[1] || m[2], 10);
+    const item = mediaItems[num - 1];
+    if (!item) return `File ${num} was not found in Media Box, Boss.`;
+    return `<strong>File ${num}:</strong> ${item.type.toUpperCase()} — ${item.name} (Added: ${item.timestamp})`;
+  }
+
+  return mediaItems
+    .map((item, i) => `<strong>File ${i + 1}:</strong> ${item.type.toUpperCase()} — ${item.name} (${item.timestamp})`)
+    .join("<br/>");
+}
+
+function runSentinelTypewriterAndVoice(linesText, isAlert = true) {
+  const boxEl = document.getElementById("sentinelTypewriterText");
+  const stageEl = document.getElementById("sentinelOwlStage");
+  if (stageEl) {
+    stageEl.classList.toggle("alert-mode", isAlert);
+  }
+  if (boxEl) {
+    if (typewriterTimerId) clearInterval(typewriterTimerId);
+    boxEl.textContent = "";
+    let idx = 0;
+    typewriterTimerId = setInterval(() => {
+      boxEl.textContent += linesText.charAt(idx);
+      idx++;
+      if (idx >= linesText.length) {
+        clearInterval(typewriterTimerId);
+        typewriterTimerId = null;
+      }
+    }, 18);
+  }
+  speakText(linesText);
+}
+
+function setKeypadDisabled(disabled) {
+  document.querySelectorAll("#flameKeypadGrid .flame-key-btn").forEach(btn => {
+    btn.disabled = disabled;
+  });
+}
+
+function startLockoutCountdown() {
+  const alertEl = document.getElementById("personal-danger-alert");
+  setKeypadDisabled(true);
+
+  if (lockoutIntervalId) clearInterval(lockoutIntervalId);
+  const tick = () => {
+    const remainingSec = Math.ceil((lockoutUntilMs - Date.now()) / 1000);
+    if (remainingSec > 0) {
+      if (alertEl) {
+        alertEl.textContent = `LOCKDOWN ACTIVE: 1-MINUTE LOCKOUT — RETRY IN ${remainingSec}s`;
+      }
+    } else {
+      clearInterval(lockoutIntervalId);
+      lockoutIntervalId = null;
+      failedAttemptsCount = 0;
+      lockoutUntilMs = 0;
+      setKeypadDisabled(false);
+      if (alertEl) alertEl.textContent = "";
+      runSentinelTypewriterAndVoice(WRONG_PASS_QUOTES[0], true);
+    }
+  };
+
+  tick();
+  lockoutIntervalId = setInterval(tick, 1000);
 }
 
 function setupPersonalBox3() {
@@ -584,13 +721,14 @@ function setupPersonalBox3() {
 
   function syncKeypadDisplay() {
     if (!displayEl) return;
-    const slots = [0, 1, 2, 3].map(i => (keypadBuffer[i] ? keypadBuffer[i] : "•"));
+    const slots = [0, 1, 2, 3, 4, 5].map(i => (keypadBuffer[i] ? keypadBuffer[i] : "•"));
     displayEl.textContent = slots.join(" ");
   }
 
   document.querySelectorAll("#flameKeypadGrid .flame-key-btn[data-digit]").forEach(btn => {
     btn.addEventListener("click", () => {
-      if (keypadBuffer.length < 4) {
+      if (Date.now() < lockoutUntilMs) return;
+      if (keypadBuffer.length < 6) {
         keypadBuffer += btn.getAttribute("data-digit");
         syncKeypadDisplay();
         if (alertEl) alertEl.textContent = "";
@@ -599,24 +737,39 @@ function setupPersonalBox3() {
   });
 
   document.getElementById("keypadClearBtn")?.addEventListener("click", () => {
+    if (Date.now() < lockoutUntilMs) return;
     keypadBuffer = "";
     syncKeypadDisplay();
     if (alertEl) alertEl.textContent = "";
   });
 
   document.getElementById("keypadEnterBtn")?.addEventListener("click", () => {
+    if (Date.now() < lockoutUntilMs) return;
+
     if (keypadBuffer === PERSONAL_PASSCODE) {
       personalUnlocked = true;
+      failedAttemptsCount = 0;
       keypadBuffer = "";
       syncKeypadDisplay();
       if (alertEl) alertEl.textContent = "";
       refreshPersonalModalState();
       updateTelemetryCounts();
+      runSentinelTypewriterAndVoice(WELCOME_BOSS_QUOTE, false);
+      appendMessage("ai", WELCOME_BOSS_QUOTE);
     } else {
+      failedAttemptsCount += 1;
       keypadBuffer = "";
       syncKeypadDisplay();
-      if (alertEl) {
-        alertEl.textContent = WRONG_PASS_MESSAGE;
+
+      const quoteIdx = Math.min(failedAttemptsCount - 1, WRONG_PASS_QUOTES.length - 1);
+      const selectedQuote = WRONG_PASS_QUOTES[quoteIdx];
+      runSentinelTypewriterAndVoice(selectedQuote, true);
+
+      if (failedAttemptsCount >= 3) {
+        lockoutUntilMs = Date.now() + LOCKOUT_DURATION_SEC * 1000;
+        startLockoutCountdown();
+      } else if (alertEl) {
+        alertEl.textContent = `INVALID CODE (${failedAttemptsCount}/3 ATTEMPTS BEFORE 1-MINUTE LOCKOUT)`;
       }
     }
   });
@@ -636,69 +789,81 @@ function setupPersonalBox3() {
 
   saveBtn?.addEventListener("click", () => {
     if (!personalUnlocked) {
-      alert("This is AI locked, Boss.");
+      alert("This is AI locked, Boss. Enter code 503020 first.");
       return;
     }
+    const nameInp = document.getElementById("personal-record-name");
     const inp = document.getElementById("personal-detail-input");
+    const recordName = ((nameInp?.value || "").trim()) || `Vault ${personalDetails.length + 1}`;
     const txt = (inp?.value || "").trim();
     if (!txt && !pendingPersonalPhoto) return;
 
     personalDetails.push({
+      recordName,
       text: txt,
       image: pendingPersonalPhoto || "",
       photoName: pendingPersonalPhotoName || "",
       timestamp: new Date().toLocaleString()
     });
     try {
-      localStorage.setItem(STORAGE_KEYS.PERSONAL, JSON.stringify(personalDetails.slice(-40)));
+      localStorage.setItem(STORAGE_KEYS.PERSONAL, JSON.stringify(personalDetails.slice(-50)));
     } catch (_) {}
 
     if (inp) inp.value = "";
     pendingPersonalPhoto = "";
     pendingPersonalPhotoName = "";
     if (photoBadge) photoBadge.textContent = "NO PHOTO";
+    updateTelemetryCounts();
     renderPersonalEntries();
-    setAnswerSourceModel("BOX 3 AI");
-    appendMessage("ai", "Personal detail stored in your private AI vault, Boss.");
+    appendMessage("ai", `Personal detail [${recordName}] stored in your dedicated Box 3 AI vault, Boss.`);
   });
 
   askAiBtn?.addEventListener("click", () => {
     const q = (aiInp?.value || "").trim();
     if (!q) return;
-    appendMessage("user", `[Personal AI] ${q}`);
+    if (!personalUnlocked) {
+      const codeAttempt = prompt("This is AI locked. Enter security code, Boss:");
+      if (codeAttempt !== PERSONAL_PASSCODE) {
+        failedAttemptsCount += 1;
+        const quoteIdx = Math.min(failedAttemptsCount - 1, WRONG_PASS_QUOTES.length - 1);
+        appendMessage("ai", WRONG_PASS_QUOTES[quoteIdx]);
+        if (failedAttemptsCount >= 3) {
+          lockoutUntilMs = Date.now() + LOCKOUT_DURATION_SEC * 1000;
+          startLockoutCountdown();
+        }
+        if (aiInp) aiInp.value = "";
+        return;
+      }
+      personalUnlocked = true;
+      failedAttemptsCount = 0;
+      refreshPersonalModalState();
+      updateTelemetryCounts();
+      appendMessage("ai", WELCOME_BOSS_QUOTE);
+    }
+
+    appendMessage("user", `[Box 3 Secure AI] ${q}`);
     appendMessage("ai", answerFromBox3Personal(q));
     if (aiInp) aiInp.value = "";
   });
 }
 
 function answerFromBox3Personal(query) {
-  setAnswerSourceModel("BOX 3 AI");
-  if (!personalUnlocked) {
-    const codeAttempt = prompt("This is AI locked. Enter security code, Boss:");
-    if (codeAttempt !== PERSONAL_PASSCODE) {
-      return WRONG_PASS_MESSAGE;
-    }
-    personalUnlocked = true;
-    refreshPersonalModalState();
-    updateTelemetryCounts();
-  }
-
-  const lower = (query || "").toLowerCase();
-  const fileMatch = lower.match(/file\s*(\d+)/);
-  if (fileMatch) {
-    const idx = parseInt(fileMatch[1], 10) - 1;
-    const item = personalDetails[idx];
-    if (!item) return `Box 3 File ${idx + 1} was not found in Personal Details, Boss.`;
-    return `<strong>[Box 3 File ${idx + 1} — ${item.timestamp}]</strong><br/>${item.text || (item.image ? `Photo (${item.photoName || "Image"})` : "Empty record")}`;
-  }
-
   if (!personalDetails.length) {
-    return "No personal details stored yet, Boss.";
+    return "Box 3 Secure Vault currently has no personal records stored, Boss.";
   }
-  const summary = personalDetails
-    .map((p, i) => `File ${i + 1} (${p.timestamp}): ${p.text || (p.image ? `Photo (${p.photoName || "Image"})` : "")}`)
-    .join("<br/>");
-  return `<strong>[PERSONAL VAULT AI — VERIFIED]</strong><br/>${summary}`;
+  const bracketTarget = extractBracketTarget(query).toLowerCase();
+  const matched = bracketTarget
+    ? personalDetails.filter(p =>
+        (p.recordName && p.recordName.toLowerCase().includes(bracketTarget)) ||
+        (p.text && p.text.toLowerCase().includes(bracketTarget))
+      )
+    : personalDetails;
+
+  const listToShow = matched.length ? matched : personalDetails;
+  return `<strong>[BOX 3 SECURE AI VAULT — VERIFIED]</strong><br/>` +
+    listToShow
+      .map((p, i) => `File ${i + 1} [${p.recordName || "Record"} • ${p.timestamp}]: ${p.text || (p.image ? `Photo (${p.photoName || "Image"})` : "")}`)
+      .join("<br/>");
 }
 
 function refreshPersonalModalState() {
@@ -712,6 +877,12 @@ function refreshPersonalModalState() {
   } else {
     lockScreen.style.display = "block";
     unlockedContent.style.display = "none";
+    if (Date.now() < lockoutUntilMs) {
+      startLockoutCountdown();
+    } else {
+      setKeypadDisabled(false);
+      runSentinelTypewriterAndVoice(WRONG_PASS_QUOTES[0], false);
+    }
   }
 }
 
@@ -724,7 +895,7 @@ function renderPersonalEntries() {
   }
   list.innerHTML = personalDetails.slice().reverse().map((p, idx) => `
     <div class="history-item">
-      <strong>Box 3 File ${personalDetails.length - idx}</strong> — <small>${p.timestamp}</small>
+      <strong>File ${personalDetails.length - idx} [${p.recordName || "Record"}]</strong> — <small>${p.timestamp}</small>
       ${p.text ? `<div style="margin-top:4px;white-space:pre-wrap;">${p.text}</div>` : ""}
       ${p.image ? `<img src="${p.image}" alt="Personal detail" style="max-width:100%;max-height:130px;border:1px solid #3be8ff;border-radius:3px;margin-top:6px;cursor:pointer;" onclick="openLightbox('Personal Record', '${p.image}', 'image')" />` : ""}
     </div>
@@ -739,7 +910,7 @@ function open3DWorkplaceModal() {
   if (bodyEl) {
     bodyEl.innerHTML = `
       <p style="font-size:0.78rem;color:#d8f8ff;margin-bottom:8px;">
-        Three-dimensional workspace ready for your Mark I models, Boss.
+        Three-dimensional workspace ready for your Mark VII models, Boss.
       </p>
       <canvas id="threePreviewCanvas" width="480" height="210" style="width:100%;height:210px;border:1px solid #3be8ff;border-radius:4px;background:#020b16;"></canvas>
     `;
@@ -806,7 +977,8 @@ function triggerExistBackAction() {
 
 // ==================== 7. MULTI-MODEL GEMINI CHAIN + GOOGLE WEB FALLBACK ====================
 async function fetchGoogleWebFallback(query) {
-  setAnswerSourceModel("GOOGLE-WEB");
+  if (apiFallbackBadge) apiFallbackBadge.textContent = "GOOGLE-WEB";
+  if (engineBadge) engineBadge.textContent = "ENGINE: AUTO-WEB FALLBACK";
 
   let snippet = "";
   let sourceTitle = "";
@@ -833,7 +1005,7 @@ async function fetchGoogleWebFallback(query) {
   const googleSearchLink = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
   if (snippet) {
     return (
-      `<div><strong>[GOOGLE WEB FALLBACK: ${sourceTitle}]</strong></div>` +
+      `<div><strong>[ALL GEMINI MODELS EXHAUSTED — GOOGLE WEB FALLBACK: ${sourceTitle}]</strong></div>` +
       `<div>${snippet}</div>` +
       `<div style="margin-top:4px;"><a href="${googleSearchLink}" target="_blank" rel="noopener noreferrer" style="color:#8cf3ff;text-decoration:underline;">Open Google Search Results</a>` +
       (sourceUrl && sourceUrl !== googleSearchLink
@@ -844,16 +1016,16 @@ async function fetchGoogleWebFallback(query) {
   }
 
   return (
-    `<div><strong>[GOOGLE WEB FALLBACK]</strong></div>` +
-    `<div>Gemini models were unavailable or exhausted. Direct Google Search link ready for "<strong>${query}</strong>":</div>` +
+    `<div><strong>[ALL GEMINI MODELS EXHAUSTED — GOOGLE WEB FALLBACK]</strong></div>` +
+    `<div>All configured Gemini models reached limits or failed. Direct Google Search link ready for "<strong>${query}</strong>":</div>` +
     `<div style="margin-top:4px;"><a href="${googleSearchLink}" target="_blank" rel="noopener noreferrer" style="color:#8cf3ff;text-decoration:underline;">Search on Google Now</a></div>`
   );
 }
 
 function buildContextualSystemInstruction() {
   const base = isJarvisStrictMode
-    ? "You are J.A.R.V.I.S. for Mark I Project, created for Boss Bharani. Keep answers concise, direct, and tactical."
-    : "You are J.A.R.V.I.S. for Mark I Project, created for Boss Bharani. Always address Bharani as 'Boss'.";
+    ? "You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir). Keep answers concise, direct, and tactical."
+    : "You are Jarvis, an advanced AI personal assistant created by your Boss, Bharani (also addressed as Sir). Always address Bharani as 'Boss' or 'Sir'.";
 
   if (memoryStore.length > 0) {
     const notes = memoryStore.slice(-15).map(m => `- ${m.text}`).join("\n");
@@ -902,7 +1074,7 @@ async function queryGeminiOrFallback(promptText) {
 
   if (!activeKey) {
     const webHtml = await fetchGoogleWebFallback(promptText);
-    setSystemState("SYSTEM ONLINE", "[GOOGLE-WEB]");
+    setSystemState("SYSTEM ONLINE", "[WEB-FALLBACK]");
     return webHtml;
   }
 
@@ -910,17 +1082,19 @@ async function queryGeminiOrFallback(promptText) {
 
   for (const modelName of TEXT_MODELS) {
     try {
-      setAnswerSourceModel(modelName);
+      if (apiFallbackBadge) apiFallbackBadge.textContent = modelName.toUpperCase();
+      if (engineBadge) engineBadge.textContent = `ENGINE: ${modelName}`;
+
       const reply = await tryTextModel(modelName, activeKey, promptText, systemInstruction);
       setSystemState("SYSTEM ONLINE", "[ONLINE]");
       return reply;
     } catch (err) {
-      console.warn(`Model failed, trying next in chain (${modelName}):`, err);
+      console.warn(`Model failed, moving to next model in chain (${modelName}):`, err);
     }
   }
 
   const webHtml = await fetchGoogleWebFallback(promptText);
-  setSystemState("SYSTEM ONLINE", "[GOOGLE-WEB]");
+  setSystemState("SYSTEM ONLINE", "[WEB-FALLBACK]");
   return webHtml;
 }
 
@@ -933,15 +1107,38 @@ async function handleUserCommand(rawText) {
 
   const lower = text.toLowerCase();
 
-  if (lower.includes("box 1") || (lower.includes("diary") && lower.includes("file"))) {
+  // Box 1: YOUR DIARY LIBRARY queries
+  if (lower.includes("your diary library") || lower.includes("box 1") || (lower.includes("diary") && lower.includes("file"))) {
     appendMessage("ai", answerFromBox1Diary(text));
     return;
   }
+
+  // Box 2: Media Library queries
   if (lower.includes("box 2") || (lower.includes("media") && lower.includes("file"))) {
     appendMessage("ai", answerFromBox2Media(text));
     return;
   }
-  if (lower.includes("box 3") || lower.includes("personal detail")) {
+
+  // Box 3: Personal Details Secure AI queries (requires 503020 first)
+  if (lower.includes("box 3") || lower.includes("personal detail") || lower.includes("vault")) {
+    if (!personalUnlocked) {
+      const codeAttempt = prompt("Box 3 is AI locked. Enter security code to access personal details, Boss:");
+      if (codeAttempt !== PERSONAL_PASSCODE) {
+        failedAttemptsCount += 1;
+        const quoteIdx = Math.min(failedAttemptsCount - 1, WRONG_PASS_QUOTES.length - 1);
+        appendMessage("ai", WRONG_PASS_QUOTES[quoteIdx]);
+        speakText(WRONG_PASS_QUOTES[quoteIdx]);
+        if (failedAttemptsCount >= 3) {
+          lockoutUntilMs = Date.now() + LOCKOUT_DURATION_SEC * 1000;
+          startLockoutCountdown();
+        }
+        return;
+      }
+      personalUnlocked = true;
+      failedAttemptsCount = 0;
+      updateTelemetryCounts();
+      appendMessage("ai", WELCOME_BOSS_QUOTE);
+    }
     appendMessage("ai", answerFromBox3Personal(text));
     return;
   }
@@ -960,7 +1157,7 @@ function setSystemState(mainStatus, badgeStatus) {
   if (statusBadge) statusBadge.textContent = badgeStatus;
 }
 
-// ==================== 8. VOICE RECOGNITION & SPEECH SYNTHESIS ====================
+// ==================== 8. VOICE RECOGNITION & SELF-SPEECH LOOP GUARD ====================
 function speakText(text) {
   if (!("speechSynthesis" in window)) return;
   try {
@@ -974,10 +1171,12 @@ function speakText(text) {
     };
     utter.onend = () => {
       isSpeaking = false;
+      lastSpokeEndTime = Date.now();
       if (speechIndicator) speechIndicator.textContent = isMicListening ? "LISTENING" : "IDLE";
     };
     utter.onerror = () => {
       isSpeaking = false;
+      lastSpokeEndTime = Date.now();
       if (speechIndicator) speechIndicator.textContent = "IDLE";
     };
     window.speechSynthesis.speak(utter);
@@ -1016,12 +1215,18 @@ function setupSpeechRecognition() {
 
   recognition.onstart = () => {
     isMicListening = true;
-    micBtn?.classList.add("listening", "active-mic");
     if (voiceStatus) voiceStatus.textContent = "ACTIVE";
     if (speechIndicator) speechIndicator.textContent = "LISTENING";
   };
 
   recognition.onresult = (event) => {
+    // Ignore microphone input while Jarvis is speaking or within 1.4s cooldown after speech ends
+    const speakingNow = isSpeaking || (window.speechSynthesis && window.speechSynthesis.speaking);
+    const inCooldown = (Date.now() - lastSpokeEndTime) < 1400;
+    if (speakingNow || inCooldown) {
+      return;
+    }
+
     const lastIdx = event.results.length - 1;
     const transcript = event.results[lastIdx][0].transcript.trim();
     if (transcript) {
@@ -1039,7 +1244,6 @@ function setupSpeechRecognition() {
         recognition.start();
       } catch (_) {}
     } else {
-      micBtn?.classList.remove("listening", "active-mic");
       if (voiceStatus) voiceStatus.textContent = "STANDBY";
       if (speechIndicator) speechIndicator.textContent = "IDLE";
     }
@@ -1062,7 +1266,6 @@ function toggleMic() {
     try {
       recognition.stop();
     } catch (_) {}
-    micBtn?.classList.remove("listening", "active-mic");
     if (voiceStatus) voiceStatus.textContent = "STANDBY";
     if (speechIndicator) speechIndicator.textContent = "IDLE";
   }
@@ -1312,6 +1515,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateClockAndDate();
   setInterval(updateClockAndDate, 1000);
 
+  startIndicatorPointsCycle();
   buildSpectrumBars();
   buildArcDock();
   updateTelemetryCounts();
@@ -1328,11 +1532,10 @@ document.addEventListener("DOMContentLoaded", () => {
   msgInput?.addEventListener("keydown", (e) => {
     if (e.key === "Enter") handleUserCommand(msgInput.value);
   });
-  micBtn?.addEventListener("click", toggleMic);
 
   if (chatHistory.length > 0) {
     chatHistory.slice(-15).forEach(item => appendMessage(item.sender, item.text, false));
   } else {
-    appendMessage("ai", "MARK I PROJECT HUD online, Boss. Ready for commands.", false);
+    appendMessage("ai", "J.A.R.V.I.S. Mark VII Hacking HUD online, Boss. Ready for commands.", false);
   }
 });
