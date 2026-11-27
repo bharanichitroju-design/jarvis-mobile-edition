@@ -1,8 +1,8 @@
 /* =========================================================
    STARK INDUSTRIES // J.A.R.V.I.S. HACKING WALL SCRIPT
-   - Multi-Model Gemini Chain + Image Vision Analysis + Automatic Google Web Fallback
+   - Multi-Model Gemini Chain + Automatic Google Web Fallback
    - 6 Dock Buttons: YouTube, 3D work, Games, Voice, Exist, Clear
-   - Box 1 (Your Diary Library), Box 2 (Media + Instant Gallery AI Explain), Box 3 (Personal + 503020 + 60s Lockout)
+   - Box 1 (Your Diary Library), Box 2 (Media), Box 3 (Personal + 503020 + 60s Lockout)
    - Self-Speech Loop Guard + Single-Click (History) / Double-Click (Memory) Clear
    ========================================================= */
 
@@ -325,6 +325,7 @@ function saveAndClearChat(targetMode) {
     localStorage.setItem(STORAGE_KEYS.MEMORY, JSON.stringify(memoryStore.slice(-60)));
   }
 
+  // Keep chatHistory in localStorage so History Log preserves it, clear live chat window
   localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory.slice(-150)));
   if (chatBox) {
     chatBox.innerHTML = "";
@@ -404,66 +405,10 @@ function setupModals() {
   });
 }
 
-// ==================== 5. BOX 1 (YOUR DIARY LIBRARY), BOX 2 (MEDIA + INSTANT GALLERY AI) & BOX 3 (PERSONAL) ====================
+// ==================== 5. BOX 1 (YOUR DIARY LIBRARY), BOX 2 (MEDIA) & BOX 3 (PERSONAL + 503020 + 60s LOCKOUT) ====================
 function extractBracketTarget(query) {
   const match = query.match(/\[([^\]]+)\]/);
   return match ? match[1].trim() : "";
-}
-
-function openGalleryPicker() {
-  const mediaInp = document.getElementById("media-files-input");
-  if (mediaInp) {
-    mediaInp.click();
-  }
-}
-
-async function analyzeImageWithGemini(dataUrl, mimeType, fileName) {
-  const activeKey = ensureGeminiApiKey();
-  if (!activeKey) {
-    return `Uploaded <strong>${fileName}</strong>, Boss. Please set your Gemini API Key so I can explain what is inside the photo.`;
-  }
-
-  const base64Data = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
-  const promptText =
-    `Boss uploaded this photo ("${fileName}"). Explain clearly and concisely in simple Telugu or English matching Boss's style what is visible in the photo, key objects, people/text if any, and overall scene.`;
-
-  for (const modelName of TEXT_MODELS) {
-    try {
-      setSystemState("SCANNING", "VISION");
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(activeKey)}`;
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [
-                { text: promptText },
-                { inline_data: { mime_type: mimeType || "image/jpeg", data: base64Data } }
-              ]
-            }
-          ]
-        })
-      });
-
-      if (!response.ok) {
-        continue;
-      }
-
-      const data = await response.json();
-      const explanation = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      setSystemState("SYSTEM ONLINE", "[ONLINE]");
-      if (explanation) {
-        return `<strong>Photo Analysis (${fileName}):</strong><br/>${explanation}`;
-      }
-    } catch (err) {
-      console.warn(`Vision attempt failed on ${modelName}:`, err);
-    }
-  }
-
-  setSystemState("SYSTEM ONLINE", "[ONLINE]");
-  return `Uploaded <strong>${fileName}</strong>, Boss, but I could not analyze the image right now. Please check your Gemini API key or network connection.`;
 }
 
 function setupDiaryBox1() {
@@ -478,13 +423,10 @@ function setupDiaryBox1() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = async () => {
+    reader.onload = () => {
       pendingDiaryPhoto = reader.result;
       pendingDiaryPhotoName = file.name;
       if (badge) badge.textContent = `PHOTO: ${file.name}`;
-      appendMessage("user", `[Uploaded Diary Photo] ${file.name}`);
-      const aiExplain = await analyzeImageWithGemini(reader.result, file.type, file.name);
-      appendMessage("ai", aiExplain);
     };
     reader.readAsDataURL(file);
     imgInp.value = "";
@@ -603,16 +545,9 @@ function answerFromBox1Diary(query) {
 }
 
 function setupMediaBox2() {
-  const galleryOpenBtn = document.getElementById("open-gallery-btn");
   const mediaInp = document.getElementById("media-files-input");
   const askAiBtn = document.getElementById("ask-media-ai-btn");
   const aiInp = document.getElementById("media-ai-input");
-
-  // Direct gallery trigger without forcing a box jump
-  galleryOpenBtn?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    openGalleryPicker();
-  });
 
   mediaInp?.addEventListener("change", (e) => {
     const files = Array.from(e.target.files || []);
@@ -621,7 +556,7 @@ function setupMediaBox2() {
     files.forEach(file => {
       const isVideo = file.type.startsWith("video/");
       const reader = new FileReader();
-      reader.onload = async () => {
+      reader.onload = () => {
         const fileNum = mediaItems.length + 1;
         const item = {
           box: 2,
@@ -640,15 +575,7 @@ function setupMediaBox2() {
         }
         updateTelemetryCounts();
         renderMediaGrid();
-
-        appendMessage("user", `[Gallery Upload] ${file.name}`);
-        if (!isVideo && typeof reader.result === "string" && reader.result.startsWith("data:image/")) {
-          const explanation = await analyzeImageWithGemini(reader.result, file.type, file.name);
-          appendMessage("ai", explanation);
-          speakText(explanation.replace(/<[^>]*>/g, " ").slice(0, 240));
-        } else {
-          appendMessage("ai", `Uploaded video <strong>${file.name}</strong>, Boss.`);
-        }
+        appendMessage("ai", `Added ${item.fileLabel} (${item.name}) to Media Box, Boss.`);
       };
       reader.readAsDataURL(file);
     });
@@ -851,13 +778,10 @@ function setupPersonalBox3() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = async () => {
+    reader.onload = () => {
       pendingPersonalPhoto = reader.result;
       pendingPersonalPhotoName = file.name;
       if (photoBadge) photoBadge.textContent = `PHOTO: ${file.name}`;
-      appendMessage("user", `[Uploaded Vault Photo] ${file.name}`);
-      const aiExplain = await analyzeImageWithGemini(reader.result, file.type, file.name);
-      appendMessage("ai", aiExplain);
     };
     reader.readAsDataURL(file);
     imgInp.value = "";
@@ -1183,13 +1107,6 @@ async function handleUserCommand(rawText) {
 
   const lower = text.toLowerCase();
 
-  // Direct gallery trigger if Boss asks to open gallery
-  if (lower === "open gallery" || lower === "gallery") {
-    openGalleryPicker();
-    appendMessage("ai", "Opening your gallery, Boss. Select a photo and I will explain what is in it.");
-    return;
-  }
-
   // Box 1: YOUR DIARY LIBRARY queries
   if (lower.includes("your diary library") || lower.includes("box 1") || (lower.includes("diary") && lower.includes("file"))) {
     appendMessage("ai", answerFromBox1Diary(text));
@@ -1303,6 +1220,7 @@ function setupSpeechRecognition() {
   };
 
   recognition.onresult = (event) => {
+    // Ignore microphone input while Jarvis is speaking or within 1.4s cooldown after speech ends
     const speakingNow = isSpeaking || (window.speechSynthesis && window.speechSynthesis.speaking);
     const inCooldown = (Date.now() - lastSpokeEndTime) < 1400;
     if (speakingNow || inCooldown) {
