@@ -1,8 +1,11 @@
 /* =========================================================
    STARK INDUSTRIES // J.A.R.V.I.S. HACKING WALL SCRIPT
    - Multi-Model Gemini Chain + Automatic Google Web Fallback
+   - IndexedDB + Safe localStorage Persistence (Quota-Safe)
    - 6 Dock Buttons: YouTube, 3D work, Games, Voice, Exist, Clear
-   - Box 1 (Your Diary Library), Box 2 (Media), Box 3 (Personal + 503020 + 60s Lockout)
+   - Library 1 (Diary Grid + Paragraph Editor + Inline Photo Box),
+     Library 2 (Album Grid + Media),
+     Library 3 (Personal + 503020 + 60s Lockout + Paragraph Editor)
    - Self-Speech Loop Guard + Single-Click (History) / Double-Click (Memory) Clear
    ========================================================= */
 
@@ -14,7 +17,7 @@ function ensureGeminiApiKey() {
     const entered = prompt("Enter your Gemini API Key, Boss:");
     if (entered && entered.trim()) {
       GEMINI_API_KEY = entered.trim();
-      localStorage.setItem("jarvis_key", GEMINI_API_KEY);
+      safeLocalStorageSet("jarvis_key", GEMINI_API_KEY);
     }
   }
   return GEMINI_API_KEY;
@@ -49,11 +52,11 @@ const WRONG_PASS_QUOTES = [
 const WELCOME_BOSS_QUOTE =
   "Welcome, Boss. You are in a highly secure environment. Your personal library is now fully under your control.";
 
-let chatHistory = JSON.parse(localStorage.getItem(STORAGE_KEYS.HISTORY) || "[]");
-let memoryStore = JSON.parse(localStorage.getItem(STORAGE_KEYS.MEMORY) || "[]");
-let diaryEntries = JSON.parse(localStorage.getItem(STORAGE_KEYS.DIARY) || "[]");
-let mediaItems = JSON.parse(localStorage.getItem(STORAGE_KEYS.MEDIA) || "[]");
-let personalDetails = JSON.parse(localStorage.getItem(STORAGE_KEYS.PERSONAL) || "[]");
+let chatHistory = safeParseJson(localStorage.getItem(STORAGE_KEYS.HISTORY), []);
+let memoryStore = safeParseJson(localStorage.getItem(STORAGE_KEYS.MEMORY), []);
+let diaryEntries = safeParseJson(localStorage.getItem(STORAGE_KEYS.DIARY), []);
+let mediaItems = safeParseJson(localStorage.getItem(STORAGE_KEYS.MEDIA), []);
+let personalDetails = safeParseJson(localStorage.getItem(STORAGE_KEYS.PERSONAL), []);
 
 let isMicListening = false;
 let isJarvisStrictMode = false;
@@ -62,10 +65,6 @@ let lastSpokeEndTime = 0;
 let recognition = null;
 let audioWaveLevel = 0.08;
 
-let pendingDiaryPhoto = "";
-let pendingDiaryPhotoName = "";
-let pendingPersonalPhoto = "";
-let pendingPersonalPhotoName = "";
 let personalUnlocked = false;
 let keypadBuffer = "";
 let failedAttemptsCount = 0;
@@ -73,7 +72,104 @@ let lockoutUntilMs = 0;
 let lockoutIntervalId = null;
 let typewriterTimerId = null;
 
-// ==================== 2. DOM REFERENCES ====================
+// Editor & Album state
+let activeEditorTarget = "diary"; // "diary" | "personal"
+let activeEditorEditIndex = null;
+let activeEditorPhoto = "";
+let activeEditorPhotoName = "";
+let activeAlbumIndex = null;
+
+// ==================== 2. SAFE STORAGE & INDEXEDDB HELPER (PROBLEM 2 & 5) ====================
+function safeParseJson(raw, fallback) {
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(fallback) ? (Array.isArray(parsed) ? parsed : fallback) : (parsed ?? fallback);
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function safeLocalStorageSet(key, valueStr) {
+  try {
+    localStorage.setItem(key, valueStr);
+    return true;
+  } catch (err) {
+    console.warn(`localStorage write skipped for [${key}] (quota or privacy mode):`, err);
+    return false;
+  }
+}
+
+let idbInstance = null;
+function openVaultIndexedDB() {
+  return new Promise((resolve) => {
+    if (idbInstance) return resolve(idbInstance);
+    if (!("indexedDB" in window)) return resolve(null);
+
+    try {
+      const req = indexedDB.open("JarvisHudVaultDB", 1);
+      req.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains("vault_snapshots")) {
+          db.createObjectStore("vault_snapshots", { keyPath: "key" });
+        }
+      };
+      req.onsuccess = () => {
+        idbInstance = req.result;
+        resolve(idbInstance);
+      };
+      req.onerror = () => resolve(null);
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
+
+async function persistVaultSnapshot(key, dataObj) {
+  const serialized = JSON.stringify(dataObj);
+  safeLocalStorageSet(key, serialized);
+
+  const db = await openVaultIndexedDB();
+  if (!db) return;
+  try {
+    const tx = db.transaction("vault_snapshots", "readwrite");
+    tx.objectStore("vault_snapshots").put({
+      key,
+      data: dataObj,
+      updatedAt: Date.now()
+    });
+  } catch (_) {}
+}
+
+async function hydrateVaultsFromIndexedDB() {
+  const db = await openVaultIndexedDB();
+  if (!db) return;
+
+  const keysToCheck = [
+    [STORAGE_KEYS.DIARY, (v) => { diaryEntries = v; }],
+    [STORAGE_KEYS.MEDIA, (v) => { mediaItems = v; }],
+    [STORAGE_KEYS.PERSONAL, (v) => { personalDetails = v; }],
+    [STORAGE_KEYS.MEMORY, (v) => { memoryStore = v; }]
+  ];
+
+  for (const [key, setter] of keysToCheck) {
+    try {
+      const record = await new Promise((res) => {
+        const tx = db.transaction("vault_snapshots", "readonly");
+        const getReq = tx.objectStore("vault_snapshots").get(key);
+        getReq.onsuccess = () => res(getReq.result || null);
+        getReq.onerror = () => res(null);
+      });
+      if (record && Array.isArray(record.data) && record.data.length > 0) {
+        setter(record.data);
+      }
+    } catch (_) {}
+  }
+
+  updateTelemetryCounts();
+}
+
+// ==================== 3. DOM REFERENCES ====================
 const msgInput = document.getElementById("msg");
 const executeBtn = document.getElementById("execute-btn");
 const chatBox = document.getElementById("chat");
@@ -84,19 +180,17 @@ const apiFallbackBadge = document.getElementById("apiFallbackBadge");
 const modeIndicator = document.getElementById("modeIndicator");
 const voiceStatus = document.getElementById("voiceStatus");
 const speechIndicator = document.getElementById("speechIndicator");
-const micBtn = document.getElementById("mic-btn");
 const rightOrb = document.getElementById("rightOrb");
 
 const memCountEl = document.getElementById("memCount");
 const file3dCountEl = document.getElementById("file3dCount");
 const msgCountEl = document.getElementById("msgCount");
-const mediaCountBadge = document.getElementById("mediaCountBadge");
 const mediaMiniStrip = document.getElementById("mediaMiniStrip");
 const diaryLatestMeta = document.getElementById("diaryLatestMeta");
 const personalLockBadge = document.getElementById("personalLockBadge");
 const personalMiniPreview = document.getElementById("personalMiniPreview");
 
-// ==================== 3. RULER, CLOCK, NODE POINTS, SPECTRUM & 6-BUTTON ARC DOCK ====================
+// ==================== 4. RULER, CLOCK, NODE POINTS, SPECTRUM & 6-BUTTON ARC DOCK ====================
 function buildTopRuler() {
   const ruler = document.getElementById("topRuler");
   if (!ruler) return;
@@ -220,6 +314,8 @@ function buildArcDock() {
   buttons.forEach((btn, idx) => {
     const slot = document.createElement("div");
     slot.className = "dock-slot";
+    slot.setAttribute("role", "button");
+    slot.setAttribute("tabindex", "0");
     slot.innerHTML = `
       <div class="dock-orb" title="${btn.label}">
         <svg viewBox="0 0 64 64">
@@ -252,6 +348,13 @@ function buildArcDock() {
       slot.addEventListener("click", btn.action);
     }
 
+    slot.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        slot.click();
+      }
+    });
+
     dock.appendChild(slot);
   });
 }
@@ -260,38 +363,38 @@ function updateTelemetryCounts() {
   if (memCountEl) memCountEl.textContent = String(diaryEntries.length);
   if (file3dCountEl) file3dCountEl.textContent = String(mediaItems.length);
   if (msgCountEl) msgCountEl.textContent = String(chatHistory.length);
-  if (mediaCountBadge) mediaCountBadge.textContent = String(mediaItems.length);
 
   if (diaryLatestMeta) {
     if (diaryEntries.length > 0) {
       const latest = diaryEntries[diaryEntries.length - 1];
-      diaryLatestMeta.textContent = `${latest.fileLabel} (${latest.diaryName}) • AI LINKED`;
+      diaryLatestMeta.textContent = `LIBRARY 1 • ${latest.diaryName} (${latest.fileLabel})`;
     } else {
-      diaryLatestMeta.textContent = "BOX 1 // DIARIES & FILES • AI CONNECTED";
+      diaryLatestMeta.textContent = "LIBRARY 1 // DIARIES & FILES • AI CONNECTED";
     }
   }
 
   if (mediaMiniStrip) {
     if (mediaItems.length > 0) {
       const latestMedia = mediaItems[mediaItems.length - 1];
-      mediaMiniStrip.textContent = `${latestMedia.fileLabel}: ${latestMedia.name}`;
+      const albumTitle = latestMedia.albumName || latestMedia.name || "Album";
+      mediaMiniStrip.textContent = `LIBRARY 2 • ${albumTitle}`;
     } else {
-      mediaMiniStrip.textContent = "PHOTOS & VIDEOS • AI CONNECTED";
+      mediaMiniStrip.textContent = "LIBRARY 2 // ALBUMS, PHOTOS & VIDEOS";
     }
   }
 
   if (personalLockBadge) {
-    personalLockBadge.textContent = personalUnlocked ? "AI UNLOCKED" : "AI LOCKED";
+    personalLockBadge.textContent = personalUnlocked ? "LIBRARY 3 • OPEN" : "LIBRARY 3 • LOCKED";
   }
 
   if (personalMiniPreview) {
     personalMiniPreview.textContent = personalUnlocked
-      ? `SECURE AI UNLOCKED • ${personalDetails.length} RECORDS`
-      : "SECURE AI VAULT • CODE PROTECTED";
+      ? `LIBRARY 3 • ${personalDetails.length} PERSONAL DIARIES`
+      : "LIBRARY 3 // SECURE VAULT • CODE PROTECTED";
   }
 }
 
-// ==================== 4. CHAT, HISTORY, MEMORY & CLEAR LOGIC ====================
+// ==================== 5. CHAT, HISTORY, MEMORY & CLEAR LOGIC ====================
 function appendMessage(sender, text, save = true) {
   if (!chatBox) return;
   const div = document.createElement("div");
@@ -306,7 +409,9 @@ function appendMessage(sender, text, save = true) {
       text,
       time: new Date().toLocaleTimeString()
     });
-    localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory.slice(-150)));
+    const trimmed = chatHistory.slice(-150);
+    chatHistory = trimmed;
+    safeLocalStorageSet(STORAGE_KEYS.HISTORY, JSON.stringify(trimmed));
     updateTelemetryCounts();
   }
 }
@@ -322,11 +427,11 @@ function saveAndClearChat(targetMode) {
       text: `Cleared Chat Saved to Memory: ${formatted.slice(0, 1400)}`,
       time: new Date().toLocaleString()
     });
-    localStorage.setItem(STORAGE_KEYS.MEMORY, JSON.stringify(memoryStore.slice(-60)));
+    memoryStore = memoryStore.slice(-60);
+    persistVaultSnapshot(STORAGE_KEYS.MEMORY, memoryStore);
   }
 
-  // Keep chatHistory in localStorage so History Log preserves it, clear live chat window
-  localStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory.slice(-150)));
+  safeLocalStorageSet(STORAGE_KEYS.HISTORY, JSON.stringify(chatHistory.slice(-150)));
   if (chatBox) {
     chatBox.innerHTML = "";
   }
@@ -363,8 +468,8 @@ function openModal(id) {
   if (!modal) return;
   modal.style.display = "block";
   if (id === "history-modal") renderSavedHistory();
-  if (id === "diary-modal") renderDiaryList(document.getElementById("diary-search-input")?.value || "");
-  if (id === "media-modal") renderMediaGrid();
+  if (id === "diary-modal") renderDiaryGrid(document.getElementById("diary-search-input")?.value || "");
+  if (id === "media-modal") renderAlbumGrid(document.getElementById("album-search-input")?.value || "");
   if (id === "personal-modal") refreshPersonalModalState();
 }
 
@@ -381,18 +486,33 @@ function setupModals() {
   document.getElementById("close-diary-modal")?.addEventListener("click", () => closeModal("diary-modal"));
   document.getElementById("close-media-modal")?.addEventListener("click", () => closeModal("media-modal"));
   document.getElementById("close-personal-modal")?.addEventListener("click", () => closeModal("personal-modal"));
+  document.getElementById("close-entry-editor")?.addEventListener("click", () => closeModal("entry-editor-modal"));
+  document.getElementById("close-album-detail")?.addEventListener("click", () => closeModal("album-detail-modal"));
   document.getElementById("close-clear-choice")?.addEventListener("click", () => closeModal("clear-choice-modal"));
   document.getElementById("close-workspace-tool")?.addEventListener("click", () => closeModal("workspace-tool-modal"));
 
   document.getElementById("clear-all-history")?.addEventListener("click", () => {
     chatHistory = [];
-    localStorage.setItem(STORAGE_KEYS.HISTORY, "[]");
+    safeLocalStorageSet(STORAGE_KEYS.HISTORY, "[]");
     updateTelemetryCounts();
     renderSavedHistory();
   });
 
   document.getElementById("saveClearToHistoryOnly")?.addEventListener("click", () => finalizeClearChat(false));
   document.getElementById("saveClearToMemoryAndHistory")?.addEventListener("click", () => finalizeClearChat(true));
+
+  // Keyboard accessibility for role="button" vault boxes
+  ["diaryBox", "mediaBox", "personalBox"].forEach((boxId) => {
+    const el = document.getElementById(boxId);
+    if (!el) return;
+    el.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        const targetModal = el.getAttribute("data-modal-target");
+        if (targetModal) openModal(targetModal);
+      }
+    });
+  });
 
   window.addEventListener("click", (e) => {
     if (e.target.classList && e.target.classList.contains("modal")) {
@@ -405,111 +525,289 @@ function setupModals() {
   });
 }
 
-// ==================== 5. BOX 1 (YOUR DIARY LIBRARY), BOX 2 (MEDIA) & BOX 3 (PERSONAL + 503020 + 60s LOCKOUT) ====================
-function extractBracketTarget(query) {
-  const match = query.match(/\[([^\]]+)\]/);
-  return match ? match[1].trim() : "";
+// ==================== 6. BOX 1 & BOX 3 EDITOR (PARAGRAPH FLOW + INLINE PHOTO PREVIEW BELOW TEXT) ====================
+function syncEditorPhotoPreviewUI() {
+  const previewBox = document.getElementById("editor-photo-preview-box");
+  const previewImg = document.getElementById("editor-photo-preview-img");
+  const previewLabel = document.getElementById("editor-photo-box-label");
+
+  if (!previewBox || !previewImg) return;
+
+  if (activeEditorPhoto) {
+    previewImg.src = activeEditorPhoto;
+    previewImg.alt = activeEditorPhotoName || "Attached Diary Photo";
+    if (previewLabel) {
+      previewLabel.textContent = `PHOTO // ${activeEditorPhotoName || "ATTACHED IMAGE"}`;
+    }
+    previewBox.style.display = "flex";
+  } else {
+    previewImg.removeAttribute("src");
+    previewBox.style.display = "none";
+  }
 }
 
+function openEntryEditor(targetType, existingIndex = null, presetPhoto = "", presetPhotoName = "") {
+  activeEditorTarget = targetType;
+  activeEditorEditIndex = existingIndex;
+
+  activeEditorPhoto = "";
+  activeEditorPhotoName = "";
+
+  const nameInp = document.getElementById("editor-diary-name-input");
+  const areaInp = document.getElementById("editor-numbered-textarea");
+
+  const list = targetType === "personal" ? personalDetails : diaryEntries;
+  if (existingIndex !== null && list[existingIndex]) {
+    const item = list[existingIndex];
+    if (nameInp) nameInp.value = item.diaryName || item.recordName || "";
+    if (areaInp) areaInp.value = item.text || "";
+    if (item.image) {
+      activeEditorPhoto = item.image;
+      activeEditorPhotoName = item.photoName || "Saved Photo";
+    }
+  } else {
+    if (nameInp) nameInp.value = "";
+    if (areaInp) areaInp.value = "";
+  }
+
+  if (presetPhoto) {
+    activeEditorPhoto = presetPhoto;
+    activeEditorPhotoName = presetPhotoName || "Uploaded Photo";
+  }
+
+  syncEditorPhotoPreviewUI();
+  openModal("entry-editor-modal");
+
+  setTimeout(() => {
+    if (areaInp) {
+      areaInp.focus();
+      const len = areaInp.value.length;
+      areaInp.setSelectionRange(len, len);
+    }
+  }, 50);
+}
+
+function persistEditorEntry(finalDiaryName) {
+  const areaInp = document.getElementById("editor-numbered-textarea");
+  const cleanText = (areaInp?.value || "").trim();
+
+  if (!cleanText && !activeEditorPhoto) {
+    appendMessage("ai", "Boss, please write diary text or upload a photo before saving.");
+    return;
+  }
+
+  if (activeEditorTarget === "personal") {
+    if (!personalUnlocked) {
+      appendMessage("ai", "Library 3 is locked, Boss. Enter code 503020 first.");
+      return;
+    }
+    const recordObj = {
+      box: 3,
+      diaryName: finalDiaryName,
+      recordName: finalDiaryName,
+      text: cleanText,
+      image: activeEditorPhoto || "",
+      photoName: activeEditorPhotoName || "",
+      timestamp: new Date().toLocaleString()
+    };
+
+    if (activeEditorEditIndex !== null && personalDetails[activeEditorEditIndex]) {
+      personalDetails[activeEditorEditIndex] = {
+        ...personalDetails[activeEditorEditIndex],
+        ...recordObj
+      };
+    } else {
+      personalDetails.push(recordObj);
+    }
+
+    personalDetails = personalDetails.slice(-50);
+    persistVaultSnapshot(STORAGE_KEYS.PERSONAL, personalDetails);
+
+    updateTelemetryCounts();
+    renderPersonalGrid(document.getElementById("personal-search-input")?.value || "");
+    closeModal("entry-editor-modal");
+    appendMessage("ai", `Saved [${finalDiaryName}] to YOUR PERSONAL LIBRARY (LIBRARY 3), Boss.`);
+  } else {
+    const fileNum = activeEditorEditIndex !== null
+      ? (diaryEntries[activeEditorEditIndex]?.fileNumber || activeEditorEditIndex + 1)
+      : diaryEntries.length + 1;
+
+    const entryObj = {
+      box: 1,
+      fileNumber: fileNum,
+      fileLabel: `File ${fileNum}`,
+      diaryName: finalDiaryName,
+      text: cleanText,
+      image: activeEditorPhoto || "",
+      photoName: activeEditorPhotoName || "",
+      timestamp: new Date().toLocaleString()
+    };
+
+    if (activeEditorEditIndex !== null && diaryEntries[activeEditorEditIndex]) {
+      diaryEntries[activeEditorEditIndex] = {
+        ...diaryEntries[activeEditorEditIndex],
+        ...entryObj
+      };
+    } else {
+      diaryEntries.push(entryObj);
+    }
+
+    diaryEntries = diaryEntries.slice(-50);
+    persistVaultSnapshot(STORAGE_KEYS.DIARY, diaryEntries);
+
+    updateTelemetryCounts();
+    renderDiaryGrid(document.getElementById("diary-search-input")?.value || "");
+    closeModal("entry-editor-modal");
+    appendMessage("ai", `Saved [${finalDiaryName}] to YOUR DIARY LIBRARY (LIBRARY 1), Boss.`);
+  }
+}
+
+function setupSharedEntryEditor() {
+  const nameInp = document.getElementById("editor-diary-name-input");
+  const areaInp = document.getElementById("editor-numbered-textarea");
+  const saveBtn = document.getElementById("editor-save-btn");
+  const writeFullBtn = document.getElementById("editor-write-full-btn");
+  const selectBtn = document.getElementById("editor-select-btn");
+  const uploadPhotoBtn = document.getElementById("editor-upload-photo-btn");
+  const editorImgInp = document.getElementById("editor-img-input");
+  const previewImg = document.getElementById("editor-photo-preview-img");
+  const removePhotoBtn = document.getElementById("editor-remove-photo-btn");
+
+  areaInp?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      const start = areaInp.selectionStart ?? areaInp.value.length;
+      const end = areaInp.selectionEnd ?? areaInp.value.length;
+      const before = areaInp.value.slice(0, start);
+      const after = areaInp.value.slice(end);
+      const insertion = "\n\n";
+      areaInp.value = before + insertion + after;
+      const newPos = start + insertion.length;
+      areaInp.setSelectionRange(newPos, newPos);
+    }
+  });
+
+  saveBtn?.addEventListener("click", () => {
+    const typedName = (nameInp?.value || "").trim();
+    if (typedName) {
+      persistEditorEntry(typedName);
+    } else {
+      const popupName = prompt("Enter Diary Name, Boss:");
+      if (!popupName || !popupName.trim()) return;
+      const cleanName = popupName.trim();
+      if (nameInp) nameInp.value = cleanName;
+      persistEditorEntry(cleanName);
+    }
+  });
+
+  writeFullBtn?.addEventListener("click", () => {
+    if (!areaInp) return;
+    areaInp.focus();
+    const len = areaInp.value.length;
+    areaInp.setSelectionRange(len, len);
+  });
+
+  selectBtn?.addEventListener("click", () => {
+    if (!areaInp) return;
+    areaInp.focus();
+    areaInp.select();
+  });
+
+  uploadPhotoBtn?.addEventListener("click", () => {
+    editorImgInp?.click();
+  });
+
+  editorImgInp?.addEventListener("change", (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      activeEditorPhoto = reader.result;
+      activeEditorPhotoName = file.name;
+      syncEditorPhotoPreviewUI();
+    };
+    reader.readAsDataURL(file);
+    editorImgInp.value = "";
+  });
+
+  previewImg?.addEventListener("click", () => {
+    if (!activeEditorPhoto) return;
+    openLightbox(
+      activeEditorPhotoName || (nameInp?.value || "").trim() || "Attached Diary Photo",
+      activeEditorPhoto,
+      "image"
+    );
+  });
+
+  removePhotoBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    activeEditorPhoto = "";
+    activeEditorPhotoName = "";
+    syncEditorPhotoPreviewUI();
+  });
+}
+
+// ==================== 7. LIBRARY 1 (DIARY), LIBRARY 2 (ALBUM) & LIBRARY 3 (PERSONAL) ====================
 function setupDiaryBox1() {
   const imgInp = document.getElementById("diary-img-input");
-  const badge = document.getElementById("diaryPendingPhotoBadge");
-  const saveBtn = document.getElementById("save-diary-entry");
   const searchInp = document.getElementById("diary-search-input");
-  const askAiBtn = document.getElementById("ask-diary-ai-btn");
-  const aiInp = document.getElementById("diary-ai-input");
+  const searchBtn = document.getElementById("diary-search-btn");
 
   imgInp?.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      pendingDiaryPhoto = reader.result;
-      pendingDiaryPhotoName = file.name;
-      if (badge) badge.textContent = `PHOTO: ${file.name}`;
+      openEntryEditor("diary", null, reader.result, file.name);
     };
     reader.readAsDataURL(file);
     imgInp.value = "";
   });
 
-  saveBtn?.addEventListener("click", () => {
-    const nameInp = document.getElementById("diary-name-input");
-    const textInp = document.getElementById("diary-text-input");
-    const diaryName = ((nameInp?.value || "").trim()) || `Diary ${diaryEntries.length + 1}`;
-    const txt = (textInp?.value || "").trim();
-    if (!txt && !pendingDiaryPhoto) return;
-
-    const fileNum = diaryEntries.length + 1;
-    const entry = {
-      box: 1,
-      fileNumber: fileNum,
-      fileLabel: `File ${fileNum}`,
-      diaryName,
-      text: txt,
-      image: pendingDiaryPhoto || "",
-      photoName: pendingDiaryPhotoName || "",
-      timestamp: new Date().toLocaleString()
-    };
-
-    diaryEntries.push(entry);
-    try {
-      localStorage.setItem(STORAGE_KEYS.DIARY, JSON.stringify(diaryEntries.slice(-50)));
-    } catch (_) {}
-
-    if (textInp) textInp.value = "";
-    pendingDiaryPhoto = "";
-    pendingDiaryPhotoName = "";
-    if (badge) badge.textContent = "NO PHOTO";
-    updateTelemetryCounts();
-    renderDiaryList(searchInp?.value || "");
-    appendMessage("ai", `Saved [${diaryName}] — ${entry.fileLabel} to Your Diary Library (${entry.timestamp}), Boss.`);
-  });
-
-  searchInp?.addEventListener("input", (e) => renderDiaryList(e.target.value));
-
-  askAiBtn?.addEventListener("click", () => {
-    const q = (aiInp?.value || "").trim();
-    if (!q) return;
-    const ans = answerFromBox1Diary(q);
-    appendMessage("user", `[Diary AI] ${q}`);
-    appendMessage("ai", ans);
-    if (aiInp) aiInp.value = "";
-  });
+  searchInp?.addEventListener("input", (e) => renderDiaryGrid(e.target.value));
+  searchBtn?.addEventListener("click", () => renderDiaryGrid(searchInp?.value || ""));
 }
 
-function renderDiaryList(filter = "") {
-  const list = document.getElementById("diary-entries-list");
-  if (!list) return;
+function renderDiaryGrid(filter = "") {
+  const grid = document.getElementById("diary-entries-list");
+  if (!grid) return;
   const q = filter.trim().toLowerCase();
-  const rows = q
-    ? diaryEntries.filter(d =>
-        (d.text && d.text.toLowerCase().includes(q)) ||
-        (d.diaryName && d.diaryName.toLowerCase().includes(q)) ||
-        (d.fileLabel && d.fileLabel.toLowerCase().includes(q)) ||
-        (d.timestamp && d.timestamp.toLowerCase().includes(q))
+
+  const createCardHtml = `
+    <div class="create-new-grid-card" onclick="openEntryEditor('diary', null)">
+      <div class="create-plus-sign">+</div>
+      <div class="create-card-label">CREATE NEW<br/>DIARY</div>
+    </div>
+  `;
+
+  const indexed = diaryEntries.map((item, idx) => ({ item, idx }));
+  const filtered = q
+    ? indexed.filter(({ item }) =>
+        (item.diaryName && item.diaryName.toLowerCase().includes(q)) ||
+        (item.text && item.text.toLowerCase().includes(q)) ||
+        (item.fileLabel && item.fileLabel.toLowerCase().includes(q))
       )
-    : diaryEntries;
+    : indexed;
 
-  if (!rows.length) {
-    list.innerHTML = `<div class="history-item">No diary entries in Your Diary Library yet, Boss.</div>`;
-    return;
-  }
-
-  list.innerHTML = rows.slice().reverse().map(d => `
-    <div class="history-item">
-      <strong>[${d.diaryName || "Diary"}] — ${d.fileLabel}</strong> <small>(${d.timestamp})</small>
-      ${d.text ? `<div style="margin-top:4px;white-space:pre-wrap;">${d.text}</div>` : ""}
-      ${d.image ? `<img src="${d.image}" alt="${d.fileLabel}" style="max-width:100%;max-height:130px;border:1px solid #3be8ff;border-radius:3px;margin-top:6px;cursor:pointer;" onclick="openLightbox('${d.diaryName} — ${d.fileLabel}', '${d.image}', 'image')" />` : ""}
+  const cardsHtml = filtered.slice().reverse().map(({ item, idx }) => `
+    <div class="library-item-grid-card" onclick="openEntryEditor('diary', ${idx})">
+      <div class="library-card-title">${item.diaryName || item.fileLabel || "Diary"}</div>
+      ${item.image ? `<img src="${item.image}" alt="${item.diaryName || "Diary"}" class="library-card-thumb" />` : ""}
+      <div class="library-card-snippet">${item.text || (item.image ? `Photo: ${item.photoName || "Image"}` : "Empty diary")}</div>
+      <div class="library-card-meta">${item.fileLabel || `File ${idx + 1}`} • ${item.timestamp || ""}</div>
     </div>
   `).join("");
+
+  grid.innerHTML = createCardHtml + cardsHtml;
 }
 
 function answerFromBox1Diary(query) {
   if (!diaryEntries.length) {
-    return "YOUR DIARY LIBRARY currently has no saved diary entries, Boss.";
+    return "YOUR DIARY LIBRARY (LIBRARY 1) currently has no saved diary entries, Boss.";
   }
 
-  const bracketTarget = extractBracketTarget(query).toLowerCase();
+  const mBracket = query.match(/\[([^\]]+)\]/);
+  const bracketTarget = mBracket ? mBracket[1].trim().toLowerCase() : "";
   const lower = query.toLowerCase();
 
   let matched = [];
@@ -532,94 +830,179 @@ function answerFromBox1Diary(query) {
     }
   }
 
-  if (!matched.length) {
-    matched = diaryEntries;
-  }
+  if (!matched.length) matched = diaryEntries;
 
   return matched
     .map((d, idx) =>
       `<strong>File ${idx + 1} [${d.diaryName || "Diary"} — ${d.fileLabel} • ${d.timestamp}]:</strong><br/>` +
-      `${d.text || (d.image ? `Uploaded Photo: ${d.photoName || "Image"}` : "Empty entry")}`
+      `${(d.text || "").replace(/\n/g, "<br/>") || (d.image ? `Uploaded Photo: ${d.photoName || "Image"}` : "Empty entry")}`
     )
     .join("<br/><br/>");
 }
 
+// ==================== LIBRARY 2 (YOUR ALBUM LIBRARY) ====================
+function createNewAlbumPrompt(initialFiles = []) {
+  const albumName = prompt("Enter New Album Name, Boss:");
+  if (!albumName || !albumName.trim()) return;
+  const cleanName = albumName.trim();
+
+  const newAlbum = {
+    box: 2,
+    albumName: cleanName,
+    name: cleanName,
+    items: [],
+    timestamp: new Date().toLocaleString()
+  };
+
+  mediaItems.push(newAlbum);
+  mediaItems = mediaItems.slice(-30);
+  const albumIdx = mediaItems.length - 1;
+
+  persistVaultSnapshot(STORAGE_KEYS.MEDIA, mediaItems);
+
+  updateTelemetryCounts();
+  renderAlbumGrid(document.getElementById("album-search-input")?.value || "");
+  appendMessage("ai", `Created album [${cleanName}] in YOUR ALBUM LIBRARY (LIBRARY 2), Boss.`);
+
+  if (initialFiles && initialFiles.length > 0) {
+    addFilesToAlbum(albumIdx, initialFiles);
+  } else {
+    openAlbumDetail(albumIdx);
+  }
+}
+
+function addFilesToAlbum(albumIdx, files) {
+  const album = mediaItems[albumIdx];
+  if (!album) return;
+  if (!Array.isArray(album.items)) album.items = [];
+
+  Array.from(files).forEach(file => {
+    const isVideo = file.type.startsWith("video/");
+    const reader = new FileReader();
+    reader.onload = () => {
+      album.items.push({
+        name: file.name,
+        type: isVideo ? "video" : "image",
+        src: reader.result,
+        timestamp: new Date().toLocaleString()
+      });
+      persistVaultSnapshot(STORAGE_KEYS.MEDIA, mediaItems);
+      updateTelemetryCounts();
+      renderAlbumGrid(document.getElementById("album-search-input")?.value || "");
+      if (activeAlbumIndex === albumIdx) {
+        renderAlbumDetailGrid();
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function openAlbumDetail(albumIdx) {
+  const album = mediaItems[albumIdx];
+  if (!album) return;
+  activeAlbumIndex = albumIdx;
+  const titleEl = document.getElementById("albumDetailTitle");
+  if (titleEl) titleEl.textContent = `ALBUM // ${album.albumName || album.name || "Album"}`;
+  renderAlbumDetailGrid();
+  openModal("album-detail-modal");
+}
+
+function renderAlbumDetailGrid() {
+  const grid = document.getElementById("album-detail-grid");
+  if (!grid) return;
+  const album = mediaItems[activeAlbumIndex];
+  if (!album) return;
+
+  const items = Array.isArray(album.items) ? album.items : [];
+  if (!items.length) {
+    grid.innerHTML = `<div class="history-item" style="grid-column:1/-1;">No photos or videos in this album yet, Boss. Click "+ UPLOAD PHOTOS / VIDEOS".</div>`;
+    return;
+  }
+
+  grid.innerHTML = items.map((mItem, idx) => `
+    <div class="library-item-grid-card" onclick="openLightbox('${mItem.name}', '${mItem.src}', '${mItem.type}')">
+      ${mItem.type === "video"
+        ? `<video src="${mItem.src}" muted preload="metadata" class="library-card-thumb"></video>`
+        : `<img src="${mItem.src}" alt="${mItem.name}" class="library-card-thumb" />`
+      }
+      <div class="library-card-title">${mItem.name || `Media ${idx + 1}`}</div>
+      <div class="library-card-meta">${mItem.type.toUpperCase()} • ${mItem.timestamp || ""}</div>
+    </div>
+  `).join("");
+}
+
 function setupMediaBox2() {
   const mediaInp = document.getElementById("media-files-input");
-  const askAiBtn = document.getElementById("ask-media-ai-btn");
-  const aiInp = document.getElementById("media-ai-input");
+  const albumItemInp = document.getElementById("album-item-files-input");
+  const addMediaBtn = document.getElementById("album-add-media-btn");
+  const searchInp = document.getElementById("album-search-input");
+  const searchBtn = document.getElementById("album-search-btn");
 
   mediaInp?.addEventListener("change", (e) => {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-
-    files.forEach(file => {
-      const isVideo = file.type.startsWith("video/");
-      const reader = new FileReader();
-      reader.onload = () => {
-        const fileNum = mediaItems.length + 1;
-        const item = {
-          box: 2,
-          fileNumber: fileNum,
-          fileLabel: `File ${fileNum}`,
-          name: file.name,
-          type: isVideo ? "video" : "image",
-          src: reader.result,
-          timestamp: new Date().toLocaleString()
-        };
-        mediaItems.push(item);
-        try {
-          localStorage.setItem(STORAGE_KEYS.MEDIA, JSON.stringify(mediaItems.slice(-30)));
-        } catch (_) {
-          mediaItems[mediaItems.length - 1].src = URL.createObjectURL(file);
-        }
-        updateTelemetryCounts();
-        renderMediaGrid();
-        appendMessage("ai", `Added ${item.fileLabel} (${item.name}) to Media Box, Boss.`);
-      };
-      reader.readAsDataURL(file);
-    });
-
+    if (!mediaItems.length) {
+      createNewAlbumPrompt(files);
+    } else {
+      const targetIdx = activeAlbumIndex !== null && mediaItems[activeAlbumIndex]
+        ? activeAlbumIndex
+        : mediaItems.length - 1;
+      addFilesToAlbum(targetIdx, files);
+    }
     mediaInp.value = "";
   });
 
-  askAiBtn?.addEventListener("click", () => {
-    const q = (aiInp?.value || "").trim();
-    if (!q) return;
-    const ans = answerFromBox2Media(q);
-    appendMessage("user", `[Media AI] ${q}`);
-    appendMessage("ai", ans);
-    if (aiInp) aiInp.value = "";
+  addMediaBtn?.addEventListener("click", () => {
+    albumItemInp?.click();
   });
+
+  albumItemInp?.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || activeAlbumIndex === null) return;
+    addFilesToAlbum(activeAlbumIndex, files);
+    albumItemInp.value = "";
+  });
+
+  searchInp?.addEventListener("input", (e) => renderAlbumGrid(e.target.value));
+  searchBtn?.addEventListener("click", () => renderAlbumGrid(searchInp?.value || ""));
 }
 
-function renderMediaGrid() {
+function renderAlbumGrid(filter = "") {
   const grid = document.getElementById("media-gallery-grid");
   if (!grid) return;
-  if (!mediaItems.length) {
-    grid.innerHTML = `<div class="history-item" style="grid-column:1/-1;">No photos or videos in Media Box yet, Boss.</div>`;
-    return;
-  }
+  const q = filter.trim().toLowerCase();
 
-  grid.innerHTML = mediaItems.slice().reverse().map((item, revIdx) => {
-    const seqNum = mediaItems.length - revIdx;
+  const createCardHtml = `
+    <div class="create-new-grid-card" onclick="createNewAlbumPrompt()">
+      <div class="create-plus-sign">+</div>
+      <div class="create-card-label">CREATE NEW<br/>ALBUM</div>
+    </div>
+  `;
+
+  const indexed = mediaItems.map((album, idx) => ({ album, idx }));
+  const filtered = q
+    ? indexed.filter(({ album }) =>
+        ((album.albumName || album.name || "").toLowerCase().includes(q))
+      )
+    : indexed;
+
+  const cardsHtml = filtered.slice().reverse().map(({ album, idx }) => {
+    const title = album.albumName || album.name || `Album ${idx + 1}`;
+    const count = Array.isArray(album.items) ? album.items.length : 0;
+    const firstMedia = Array.isArray(album.items) && album.items.length > 0 ? album.items[0] : null;
     return `
-      <div class="media-thumb-card" onclick="openMediaItemByIndex(${mediaItems.length - 1 - revIdx})">
-        ${item.type === "video"
-          ? `<video src="${item.src}" muted preload="metadata"></video>`
-          : `<img src="${item.src}" alt="File ${seqNum}" />`
+      <div class="library-item-grid-card" onclick="openAlbumDetail(${idx})">
+        <div class="library-card-title">${title}</div>
+        ${firstMedia && firstMedia.type === "image"
+          ? `<img src="${firstMedia.src}" alt="${title}" class="library-card-thumb" />`
+          : `<div class="library-card-snippet">${count} photo(s)/video(s)</div>`
         }
-        <div style="font-family:var(--font-mono);font-size:0.58rem;margin-top:3px;color:#ffffff;">File ${seqNum}</div>
-        <div style="font-family:var(--font-mono);font-size:0.5rem;color:#9bf7ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.name}</div>
+        <div class="library-card-meta">${count} items • ${album.timestamp || ""}</div>
       </div>
     `;
   }).join("");
-}
 
-function openMediaItemByIndex(idx) {
-  const item = mediaItems[idx];
-  if (!item) return;
-  openLightbox(`File ${idx + 1} — ${item.name}`, item.src, item.type);
+  grid.innerHTML = createCardHtml + cardsHtml;
 }
 
 function openLightbox(title, src, type) {
@@ -637,25 +1020,27 @@ function openLightbox(title, src, type) {
 
 function answerFromBox2Media(query) {
   if (!mediaItems.length) {
-    return "Media Box has no files stored yet, Boss.";
+    return "YOUR ALBUM LIBRARY (LIBRARY 2) has no albums stored yet, Boss.";
   }
 
-  const bracketTarget = extractBracketTarget(query).toLowerCase();
+  const mBracket = query.match(/\[([^\]]+)\]/);
+  const bracketTarget = mBracket ? mBracket[1].trim().toLowerCase() : "";
   const lower = query.toLowerCase();
-  const m = (bracketTarget || lower).match(/file\s*(\d+)|media\s*(\d+)/);
 
-  if (m) {
-    const num = parseInt(m[1] || m[2], 10);
-    const item = mediaItems[num - 1];
-    if (!item) return `File ${num} was not found in Media Box, Boss.`;
-    return `<strong>File ${num}:</strong> ${item.type.toUpperCase()} — ${item.name} (Added: ${item.timestamp})`;
-  }
+  const matched = bracketTarget
+    ? mediaItems.filter(a => ((a.albumName || a.name || "").toLowerCase().includes(bracketTarget)))
+    : mediaItems.filter(a => ((a.albumName || a.name || "").toLowerCase().includes(lower)));
 
-  return mediaItems
-    .map((item, i) => `<strong>File ${i + 1}:</strong> ${item.type.toUpperCase()} — ${item.name} (${item.timestamp})`)
+  const listToShow = matched.length ? matched : mediaItems;
+  return listToShow
+    .map((a, i) => {
+      const count = Array.isArray(a.items) ? a.items.length : 0;
+      return `<strong>Album ${i + 1} [${a.albumName || a.name || "Album"}]:</strong> ${count} item(s) (${a.timestamp || ""})`;
+    })
     .join("<br/>");
 }
 
+// ==================== LIBRARY 3 (YOUR PERSONAL LIBRARY + 503020 + 60s LOCKOUT) ====================
 function runSentinelTypewriterAndVoice(linesText, isAlert = true) {
   const boxEl = document.getElementById("sentinelTypewriterText");
   const stageEl = document.getElementById("sentinelOwlStage");
@@ -714,10 +1099,8 @@ function setupPersonalBox3() {
   const displayEl = document.getElementById("keypadDisplay");
   const alertEl = document.getElementById("personal-danger-alert");
   const imgInp = document.getElementById("personal-img-input");
-  const photoBadge = document.getElementById("personalPendingPhotoBadge");
-  const saveBtn = document.getElementById("save-personal-detail");
-  const askAiBtn = document.getElementById("ask-personal-ai-btn");
-  const aiInp = document.getElementById("personal-ai-input");
+  const searchInp = document.getElementById("personal-search-input");
+  const searchBtn = document.getElementById("personal-search-btn");
 
   function syncKeypadDisplay() {
     if (!displayEl) return;
@@ -777,92 +1160,40 @@ function setupPersonalBox3() {
   imgInp?.addEventListener("change", (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!personalUnlocked) {
+      appendMessage("ai", "Library 3 is locked, Boss. Enter code 503020 first.");
+      imgInp.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
-      pendingPersonalPhoto = reader.result;
-      pendingPersonalPhotoName = file.name;
-      if (photoBadge) photoBadge.textContent = `PHOTO: ${file.name}`;
+      openEntryEditor("personal", null, reader.result, file.name);
     };
     reader.readAsDataURL(file);
     imgInp.value = "";
   });
 
-  saveBtn?.addEventListener("click", () => {
-    if (!personalUnlocked) {
-      alert("This is AI locked, Boss. Enter code 503020 first.");
-      return;
-    }
-    const nameInp = document.getElementById("personal-record-name");
-    const inp = document.getElementById("personal-detail-input");
-    const recordName = ((nameInp?.value || "").trim()) || `Vault ${personalDetails.length + 1}`;
-    const txt = (inp?.value || "").trim();
-    if (!txt && !pendingPersonalPhoto) return;
-
-    personalDetails.push({
-      recordName,
-      text: txt,
-      image: pendingPersonalPhoto || "",
-      photoName: pendingPersonalPhotoName || "",
-      timestamp: new Date().toLocaleString()
-    });
-    try {
-      localStorage.setItem(STORAGE_KEYS.PERSONAL, JSON.stringify(personalDetails.slice(-50)));
-    } catch (_) {}
-
-    if (inp) inp.value = "";
-    pendingPersonalPhoto = "";
-    pendingPersonalPhotoName = "";
-    if (photoBadge) photoBadge.textContent = "NO PHOTO";
-    updateTelemetryCounts();
-    renderPersonalEntries();
-    appendMessage("ai", `Personal detail [${recordName}] stored in your dedicated Box 3 AI vault, Boss.`);
-  });
-
-  askAiBtn?.addEventListener("click", () => {
-    const q = (aiInp?.value || "").trim();
-    if (!q) return;
-    if (!personalUnlocked) {
-      const codeAttempt = prompt("This is AI locked. Enter security code, Boss:");
-      if (codeAttempt !== PERSONAL_PASSCODE) {
-        failedAttemptsCount += 1;
-        const quoteIdx = Math.min(failedAttemptsCount - 1, WRONG_PASS_QUOTES.length - 1);
-        appendMessage("ai", WRONG_PASS_QUOTES[quoteIdx]);
-        if (failedAttemptsCount >= 3) {
-          lockoutUntilMs = Date.now() + LOCKOUT_DURATION_SEC * 1000;
-          startLockoutCountdown();
-        }
-        if (aiInp) aiInp.value = "";
-        return;
-      }
-      personalUnlocked = true;
-      failedAttemptsCount = 0;
-      refreshPersonalModalState();
-      updateTelemetryCounts();
-      appendMessage("ai", WELCOME_BOSS_QUOTE);
-    }
-
-    appendMessage("user", `[Box 3 Secure AI] ${q}`);
-    appendMessage("ai", answerFromBox3Personal(q));
-    if (aiInp) aiInp.value = "";
-  });
+  searchInp?.addEventListener("input", (e) => renderPersonalGrid(e.target.value));
+  searchBtn?.addEventListener("click", () => renderPersonalGrid(searchInp?.value || ""));
 }
 
 function answerFromBox3Personal(query) {
   if (!personalDetails.length) {
-    return "Box 3 Secure Vault currently has no personal records stored, Boss.";
+    return "YOUR PERSONAL LIBRARY (LIBRARY 3) currently has no personal records stored, Boss.";
   }
-  const bracketTarget = extractBracketTarget(query).toLowerCase();
+  const mBracket = query.match(/\[([^\]]+)\]/);
+  const bracketTarget = mBracket ? mBracket[1].trim().toLowerCase() : "";
   const matched = bracketTarget
     ? personalDetails.filter(p =>
-        (p.recordName && p.recordName.toLowerCase().includes(bracketTarget)) ||
+        ((p.diaryName || p.recordName || "").toLowerCase().includes(bracketTarget)) ||
         (p.text && p.text.toLowerCase().includes(bracketTarget))
       )
     : personalDetails;
 
   const listToShow = matched.length ? matched : personalDetails;
-  return `<strong>[BOX 3 SECURE AI VAULT — VERIFIED]</strong><br/>` +
+  return `<strong>[LIBRARY 3 PERSONAL VAULT — VERIFIED]</strong><br/>` +
     listToShow
-      .map((p, i) => `File ${i + 1} [${p.recordName || "Record"} • ${p.timestamp}]: ${p.text || (p.image ? `Photo (${p.photoName || "Image"})` : "")}`)
+      .map((p, i) => `File ${i + 1} [${p.diaryName || p.recordName || "Record"} • ${p.timestamp}]: ${(p.text || "").replace(/\n/g, "<br/>") || (p.image ? `Photo (${p.photoName || "Image"})` : "")}`)
       .join("<br/>");
 }
 
@@ -872,8 +1203,8 @@ function refreshPersonalModalState() {
   if (!lockScreen || !unlockedContent) return;
   if (personalUnlocked) {
     lockScreen.style.display = "none";
-    unlockedContent.style.display = "block";
-    renderPersonalEntries();
+    unlockedContent.style.display = "flex";
+    renderPersonalGrid(document.getElementById("personal-search-input")?.value || "");
   } else {
     lockScreen.style.display = "block";
     unlockedContent.style.display = "none";
@@ -886,23 +1217,39 @@ function refreshPersonalModalState() {
   }
 }
 
-function renderPersonalEntries() {
-  const list = document.getElementById("personal-entries-list");
-  if (!list) return;
-  if (!personalDetails.length) {
-    list.innerHTML = `<div class="history-item">No personal details saved yet, Boss.</div>`;
-    return;
-  }
-  list.innerHTML = personalDetails.slice().reverse().map((p, idx) => `
-    <div class="history-item">
-      <strong>File ${personalDetails.length - idx} [${p.recordName || "Record"}]</strong> — <small>${p.timestamp}</small>
-      ${p.text ? `<div style="margin-top:4px;white-space:pre-wrap;">${p.text}</div>` : ""}
-      ${p.image ? `<img src="${p.image}" alt="Personal detail" style="max-width:100%;max-height:130px;border:1px solid #3be8ff;border-radius:3px;margin-top:6px;cursor:pointer;" onclick="openLightbox('Personal Record', '${p.image}', 'image')" />` : ""}
+function renderPersonalGrid(filter = "") {
+  const grid = document.getElementById("personal-entries-list");
+  if (!grid) return;
+  const q = filter.trim().toLowerCase();
+
+  const createCardHtml = `
+    <div class="create-new-grid-card" onclick="openEntryEditor('personal', null)">
+      <div class="create-plus-sign">+</div>
+      <div class="create-card-label">CREATE NEW<br/>PERSONAL DIARY</div>
+    </div>
+  `;
+
+  const indexed = personalDetails.map((p, idx) => ({ p, idx }));
+  const filtered = q
+    ? indexed.filter(({ p }) =>
+        ((p.diaryName || p.recordName || "").toLowerCase().includes(q)) ||
+        (p.text && p.text.toLowerCase().includes(q))
+      )
+    : indexed;
+
+  const cardsHtml = filtered.slice().reverse().map(({ p, idx }) => `
+    <div class="library-item-grid-card" onclick="openEntryEditor('personal', ${idx})">
+      <div class="library-card-title">${p.diaryName || p.recordName || `Personal ${idx + 1}`}</div>
+      ${p.image ? `<img src="${p.image}" alt="Personal detail" class="library-card-thumb" />` : ""}
+      <div class="library-card-snippet">${p.text || (p.image ? `Photo: ${p.photoName || "Image"}` : "Empty entry")}</div>
+      <div class="library-card-meta">${p.timestamp || ""}</div>
     </div>
   `).join("");
+
+  grid.innerHTML = createCardHtml + cardsHtml;
 }
 
-// ==================== 6. 3D WORKPLACE & GAMES MODALS ====================
+// ==================== 8. 3D WORKPLACE & GAMES MODALS ====================
 function open3DWorkplaceModal() {
   const titleEl = document.getElementById("workspaceToolTitle");
   const bodyEl = document.getElementById("workspaceToolBody");
@@ -975,7 +1322,16 @@ function triggerExistBackAction() {
   appendMessage("ai", "Returned to base HUD view and deactivated key, Boss.");
 }
 
-// ==================== 7. MULTI-MODEL GEMINI CHAIN + GOOGLE WEB FALLBACK ====================
+// ==================== 9. MULTI-MODEL GEMINI CHAIN + RETRY + GOOGLE WEB FALLBACK (PROBLEM 1 & 3) ====================
+function getMonetizationPlanResponse() {
+  return (
+    `<strong>[STARK PRO / MONETIZATION ARCHITECTURE — BOSS]</strong><br/>` +
+    `1. <strong>Freemium Core:</strong> Free HUD, Diary Library, Album Library &amp; Local/IndexedDB Vault.<br/>` +
+    `2. <strong>Pro Pass:</strong> Encrypted Cloud Backup, Custom HUD Skins (Mark XLII / Red Pulse / Gold), and One-Click PDF/JSON Export.<br/>` +
+    `3. <strong>Creator &amp; Team Packs:</strong> Ready-made Moot/Law/Study Templates &amp; Shared Vault Spaces.`
+  );
+}
+
 async function fetchGoogleWebFallback(query) {
   if (apiFallbackBadge) apiFallbackBadge.textContent = "GOOGLE-WEB";
   if (engineBadge) engineBadge.textContent = "ENGINE: AUTO-WEB FALLBACK";
@@ -1036,35 +1392,43 @@ function buildContextualSystemInstruction() {
 
 async function tryTextModel(modelName, apiKey, promptText, systemInstruction) {
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6500);
+  const maxAttempts = 2;
 
-  try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemInstruction }] },
-        contents: [{ role: "user", parts: [{ text: promptText }] }]
-      }),
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6500);
 
-    if (!response.ok) {
-      const errText = await response.text().catch(() => "");
-      throw new Error(`${modelName} HTTP ${response.status}: ${errText.slice(0, 120)}`);
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemInstruction }] },
+          contents: [{ role: "user", parts: [{ text: promptText }] }]
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "");
+        if ((response.status === 429 || response.status >= 500) && attempt < maxAttempts) {
+          await new Promise(r => setTimeout(r, 400 * attempt));
+          continue;
+        }
+        throw new Error(`${modelName} HTTP ${response.status}: ${errText.slice(0, 120)}`);
+      }
+
+      const data = await response.json();
+      const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+      if (!reply) {
+        throw new Error(`${modelName} returned empty text`);
+      }
+      return reply;
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (attempt === maxAttempts) throw err;
     }
-
-    const data = await response.json();
-    const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (!reply) {
-      throw new Error(`${modelName} returned empty text`);
-    }
-    return reply;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
   }
 }
 
@@ -1107,22 +1471,28 @@ async function handleUserCommand(rawText) {
 
   const lower = text.toLowerCase();
 
-  // Box 1: YOUR DIARY LIBRARY queries
-  if (lower.includes("your diary library") || lower.includes("box 1") || (lower.includes("diary") && lower.includes("file"))) {
+  // Monetization / Pro roadmap shortcut
+  if (lower.includes("monetization") || lower.includes("pro plan") || lower.includes("income model")) {
+    appendMessage("ai", getMonetizationPlanResponse());
+    return;
+  }
+
+  // Library 1: YOUR DIARY LIBRARY queries
+  if (lower.includes("your diary library") || lower.includes("library 1") || lower.includes("box 1") || (lower.includes("diary") && lower.includes("file"))) {
     appendMessage("ai", answerFromBox1Diary(text));
     return;
   }
 
-  // Box 2: Media Library queries
-  if (lower.includes("box 2") || (lower.includes("media") && lower.includes("file"))) {
+  // Library 2: YOUR ALBUM LIBRARY queries
+  if (lower.includes("your album library") || lower.includes("library 2") || lower.includes("box 2") || lower.includes("album")) {
     appendMessage("ai", answerFromBox2Media(text));
     return;
   }
 
-  // Box 3: Personal Details Secure AI queries (requires 503020 first)
-  if (lower.includes("box 3") || lower.includes("personal detail") || lower.includes("vault")) {
+  // Library 3: YOUR PERSONAL LIBRARY queries (requires 503020 first)
+  if (lower.includes("your personal library") || lower.includes("library 3") || lower.includes("box 3") || lower.includes("personal detail") || lower.includes("vault")) {
     if (!personalUnlocked) {
-      const codeAttempt = prompt("Box 3 is AI locked. Enter security code to access personal details, Boss:");
+      const codeAttempt = prompt("Library 3 is locked. Enter security code to access personal library, Boss:");
       if (codeAttempt !== PERSONAL_PASSCODE) {
         failedAttemptsCount += 1;
         const quoteIdx = Math.min(failedAttemptsCount - 1, WRONG_PASS_QUOTES.length - 1);
@@ -1157,7 +1527,7 @@ function setSystemState(mainStatus, badgeStatus) {
   if (statusBadge) statusBadge.textContent = badgeStatus;
 }
 
-// ==================== 8. VOICE RECOGNITION & SELF-SPEECH LOOP GUARD ====================
+// ==================== 10. VOICE RECOGNITION & SELF-SPEECH LOOP GUARD ====================
 function speakText(text) {
   if (!("speechSynthesis" in window)) return;
   try {
@@ -1220,7 +1590,6 @@ function setupSpeechRecognition() {
   };
 
   recognition.onresult = (event) => {
-    // Ignore microphone input while Jarvis is speaking or within 1.4s cooldown after speech ends
     const speakingNow = isSpeaking || (window.speechSynthesis && window.speechSynthesis.speaking);
     const inCooldown = (Date.now() - lastSpokeEndTime) < 1400;
     if (speakingNow || inCooldown) {
@@ -1284,7 +1653,7 @@ function toggleJarvisMode() {
   speakText(msg);
 }
 
-// ==================== 9. RED SIGNAL WAVE ====================
+// ==================== 11. RED SIGNAL WAVE & KEYFRAME FX DIAL ====================
 let wavePhase = 0;
 function renderVisualizers() {
   wavePhase += 0.085;
@@ -1324,7 +1693,6 @@ function renderVisualizers() {
   requestAnimationFrame(renderVisualizers);
 }
 
-// ==================== 10. KEYFRAME FX DIAL (3 LEFT TURNS + DRAG TO EXPAND + AUTO DEACTIVATE) ====================
 let expandedElement = null;
 let resetRotaryKeyLock = () => {};
 
@@ -1509,8 +1877,8 @@ function setupRotaryKey() {
   });
 }
 
-// ==================== 11. INITIALIZATION ====================
-document.addEventListener("DOMContentLoaded", () => {
+// ==================== 12. INITIALIZATION ====================
+document.addEventListener("DOMContentLoaded", async () => {
   buildTopRuler();
   updateClockAndDate();
   setInterval(updateClockAndDate, 1000);
@@ -1519,7 +1887,10 @@ document.addEventListener("DOMContentLoaded", () => {
   buildSpectrumBars();
   buildArcDock();
   updateTelemetryCounts();
+  await hydrateVaultsFromIndexedDB();
+
   setupModals();
+  setupSharedEntryEditor();
   setupDiaryBox1();
   setupMediaBox2();
   setupPersonalBox3();
