@@ -83,6 +83,24 @@ function stripMarkupForSpeech(rawText) {
   return withoutTags.replace(/\s+/g, " ").trim().slice(0, 420);
 }
 
+function pickBestVoice(langCode = "te-IN") {
+  if (!("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices() || [];
+  if (!voices.length) return null;
+
+  const exactMatch = voices.find((v) =>
+    String(v.lang || "").toLowerCase().startsWith(langCode.toLowerCase())
+  );
+  if (exactMatch) return exactMatch;
+
+  const teluguMatch = voices.find((v) =>
+    String(v.lang || "").toLowerCase().includes("te")
+  );
+  if (teluguMatch) return teluguMatch;
+
+  return voices.find((v) => String(v.lang || "").toLowerCase().includes("en")) || voices[0];
+}
+
 export function speakHudReply(replyText) {
   if (!("speechSynthesis" in window)) return;
   const cleanText = stripMarkupForSpeech(replyText);
@@ -91,7 +109,13 @@ export function speakHudReply(replyText) {
   try {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = "te-IN";
+    const chosenVoice = pickBestVoice("te-IN");
+    if (chosenVoice) {
+      utterance.voice = chosenVoice;
+      utterance.lang = chosenVoice.lang || "te-IN";
+    } else {
+      utterance.lang = "te-IN";
+    }
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
 
@@ -164,8 +188,10 @@ function createRecognition() {
   };
 
   rec.onend = () => {
+    const shouldRestart = !manualStopRequested && Boolean(hudState.isListening);
     updateVoiceUiState(false, hudState.isSpeaking);
-    if (!manualStopRequested && hudState.isListening) {
+
+    if (shouldRestart) {
       clearRestartTimer();
       restartTimerId = setTimeout(() => {
         if (!manualStopRequested && recognitionInstance) {
@@ -186,7 +212,7 @@ export function toggleVoiceRecognition() {
   if (!SpeechRecognitionCtor) {
     appendChatBubble(
       "ai",
-      "ఈ బ్రౌజర్‌లో SpeechRecognition అందుబాటులో లేదు. కమాండ్ బాక్స్‌లో టైప్ చేసి వాడండి.",
+      "ఈ బ్రౌజర్ లేదా WebView లో SpeechRecognition అందుబాటులో లేదు. కమాండ్ బాక్స్‌లో టైప్ చేసి వాడండి.",
       false
     );
     return;
@@ -219,5 +245,15 @@ export function toggleVoiceRecognition() {
 }
 
 export function initVoiceSystem() {
+  if ("speechSynthesis" in window && typeof window.speechSynthesis.getVoices === "function") {
+    try {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    } catch {
+      // ignore voice load error
+    }
+  }
   updateVoiceUiState(false, false);
 }
