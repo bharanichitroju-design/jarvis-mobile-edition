@@ -17,20 +17,26 @@
   <div class="wall-scan-overlay" aria-hidden="true"></div>
 
   <!-- TOP NUMBERED TIMELINE RULER (01 - 30) -->
-  <header class="top-ruler" id="topRuler"></header>
+  <header class="top-ruler" id="topRuler" role="navigation" aria-label="Timeline Ruler"></header>
 
   <!-- TOP COMMAND & NAVIGATION STRIP -->
-  <nav class="navbar" data-expandable="true" data-box-id="navbar">
+  <nav class="navbar" data-expandable="true" data-box-id="navbar" aria-label="Primary Command Bar">
     <div class="brand">
-      <span class="brand-icon">◈</span>
+      <span class="brand-icon" aria-hidden="true">◈</span>
       <span>J.A.R.V.I.S // MARK VII</span>
     </div>
     <div class="nav-breadcrumb">
       <span>HACK_WALL</span> &gt; <span>NEURAL_CORE</span> &gt; <span class="active" id="status-text">SYSTEM ONLINE</span>
     </div>
     <div class="input-inline">
-      <input id="msg" type="text" placeholder="Command or speak, Boss... (e.g. YOUR DIARY LIBRARY [Diary 1])" autocomplete="off" />
-      <button id="execute-btn" class="exec-btn">SCAN</button>
+      <input
+        id="msg"
+        type="text"
+        placeholder="Command or speak, Boss... (e.g. YOUR DIARY LIBRARY [Diary 1])"
+        autocomplete="off"
+        aria-label="Command input"
+      />
+      <button id="execute-btn" type="button" class="exec-btn">SCAN</button>
     </div>
   </nav>
 
@@ -38,15 +44,15 @@
   <main class="hud-workspace" id="mainGrid">
 
     <!-- LEFT COLUMN: CLOCK, AI VAULT BOXES (1, 2, 3), COUNTERS, SPECTRUM IDLE & RED GRAPH -->
-    <aside class="col-left">
-      <div class="left-sidebar-strip">
-        <div class="strip-icon" title="System">◈</div>
-        <div class="strip-icon" title="Target">⌖</div>
-        <div class="strip-dots">
+    <aside class="col-left" aria-label="System Telemetry and Vaults">
+      <div class="left-sidebar-strip" aria-label="Quick System Actions">
+        <div class="strip-icon" title="System Status" role="button" tabindex="0">◈</div>
+        <div class="strip-icon" title="Target Scan" role="button" tabindex="0">⌖</div>
+        <div class="strip-dots" aria-hidden="true">
           <i></i><i></i><i></i><i></i><i></i>
         </div>
-        <div class="strip-icon" title="Audio">♪</div>
-        <div class="strip-icon" title="Reload" onclick="location.reload()">⏻</div>
+        <div class="strip-icon" title="Audio Telemetry" role="button" tabindex="0">♪</div>
+        <div class="strip-icon" title="Reload HUD" role="button" tabindex="0" onclick="location.reload()">⏻</div>
       </div>
 
       <!-- TOP-LEFT: INDICATOR POINTS & LIVE CLOCK -->
@@ -62,20 +68,20 @@
 
         <div class="date-clock-row">
           <div class="date-ring-widget">
-            <svg viewBox="0 0 100 100">
+            <svg viewBox="0 0 100 100" aria-hidden="true">
               <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(59,232,255,0.45)" stroke-width="2" />
               <circle cx="50" cy="50" r="40" fill="none" stroke="#3be8ff" stroke-width="3" stroke-dasharray="180 75" />
               <circle cx="50" cy="50" r="33" fill="rgba(4,24,44,0.75)" stroke="#8cf3ff" stroke-width="1.4" />
             </svg>
             <div class="date-ring-inner">
               <div class="month" id="hudMonth">NOV</div>
-              <div class="day-num" id="hudDayNum">27</div>
+              <div class="day-num" id="hudDayNum">28</div>
             </div>
           </div>
 
           <div class="weekday-box">
-            <div class="day-name" id="hudWeekday">FRIDAY</div>
-            <div class="mini-time" id="hudMiniClock">05:23<small>:00</small></div>
+            <div class="day-name" id="hudWeekday">SATURDAY</div>
+            <div class="mini-time" id="hudMiniClock">11:33<small>:00</small></div>
           </div>
         </div>
       </div>
@@ -83,31 +89,55 @@
       <!-- FULL-HEIGHT STACK FOR AI-CONNECTED BOXES 1, 2 & 3 -->
       <div class="left-vault-stack">
 
-        <!-- BOX 1: YOUR DIARY LIBRARY (AI CONNECTED) -->
-        <div class="diary-glow-box vault-fill-slot" id="diaryBox" data-expandable="true" data-box-id="diary-panel" data-modal-target="diary-modal">
+        <!-- BOX 1: YOUR DIARY LIBRARY (LIBRARY 1) -->
+        <div
+          class="diary-glow-box vault-fill-slot"
+          id="diaryBox"
+          role="button"
+          tabindex="0"
+          data-expandable="true"
+          data-box-id="diary-panel"
+          data-modal-target="diary-modal"
+        >
           <div class="vault-box-header">
             <span class="diary-glow-title">✦ YOUR DIARY LIBRARY</span>
-            <span class="ai-link-chip">◈ AI LINKED</span>
+            <span class="ai-link-chip">LIBRARY 1</span>
           </div>
-          <div class="diary-meta-sub" id="diaryLatestMeta">BOX 1 // DIARIES &amp; FILES • AI CONNECTED</div>
+          <div class="diary-meta-sub" id="diaryLatestMeta">LIBRARY 1 // DIARIES &amp; FILES • AI CONNECTED</div>
         </div>
 
-        <!-- BOX 2: MEDIA VAULT LIBRARY (AI CONNECTED) -->
-        <div class="media-vault-box vault-fill-slot" id="mediaBox" data-expandable="true" data-box-id="media-panel" data-modal-target="media-modal">
+        <!-- BOX 2: YOUR ALBUM LIBRARY (LIBRARY 2) -->
+        <div
+          class="media-vault-box vault-fill-slot"
+          id="mediaBox"
+          role="button"
+          tabindex="0"
+          data-expandable="true"
+          data-box-id="media-panel"
+          data-modal-target="media-modal"
+        >
           <div class="vault-box-header">
-            <span>MEDIA // BOX 2</span>
-            <span class="ai-link-chip">◈ AI LINKED</span>
+            <span>YOUR ALBUM LIBRARY</span>
+            <span class="ai-link-chip">LIBRARY 2</span>
           </div>
-          <div class="vault-mini-preview" id="mediaMiniStrip">PHOTOS &amp; VIDEOS • AI CONNECTED</div>
+          <div class="vault-mini-preview" id="mediaMiniStrip">LIBRARY 2 // ALBUMS, PHOTOS &amp; VIDEOS</div>
         </div>
 
-        <!-- BOX 3: YOUR PERSONAL DETAILS LIBRARY (DEDICATED SECURE AI + CODE 503020) -->
-        <div class="personal-vault-box vault-fill-slot" id="personalBox" data-expandable="true" data-box-id="personal-panel" data-modal-target="personal-modal">
+        <!-- BOX 3: YOUR PERSONAL LIBRARY (LIBRARY 3 + CODE 503020) -->
+        <div
+          class="personal-vault-box vault-fill-slot"
+          id="personalBox"
+          role="button"
+          tabindex="0"
+          data-expandable="true"
+          data-box-id="personal-panel"
+          data-modal-target="personal-modal"
+        >
           <div class="vault-box-header">
-            <span>YOUR PERSONAL DETAILS</span>
-            <span id="personalLockBadge" class="ai-link-chip">AI LOCKED</span>
+            <span>YOUR PERSONAL LIBRARY</span>
+            <span id="personalLockBadge" class="ai-link-chip">LIBRARY 3 • LOCKED</span>
           </div>
-          <div class="vault-mini-preview" id="personalMiniPreview">SECURE AI VAULT • CODE PROTECTED</div>
+          <div class="vault-mini-preview" id="personalMiniPreview">LIBRARY 3 // SECURE VAULT • CODE PROTECTED</div>
         </div>
 
       </div>
@@ -119,7 +149,7 @@
           <span class="metric-value" id="memCount">0</span>
         </div>
         <div class="metric-chip">
-          <span class="metric-label">MEDIA</span>
+          <span class="metric-label">ALBUM</span>
           <span class="metric-value" id="file3dCount">0</span>
         </div>
         <div class="metric-chip">
@@ -131,25 +161,25 @@
       <!-- SPECTRUM IDLE BLUE BAR GRAPH -->
       <div class="spectrum-idle-zone" data-expandable="true" data-box-id="spectrum-panel">
         <div class="spectrum-idle-title">SPECTRUM IDLE</div>
-        <div class="spectrum-bars-frame" id="spectrumBarsFrame"></div>
+        <div class="spectrum-bars-frame" id="spectrumBarsFrame" aria-hidden="true"></div>
       </div>
 
-      <!-- DOWN-LEFT: PRESERVED RED WAVE SIGNAL GRAPH -->
+      <!-- DOWN-LEFT: RED WAVE SIGNAL GRAPH -->
       <div class="red-wave-zone" data-expandable="true" data-box-id="net-panel">
         <div class="strip-subline red-tag">
           <span>RED_PULSE_WAVE</span>
           <span id="status-badge">[ONLINE]</span>
         </div>
-        <canvas id="redWaveCanvas" width="260" height="44"></canvas>
+        <canvas id="redWaveCanvas" width="260" height="44" aria-label="Red Pulse Wave Visualizer"></canvas>
       </div>
     </aside>
 
     <!-- CENTER & RIGHT TACTICAL STAGE -->
-    <section class="col-stage">
+    <section class="col-stage" aria-label="Tactical Stage">
 
       <!-- TOP BANNER -->
       <div class="stage-top-strip">
-        <div class="live-tag"><span class="dot-live"></span> BOSS BHARANI</div>
+        <div class="live-tag"><span class="dot-live" aria-hidden="true"></span> BOSS BHARANI</div>
         <div class="ironman-logo-wrap">
           <h1 class="ironman-title">J.A.R.V.I.S.</h1>
           <div class="ironman-subbar"></div>
@@ -160,14 +190,14 @@
       <!-- CORE MATRIX: MARK VII (CENTER) + SKULL (TOP-RIGHT) + KEY (DOWN-RIGHT) -->
       <div class="core-matrix-area">
 
-        <!-- MARK VII CENTRAL HIGHLIGHT (ARC REACTOR + LEFT IRON MAN + RIGHT TELEMETRY) -->
+        <!-- MARK VII CENTRAL HIGHLIGHT -->
         <div class="mark-vii-spotlight" id="markViiSpotlight" data-expandable="true" data-box-id="ironman-hud-panel">
           <div class="spotlight-meta">
             <span>MARK VII // CORE</span>
-            <span id="coreArcTime">05:23</span>
+            <span id="coreArcTime">11:33</span>
           </div>
           <div class="ironman-hud-viewport">
-            <svg class="jarvis-svg-hud enlarged-figure" viewBox="0 0 720 460">
+            <svg class="jarvis-svg-hud enlarged-figure" viewBox="0 0 720 460" aria-label="Mark VII Arc Reactor and Suit HUD">
               <defs>
                 <radialGradient id="coreGlow" cx="50%" cy="50%" r="50%">
                   <stop offset="0%" stop-color="#e0f7ff" stop-opacity="0.98" />
@@ -232,7 +262,7 @@
               <circle cx="360" cy="230" r="95" fill="rgba(4, 24, 46, 0.92)" stroke="#8cf3ff" stroke-width="3.2" />
               <circle cx="360" cy="230" r="85" fill="none" stroke="#3be8ff" stroke-width="2" />
 
-              <!-- ROTATING INNER ARC REACTOR CORE / HEART DESIGN -->
+              <!-- ROTATING INNER ARC REACTOR CORE -->
               <g class="heart-inner-spin" style="transform-origin: 360px 230px;">
                 <circle cx="360" cy="230" r="72" fill="none" stroke="#3be8ff" stroke-width="7" stroke-dasharray="18 10" />
                 <circle cx="360" cy="230" r="52" fill="none" stroke="#bae6fd" stroke-width="2.4" stroke-dasharray="12 6" />
@@ -246,11 +276,11 @@
         </div>
 
         <!-- TOP-RIGHT OF MARK VII: HACKING SKULL -->
-        <div class="skull-top-right" id="skullContainer" data-expandable="true" data-box-id="skull-stage">
+        <div class="skull-top-right" id="skullContainer" data-expandable="true" data-box-id="skull-stage" title="Neural Scanner">
           <div class="skull-mini-assembly">
             <div class="skull-ring ring-a"></div>
             <div class="skull-ring ring-b"></div>
-            <svg class="skull-svg" id="jarvisSkull" viewBox="0 0 220 240" xmlns="http://www.w3.org/2000/svg">
+            <svg class="skull-svg" id="jarvisSkull" viewBox="0 0 220 240" xmlns="http://www.w3.org/2000/svg" aria-label="Hacking Skull Telemetry">
               <defs>
                 <filter id="skullNeonFilter" x="-30%" y="-30%" width="160%" height="160%">
                   <feGaussianBlur stdDeviation="3.2" result="blur" />
@@ -298,10 +328,10 @@
           </div>
         </div>
 
-        <!-- DOWN-RIGHT OF MARK VII: ENLARGED KEY FRAME + GALLERY & JARVIS MODE CONTROLS -->
+        <!-- DOWN-RIGHT OF MARK VII: ENLARGED KEY FRAME + ALBUM & JARVIS MODE CONTROLS -->
         <div class="key-down-right">
-          <div class="key-ring-stage" id="keyRingStage" data-expandable="true" data-box-id="fx-panel" title="Turn left 3 times to unlock, then drag onto any frame">
-            <div class="key-dial-puck enlarged-key" id="keyDialPuck">
+          <div class="key-ring-stage" id="keyRingStage" data-expandable="true" data-box-id="fx-panel" title="Turn left 3 times to unlock, then drag onto any frame to expand">
+            <div class="key-dial-puck enlarged-key" id="keyDialPuck" role="button" tabindex="0" aria-label="Rotary Keyframe Dial">
               <svg class="key-dial-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" stroke-width="2.6" stroke-dasharray="18 7 4 7" />
                 <circle cx="60" cy="60" r="39" fill="rgba(4, 20, 38, 0.9)" stroke="currentColor" stroke-width="1.6" stroke-dasharray="6 4" />
@@ -319,29 +349,30 @@
           </div>
 
           <div class="voice-controls-row">
-            <div class="voice-orb" id="mic-btn" onclick="openModal('media-modal')" title="Open Gallery Vault">
-              GALLERY<br>VAULT
-            </div>
-            <div class="voice-orb" id="rightOrb" onclick="if(typeof toggleJarvisMode==='function') toggleJarvisMode();" title="Toggle Strict Jarvis Mode">
-              JARVIS<br>MODE
-            </div>
-            <div class="voice-mini-readout">
+            <button type="button" class="voice-orb" id="mic-btn" onclick="openModal('media-modal')" title="Open Album Library">
+              ALBUM<br />VAULT
+            </button>
+            <button type="button" class="voice-orb" id="rightOrb" onclick="if(typeof toggleJarvisMode==='function') toggleJarvisMode();" title="Toggle Strict Jarvis Mode">
+              JARVIS<br />MODE
+            </button>
+            <div class="voice-mini-readout" aria-hidden="true">
               <div><span id="voiceStatus">STANDBY</span></div>
               <div>MODE: <span id="modeIndicator" class="highlight">STD</span></div>
               <div>API: <span id="apiFallbackBadge" class="highlight">HYBRID</span></div>
+              <div>VOICE: <span id="speechIndicator">IDLE</span></div>
             </div>
           </div>
         </div>
 
       </div>
 
-      <!-- KEPT BOXED: NEURAL CHAT / ANSWER OUTPUT BOX -->
-      <section class="answer-box-panel" data-expandable="true" data-box-id="chat-panel">
+      <!-- NEURAL CHAT / ANSWER OUTPUT BOX -->
+      <section class="answer-box-panel" data-expandable="true" data-box-id="chat-panel" aria-label="Neural Answer Stream">
         <div class="answer-box-header">
           <span>◈ NEURAL_ANSWER_STREAM</span>
           <span id="engineBadge">ENGINE: GEMINI + AUTO-WEB</span>
         </div>
-        <div class="chat" id="chat"></div>
+        <div class="chat" id="chat" role="log" aria-live="polite"></div>
       </section>
 
     </section>
@@ -349,83 +380,85 @@
   </main>
 
   <!-- BOTTOM ARC REACTOR LAUNCHER DOCK (6 LABELED SPINNING-FRAME BUTTONS) -->
-  <footer class="bottom-dock-bar" id="arcDock"></footer>
+  <footer class="bottom-dock-bar" id="arcDock" aria-label="Quick Launcher Dock"></footer>
 
   <div class="os-task-strip">
     <span>STARK OS v4.2 // MARK VII HACKING HUD</span>
-    <span id="bottomClock">05:23:00</span>
+    <span id="bottomClock">11:33:00</span>
   </div>
 
   <!-- MODAL 1: HISTORY LOG POPUP -->
-  <div id="history-modal" class="modal">
+  <div id="history-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="historyModalTitle">
     <div class="modal-content fullscreen-module-card">
       <div class="modal-header">
-        <h2>HISTORY LOG</h2>
-        <span id="close-history" class="close-btn">&times;</span>
+        <h2 id="historyModalTitle">HISTORY LOG</h2>
+        <button type="button" id="close-history" class="close-btn" aria-label="Close History Modal">&times;</button>
       </div>
       <div id="history-list" class="history-container scrollable-module-body"></div>
-      <button id="clear-all-history" class="btn btn-danger" style="width: 100%; margin-top: 10px;">CLEAR ALL HISTORY</button>
+      <button id="clear-all-history" type="button" class="btn btn-danger" style="width: 100%; margin-top: 10px;">CLEAR ALL HISTORY</button>
     </div>
   </div>
 
-  <!-- MODAL 2: YOUR DIARY LIBRARY (BOX 1 — DIARY NAME + FILES + SEARCH + AI) -->
-  <div id="diary-modal" class="modal">
-    <div class="modal-content neon-flame-box fullscreen-module-card">
-      <div class="modal-header">
-        <h2>YOUR DIARY LIBRARY // BOX 1 (AI CONNECTED)</h2>
-        <span id="close-diary-modal" class="close-btn">&times;</span>
-      </div>
-      <div class="memory-body scrollable-module-body">
-        <input type="text" id="diary-name-input" placeholder="Diary Name (e.g. Diary 1, Secret Diary)..." />
-        <input type="text" id="diary-search-input" placeholder="Search diary or ask Box 1 AI (e.g. YOUR DIARY LIBRARY [Diary 1])..." />
-        <textarea id="diary-text-input" class="large-scroll-textarea" placeholder="Write your full diary entry here, Boss (scrollable when long, date & time logged automatically)..."></textarea>
-        <div class="modal-action-row">
-          <button type="button" class="btn" onclick="document.getElementById('diary-img-input').click()">+ UPLOAD PHOTO</button>
-          <span id="diaryPendingPhotoBadge" class="upload-status-chip">NO PHOTO</span>
-          <button type="button" id="save-diary-entry" class="neon-btn">SAVE DIARY LOG</button>
+  <!-- MODAL 2: BOX 1 — YOUR DIARY LIBRARY // LIBRARY 1 -->
+  <div id="diary-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="diaryModalTitle">
+    <div class="modal-content neon-flame-box fullscreen-module-card library-grid-card">
+      <div class="library-top-header">
+        <div class="library-title-stack">
+          <h2 id="diaryModalTitle">YOUR DIARY LIBRARY //</h2>
+          <div class="library-sub-code">LIBRARY 1</div>
         </div>
-        <div class="ai-sub-assist">
-          <input type="text" id="diary-ai-input" placeholder="Ask Diary AI (e.g. YOUR DIARY LIBRARY [Diary 1])..." />
-          <button type="button" id="ask-diary-ai-btn" class="btn">ASK AI</button>
+        <div class="library-top-actions">
+          <button type="button" class="btn library-upload-btn" onclick="document.getElementById('diary-img-input').click()">UPLOAD PHOTO</button>
+          <button type="button" id="close-diary-modal" class="close-btn" aria-label="Close Diary Library">&times;</button>
         </div>
-        <div id="diary-entries-list" class="history-container scrollable-module-body" style="margin-top: 10px;"></div>
       </div>
-    </div>
-  </div>
 
-  <!-- MODAL 3: MEDIA VAULT (BOX 2 — FULLSCREEN PHOTO & VIDEO UPLOAD + SEARCH + AI) -->
-  <div id="media-modal" class="modal">
-    <div class="modal-content neon-flame-box fullscreen-module-card">
-      <div class="modal-header">
-        <h2>MEDIA VAULT // BOX 2 (AI CONNECTED)</h2>
-        <span id="close-media-modal" class="close-btn">&times;</span>
-      </div>
-      <div class="memory-body scrollable-module-body">
-        <div class="modal-action-row">
-          <button type="button" class="neon-btn" onclick="document.getElementById('media-files-input').click()">+ UPLOAD PHOTOS / VIDEOS</button>
-        </div>
-        <div class="ai-sub-assist">
-          <input type="text" id="media-ai-input" placeholder="Ask Media AI (e.g. YOUR DIARY LIBRARY [Media 1] or Box 2 File 1)..." />
-          <button type="button" id="ask-media-ai-btn" class="btn">ASK AI</button>
-        </div>
-        <div id="media-gallery-grid" class="media-grid-list"></div>
+      <div id="diary-entries-list" class="library-card-grid scrollable-module-body"></div>
+
+      <div class="library-bottom-search">
+        <input type="text" id="diary-search-input" placeholder="Search diary name..." aria-label="Search diary name" />
+        <button type="button" id="diary-search-btn" class="btn library-search-btn">SEARCH</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL 4: YOUR PERSONAL DETAILS (BOX 3 — HACKING THEME + ANIMATED OWL + 503020 + 60s LOCKOUT + SECURE AI) -->
-  <div id="personal-modal" class="modal">
+  <!-- MODAL 3: BOX 2 — YOUR ALBUM LIBRARY // LIBRARY 2 -->
+  <div id="media-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="mediaModalTitle">
+    <div class="modal-content neon-flame-box fullscreen-module-card library-grid-card">
+      <div class="library-top-header">
+        <div class="library-title-stack">
+          <h2 id="mediaModalTitle">YOUR ALBUM LIBRARY //</h2>
+          <div class="library-sub-code">LIBRARY 2</div>
+        </div>
+        <div class="library-top-actions">
+          <button type="button" class="btn library-upload-btn" onclick="document.getElementById('media-files-input').click()">UPLOAD PHOTO</button>
+          <button type="button" id="close-media-modal" class="close-btn" aria-label="Close Album Library">&times;</button>
+        </div>
+      </div>
+
+      <div id="media-gallery-grid" class="library-card-grid scrollable-module-body"></div>
+
+      <div class="library-bottom-search">
+        <input type="text" id="album-search-input" placeholder="Search album name..." aria-label="Search album name" />
+        <button type="button" id="album-search-btn" class="btn library-search-btn">SEARCH</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: BOX 3 — YOUR PERSONAL LIBRARY // LIBRARY 3 -->
+  <div id="personal-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="personalModalTitle">
     <div class="modal-content neon-flame-box fullscreen-module-card">
       <div class="modal-header">
-        <h2>YOUR PERSONAL DETAILS // BOX 3 SECURE AI VAULT</h2>
-        <span id="close-personal-modal" class="close-btn">&times;</span>
+        <h2 id="personalModalTitle">YOUR PERSONAL LIBRARY // LIBRARY 3</h2>
+        <button type="button" id="close-personal-modal" class="close-btn" aria-label="Close Personal Library">&times;</button>
       </div>
+
       <div id="personal-lock-screen" class="keypad-lock-panel">
         <div class="keypad-banner">HACKING SECURITY GATEWAY — ANIMATED SENTINEL &amp; CODE REQUIRED</div>
 
         <!-- ANIMATED SENTINEL OWL + LIVE SPEECH/TYPEWRITER READOUT -->
         <div class="sentinel-owl-stage" id="sentinelOwlStage">
-          <svg class="sentinel-owl-svg" id="sentinelOwlSvg" viewBox="0 0 180 140" xmlns="http://www.w3.org/2000/svg">
+          <svg class="sentinel-owl-svg" id="sentinelOwlSvg" viewBox="0 0 180 140" xmlns="http://www.w3.org/2000/svg" aria-label="Sentinel Security Owl">
             <circle cx="90" cy="72" r="54" fill="rgba(14,165,233,0.14)" stroke="#3be8ff" stroke-width="1.5" stroke-dasharray="6 4" />
             <g class="owl-body-group" id="owlBodyGroup">
               <ellipse cx="90" cy="84" rx="34" ry="38" fill="rgba(4,26,52,0.92)" stroke="#8cf3ff" stroke-width="2.2" />
@@ -446,7 +479,7 @@
           </div>
         </div>
 
-        <div class="keypad-display" id="keypadDisplay">• • • • • •</div>
+        <div class="keypad-display" id="keypadDisplay" aria-live="polite">• • • • • •</div>
         <div class="flame-keypad-grid" id="flameKeypadGrid">
           <button type="button" class="flame-key-btn" data-digit="1">1</button>
           <button type="button" class="flame-key-btn" data-digit="2">2</button>
@@ -461,32 +494,95 @@
           <button type="button" class="flame-key-btn" data-digit="0">0</button>
           <button type="button" class="flame-key-btn" id="keypadEnterBtn">OK</button>
         </div>
-        <div id="personal-danger-alert" class="danger-alert-text"></div>
+        <div id="personal-danger-alert" class="danger-alert-text" role="alert"></div>
       </div>
 
-      <div id="personal-unlocked-content" class="scrollable-module-body" style="display:none;">
-        <input type="text" id="personal-record-name" placeholder="Personal Diary / Record Name (e.g. Vault 1)..." />
-        <textarea id="personal-detail-input" class="large-scroll-textarea" placeholder="Store personal details, text, or notes, Boss..."></textarea>
-        <div class="modal-action-row">
-          <button type="button" class="btn" onclick="document.getElementById('personal-img-input').click()">+ UPLOAD PHOTO</button>
-          <span id="personalPendingPhotoBadge" class="upload-status-chip">NO PHOTO</span>
-          <button type="button" id="save-personal-detail" class="neon-btn">SAVE PERSONAL DETAIL</button>
+      <div id="personal-unlocked-content" class="library-grid-card" style="display:none;flex:1;min-height:0;">
+        <div class="library-top-header">
+          <div class="library-title-stack">
+            <h2>YOUR PERSONAL LIBRARY //</h2>
+            <div class="library-sub-code">LIBRARY 3</div>
+          </div>
+          <div class="library-top-actions">
+            <button type="button" class="btn library-upload-btn" onclick="document.getElementById('personal-img-input').click()">UPLOAD PHOTO</button>
+          </div>
         </div>
-        <div class="ai-sub-assist">
-          <input type="text" id="personal-ai-input" placeholder="Ask Dedicated Box 3 Secure AI (e.g. YOUR DIARY LIBRARY [Vault 1])..." />
-          <button type="button" id="ask-personal-ai-btn" class="btn">ASK SECURE AI</button>
+
+        <div id="personal-entries-list" class="library-card-grid scrollable-module-body"></div>
+
+        <div class="library-bottom-search">
+          <input type="text" id="personal-search-input" placeholder="Search personal diary name..." aria-label="Search personal diary name" />
+          <button type="button" id="personal-search-btn" class="btn library-search-btn">SEARCH</button>
         </div>
-        <div id="personal-entries-list" class="history-container scrollable-module-body" style="margin-top: 10px;"></div>
       </div>
     </div>
   </div>
 
+  <!-- MODAL 7: SHARED EDITOR FOR BOX 1 & BOX 3 -->
+  <div id="entry-editor-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="editor-diary-name-input">
+    <div class="modal-content neon-flame-box fullscreen-module-card entry-editor-card">
+      <div class="editor-top-bar">
+        <div class="editor-name-bracket-wrap">
+          <span class="editor-bracket-lbl">DIARY NAME [</span>
+          <input type="text" id="editor-diary-name-input" class="editor-inline-name-input" placeholder="Type diary name here..." autocomplete="off" />
+          <span class="editor-bracket-lbl">]</span>
+        </div>
+        <div class="editor-top-right-actions">
+          <button type="button" id="editor-save-btn" class="neon-btn editor-save-btn">SAVE</button>
+          <button type="button" id="close-entry-editor" class="close-btn" aria-label="Close Entry Editor">&times;</button>
+        </div>
+      </div>
+
+      <div class="editor-body-scroll scrollable-module-body">
+        <div class="editor-numbered-canvas">
+          <textarea
+            id="editor-numbered-textarea"
+            class="editor-main-textarea"
+            placeholder="Write your diary here, Boss... Press Enter for a new paragraph."
+            spellcheck="true"
+            aria-label="Diary content"
+          ></textarea>
+        </div>
+
+        <!-- INLINE PHOTO PREVIEW BOX DIRECTLY BELOW TEXT -->
+        <div id="editor-photo-preview-box" class="editor-inline-photo-box" style="display:none;">
+          <div class="editor-photo-box-header">
+            <span id="editor-photo-box-label">ATTACHED PHOTO</span>
+            <button type="button" id="editor-remove-photo-btn" class="editor-remove-photo-btn" title="Remove attached photo">&times;</button>
+          </div>
+          <img id="editor-photo-preview-img" src="" alt="Attached Diary Photo" class="editor-photo-preview-img" />
+          <div class="editor-photo-tap-hint">Tap photo for fullscreen view</div>
+        </div>
+      </div>
+
+      <div class="editor-bottom-bar">
+        <button type="button" id="editor-write-full-btn" class="btn editor-bottom-btn">WRITE YOUR FULL DIARY</button>
+        <button type="button" id="editor-select-btn" class="btn editor-bottom-btn">SELECT</button>
+        <button type="button" id="editor-upload-photo-btn" class="neon-btn editor-bottom-btn">UPLOAD PHOTO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 8: ALBUM DETAIL / VIEWER (BOX 2) -->
+  <div id="album-detail-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="albumDetailTitle">
+    <div class="modal-content neon-flame-box fullscreen-module-card">
+      <div class="modal-header">
+        <h2 id="albumDetailTitle">ALBUM VIEWER</h2>
+        <button type="button" id="close-album-detail" class="close-btn" aria-label="Close Album Viewer">&times;</button>
+      </div>
+      <div class="modal-action-row">
+        <button type="button" id="album-add-media-btn" class="neon-btn">+ UPLOAD PHOTOS / VIDEOS</button>
+      </div>
+      <div id="album-detail-grid" class="library-card-grid scrollable-module-body"></div>
+    </div>
+  </div>
+
   <!-- MODAL 5: CLEAR CHAT CHOICE (HISTORY vs MEMORY) -->
-  <div id="clear-choice-modal" class="modal">
+  <div id="clear-choice-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="clearChoiceTitle">
     <div class="modal-content neon-flame-box">
       <div class="modal-header">
-        <h2>SAVE CLEARED CHAT WHERE?</h2>
-        <span id="close-clear-choice" class="close-btn">&times;</span>
+        <h2 id="clearChoiceTitle">SAVE CLEARED CHAT WHERE?</h2>
+        <button type="button" id="close-clear-choice" class="close-btn" aria-label="Close Clear Choice Modal">&times;</button>
       </div>
       <p style="font-size:0.8rem;margin-bottom:10px;color:#d8f8ff;">
         Choose where to save this chat before clearing, Boss:
@@ -499,22 +595,22 @@
   </div>
 
   <!-- MODAL 6: 3D WORKPLACE & GAMES VIEWER -->
-  <div id="workspace-tool-modal" class="modal">
+  <div id="workspace-tool-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="workspaceToolTitle">
     <div class="modal-content neon-flame-box" style="max-width:560px;">
       <div class="modal-header">
         <h2 id="workspaceToolTitle">3D WORKPLACE</h2>
-        <span id="close-workspace-tool" class="close-btn">&times;</span>
+        <button type="button" id="close-workspace-tool" class="close-btn" aria-label="Close Workspace Modal">&times;</button>
       </div>
       <div id="workspaceToolBody"></div>
     </div>
   </div>
 
   <!-- FULLSCREEN MEDIA LIGHTBOX -->
-  <div id="media-lightbox-modal" class="modal" onclick="closeModal('media-lightbox-modal')">
+  <div id="media-lightbox-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="lightboxTitle" onclick="closeModal('media-lightbox-modal')">
     <div class="modal-content neon-flame-box" style="max-width:680px;text-align:center;" onclick="event.stopPropagation()">
       <div class="modal-header">
         <h2 id="lightboxTitle">MEDIA PREVIEW</h2>
-        <span id="close-lightbox" class="close-btn" onclick="closeModal('media-lightbox-modal')">&times;</span>
+        <button type="button" id="close-lightbox" class="close-btn" aria-label="Close Lightbox" onclick="closeModal('media-lightbox-modal')">&times;</button>
       </div>
       <div id="lightboxContent" style="max-height:70vh;overflow:auto;"></div>
     </div>
@@ -523,6 +619,8 @@
   <input id="diary-img-input" type="file" accept="image/*" style="display:none" />
   <input id="media-files-input" type="file" accept="image/*,video/*" multiple style="display:none" />
   <input id="personal-img-input" type="file" accept="image/*" style="display:none" />
+  <input id="editor-img-input" type="file" accept="image/*" style="display:none" />
+  <input id="album-item-files-input" type="file" accept="image/*,video/*" multiple style="display:none" />
 
   <script src="script.js"></script>
 </body>
