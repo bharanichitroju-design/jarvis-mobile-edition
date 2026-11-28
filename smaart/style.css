@@ -1,4 +1,4 @@
-/* షార్క్ 4.1, 4.2, 4.3, 4.4, 4.5 & 9.1–9.5 పరిష్కారాలతో కూడిన హెచ్‌యూడీ స్టైల్‌షీట్ */
+/* HUD stylesheet with Shark 4.1, 4.2, 4.3, 4.4, 4.5 & 9.1–9.5 fixes (Single-frame fixed view) */
 :root {
   --bg-deep: #030912;
   --bg-panel: rgba(6, 18, 34, 0.86);
@@ -36,12 +36,15 @@
 
 html,
 body {
-  height: 100dvh;
   width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   background: radial-gradient(circle at 50% 25%, #091e3a 0%, var(--bg-deep) 75%);
   color: var(--text-main);
   font-family: var(--font-ui);
   overflow: hidden;
+  overscroll-behavior: none;
   user-select: none;
 }
 
@@ -54,7 +57,7 @@ body {
   user-select: text;
 }
 
-/* కీబోర్డ్ ఫోకస్ యాక్సెసిబిలిటీ (షార్క్ 4.2 & 4.3) */
+/* Keyboard focus accessibility (Shark 4.2 & 4.3) */
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
@@ -88,38 +91,45 @@ textarea:focus-visible,
 .hud-wrapper {
   position: relative;
   z-index: 5;
-  height: 100dvh;
-  display: flex;
-  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-height: 100dvh;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   padding: 8px 10px 6px;
   gap: 8px;
-  min-height: 0;
+  overflow: hidden;
 }
 
 .hud-main-grid {
-  flex: 1;
+  height: 100%;
   min-height: 0;
   display: grid;
   grid-template-columns: 1.15fr 1fr 0.95fr;
+  grid-template-rows: minmax(0, 1fr);
   gap: 10px;
+  overflow: hidden;
 }
 
-/* ఎడమ నిలువు వరుస */
+/* Left column */
 .col-left {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 8px;
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .top-command-cluster {
   background: var(--bg-panel);
   border: var(--border-glow);
   border-radius: 6px;
-  padding: 8px;
+  padding: 7px 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
+  flex-shrink: 0;
 }
 
 .top-ruler {
@@ -127,7 +137,12 @@ textarea:focus-visible,
   justify-content: space-between;
   gap: 2px;
   overflow-x: auto;
-  padding-bottom: 2px;
+  scrollbar-width: none;
+  padding-bottom: 1px;
+}
+
+.top-ruler::-webkit-scrollbar {
+  display: none;
 }
 
 .ruler-tick {
@@ -135,9 +150,9 @@ textarea:focus-visible,
   border: none;
   color: var(--text-muted);
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   cursor: pointer;
-  padding: 2px 3px;
+  padding: 1px 3px;
   border-radius: 3px;
 }
 
@@ -158,10 +173,10 @@ textarea:focus-visible,
   background: rgba(2, 12, 24, 0.9);
   border: 1px solid rgba(0, 240, 255, 0.45);
   border-radius: 4px;
-  padding: 7px 10px;
+  padding: 6px 9px;
   color: var(--text-main);
   font-family: var(--font-ui);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
 .scan-btn {
@@ -169,11 +184,12 @@ textarea:focus-visible,
   border: 1px solid var(--cyan);
   color: var(--cyan);
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
-  padding: 0 14px;
+  padding: 0 12px;
   border-radius: 4px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .scan-btn:hover {
@@ -187,7 +203,7 @@ textarea:focus-visible,
   justify-content: space-between;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.65rem;
   color: var(--text-muted);
 }
 
@@ -203,11 +219,12 @@ textarea:focus-visible,
   color: var(--cyan);
 }
 
-/* 3 లైబ్రరీ బాక్సులు (షార్క్ 4.2: నేటివ్ button స్టైలింగ్) */
+/* 3 library boxes (Shark 4.2: native button styling) */
 .left-libraries-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .vault-box {
@@ -215,11 +232,12 @@ textarea:focus-visible,
   background: var(--bg-panel);
   border: var(--border-glow);
   border-radius: 6px;
-  padding: 7px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 5px;
+  gap: 4px;
+  min-width: 0;
   cursor: pointer;
   color: var(--text-main);
   transition: transform 0.15s ease, border-color 0.15s ease;
@@ -241,7 +259,7 @@ textarea:focus-visible,
   justify-content: space-between;
   gap: 4px;
   font-family: var(--font-mono);
-  font-size: 0.64rem;
+  font-size: 0.62rem;
 }
 
 .vault-title {
@@ -257,6 +275,7 @@ textarea:focus-visible,
   color: var(--cyan);
   padding: 1px 5px;
   border-radius: 3px;
+  flex-shrink: 0;
 }
 
 .vault-badge-lock {
@@ -265,14 +284,14 @@ textarea:focus-visible,
 }
 
 .vault-mini-cards {
-  min-height: 36px;
+  min-height: 28px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .vault-mini-item {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   color: var(--text-main);
   background: var(--bg-panel-soft);
   padding: 2px 5px;
@@ -283,14 +302,14 @@ textarea:focus-visible,
 }
 
 .vault-mini-empty {
-  font-size: 0.7rem;
+  font-size: 0.66rem;
   color: var(--text-muted);
 }
 
-/* చాట్ ప్యానెల్ */
+/* Chat panel */
 .chat-panel {
-  flex: 1;
   min-height: 0;
+  height: 100%;
   background: var(--bg-panel);
   border: var(--border-glow);
   border-radius: 6px;
@@ -298,6 +317,7 @@ textarea:focus-visible,
   display: flex;
   flex-direction: column;
   gap: 6px;
+  overflow: hidden;
 }
 
 .chat-panel-header {
@@ -305,8 +325,9 @@ textarea:focus-visible,
   align-items: center;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   color: var(--cyan);
+  flex-shrink: 0;
 }
 
 .speech-indicator {
@@ -324,11 +345,12 @@ textarea:focus-visible,
 }
 
 .chat-msg {
-  padding: 7px 9px;
+  padding: 6px 8px;
   border-radius: 5px;
-  font-size: 0.88rem;
-  line-height: 1.4;
+  font-size: 0.85rem;
+  line-height: 1.35;
   word-wrap: break-word;
+  flex-shrink: 0;
 }
 
 .chat-msg-user {
@@ -343,24 +365,26 @@ textarea:focus-visible,
 
 .web-fallback-link {
   display: inline-block;
-  margin-top: 5px;
+  margin-top: 4px;
   color: var(--cyan);
   text-decoration: underline;
   font-family: var(--font-mono);
-  font-size: 0.76rem;
+  font-size: 0.74rem;
 }
 
-/* మధ్య కోర్ మేట్రిక్స్ భాగం */
+/* Center core matrix section */
 .core-matrix-area {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
+  gap: 7px;
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .core-stage {
-  flex: 1;
-  min-height: 110px;
+  min-height: 0;
+  height: 100%;
   background: var(--bg-panel);
   border: var(--border-glow);
   border-radius: 6px;
@@ -372,8 +396,8 @@ textarea:focus-visible,
 }
 
 .core-ring-outer {
-  width: 116px;
-  height: 116px;
+  width: clamp(82px, 14vh, 116px);
+  height: clamp(82px, 14vh, 116px);
   border-radius: 50%;
   border: 2px dashed rgba(0, 240, 255, 0.45);
   animation: spinSlow 14s linear infinite;
@@ -381,8 +405,8 @@ textarea:focus-visible,
 
 .core-ring-mid {
   position: absolute;
-  width: 86px;
-  height: 86px;
+  width: clamp(60px, 10.5vh, 86px);
+  height: clamp(60px, 10.5vh, 86px);
   border-radius: 50%;
   border: 2px solid rgba(0, 240, 255, 0.7);
   animation: spinReverse 8s linear infinite;
@@ -390,8 +414,8 @@ textarea:focus-visible,
 
 .core-arc-reactor {
   position: absolute;
-  width: 54px;
-  height: 54px;
+  width: clamp(38px, 6.8vh, 54px);
+  height: clamp(38px, 6.8vh, 54px);
   border-radius: 50%;
   background: radial-gradient(circle, #ffffff 0%, var(--cyan) 55%, #0066aa 100%);
   box-shadow: 0 0 22px var(--cyan);
@@ -401,17 +425,17 @@ textarea:focus-visible,
 }
 
 .reactor-core-inner {
-  width: 20px;
-  height: 20px;
+  width: clamp(14px, 2.5vh, 20px);
+  height: clamp(14px, 2.5vh, 20px);
   border-radius: 50%;
   background: #e9fcff;
 }
 
 .core-label {
   position: absolute;
-  bottom: 6px;
+  bottom: 5px;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   color: var(--cyan);
 }
 
@@ -433,7 +457,8 @@ textarea:focus-visible,
   background: var(--bg-panel);
   border: var(--border-glow);
   border-radius: 6px;
-  padding: 7px 8px;
+  padding: 6px 8px;
+  flex-shrink: 0;
 }
 
 .spectrum-header,
@@ -442,13 +467,13 @@ textarea:focus-visible,
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   color: var(--text-muted);
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 .spectrum-bars {
-  height: 30px;
+  height: 24px;
   display: flex;
   align-items: flex-end;
   gap: 3px;
@@ -464,7 +489,7 @@ textarea:focus-visible,
 
 #redWaveCanvas {
   width: 100%;
-  height: 56px;
+  height: 44px;
   display: block;
 }
 
@@ -472,27 +497,27 @@ textarea:focus-visible,
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 5px;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .telemetry-cell {
   background: var(--bg-panel-soft);
   border: 1px solid rgba(0, 240, 255, 0.2);
   border-radius: 4px;
-  padding: 4px;
+  padding: 3px 4px;
   text-align: center;
 }
 
 .tel-label {
   display: block;
   font-family: var(--font-mono);
-  font-size: 0.58rem;
+  font-size: 0.56rem;
   color: var(--text-muted);
 }
 
 .telemetry-cell strong {
   font-family: var(--font-display);
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   color: var(--cyan);
 }
 
@@ -504,13 +529,13 @@ textarea:focus-visible,
 
 .mini-hud-btn {
   flex: 1;
-  min-width: 76px;
+  min-width: 68px;
   background: rgba(0, 240, 255, 0.12);
   border: 1px solid rgba(0, 240, 255, 0.45);
   color: var(--cyan);
   font-family: var(--font-mono);
-  font-size: 0.64rem;
-  padding: 4px 6px;
+  font-size: 0.6rem;
+  padding: 3px 5px;
   border-radius: 4px;
   cursor: pointer;
 }
@@ -519,21 +544,23 @@ textarea:focus-visible,
   background: rgba(0, 240, 255, 0.25);
 }
 
-/* కుడి నిలువు వరుస */
+/* Right column */
 .col-right {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 8px;
   min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .skull-stage {
-  flex: 1;
-  min-height: 110px;
+  min-height: 0;
+  height: 100%;
   background: var(--bg-panel);
   border: 1px solid rgba(255, 42, 85, 0.45);
   border-radius: 6px;
-  padding: 8px;
+  padding: 7px 8px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -544,16 +571,17 @@ textarea:focus-visible,
 .skull-header,
 .skull-footer {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   color: #ff758f;
   display: flex;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .skull-visual {
   position: relative;
-  width: 92px;
-  height: 76px;
+  width: clamp(72px, 12vh, 92px);
+  height: clamp(58px, 9.5vh, 76px);
   margin: auto;
   border-radius: 42% 42% 30% 30%;
   border: 2px solid rgba(255, 42, 85, 0.75);
@@ -561,12 +589,12 @@ textarea:focus-visible,
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 14px;
 }
 
 .skull-eye {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: var(--red-alert);
   box-shadow: 0 0 12px var(--red-alert);
@@ -576,22 +604,23 @@ textarea:focus-visible,
   background: var(--bg-panel);
   border: var(--border-glow);
   border-radius: 6px;
-  padding: 8px;
+  padding: 7px 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
+  flex-shrink: 0;
 }
 
 .rotary-header {
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 0.66rem;
+  font-size: 0.62rem;
   color: var(--cyan);
 }
 
 .rotary-stage {
-  height: 112px;
+  height: 92px;
   position: relative;
   display: flex;
   align-items: center;
@@ -602,22 +631,22 @@ textarea:focus-visible,
 }
 
 .rotary-track {
-  width: 84px;
-  height: 84px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   border: 2px solid rgba(0, 240, 255, 0.35);
 }
 
 .key-dial-puck {
   position: absolute;
-  width: 54px;
-  height: 54px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #6cf8ff, #0077b6);
   border: 2px solid var(--cyan);
   color: #031322;
   font-family: var(--font-display);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 900;
   display: flex;
   align-items: center;
@@ -634,16 +663,17 @@ textarea:focus-visible,
 
 .rotary-hint {
   font-family: var(--font-mono);
-  font-size: 0.62rem;
+  font-size: 0.6rem;
   color: var(--text-muted);
   text-align: center;
 }
 
-/* కింది డాక్ బార్ */
+/* Bottom dock bar */
 .bottom-dock-bar {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .dock-slot {
@@ -651,9 +681,9 @@ textarea:focus-visible,
   border: var(--border-glow);
   color: var(--cyan);
   font-family: var(--font-display);
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 700;
-  padding: 8px 4px;
+  padding: 7px 4px;
   border-radius: 5px;
   cursor: pointer;
   white-space: nowrap;
@@ -670,7 +700,7 @@ textarea:focus-visible,
   color: #ff758f;
 }
 
-/* మోడల్స్ & లైట్‌బాక్స్ */
+/* Modals & lightbox */
 .hud-modal-backdrop {
   display: none;
   position: fixed;
@@ -697,6 +727,7 @@ textarea:focus-visible,
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow: hidden;
 }
 
 .hud-modal-wide {
@@ -709,6 +740,7 @@ textarea:focus-visible,
   justify-content: space-between;
   border-bottom: 1px solid rgba(0, 240, 255, 0.25);
   padding-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .hud-modal-header h2 {
@@ -765,7 +797,7 @@ textarea:focus-visible,
   color: var(--text-main);
 }
 
-/* షార్క్ 4.5 పరిష్కారం: రెస్పాన్సివ్ లైబ్రరీ కార్డ్ గ్రిడ్ */
+/* Shark 4.5 fix: responsive library card grid */
 .library-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -829,7 +861,7 @@ textarea:focus-visible,
   color: var(--text-main);
 }
 
-/* ఎడిటర్ */
+/* Editor */
 .editor-body {
   display: flex;
   flex-direction: column;
@@ -898,7 +930,7 @@ textarea:focus-visible,
   justify-content: flex-end;
 }
 
-/* సెంటినెల్ కీప్యాడ్ */
+/* Sentinel keypad */
 .personal-gate-body {
   display: flex;
   flex-direction: column;
@@ -967,7 +999,7 @@ textarea:focus-visible,
   background: rgba(0, 240, 255, 0.26);
 }
 
-/* 3D వర్క్‌ప్లేస్ & లైట్‌బాక్స్ */
+/* 3D workspace & lightbox */
 .workspace-3d-body {
   display: flex;
   flex-direction: column;
@@ -1013,33 +1045,79 @@ textarea:focus-visible,
   color: var(--text-muted);
 }
 
-/* మొబైల్ / టాబ్లెట్ రెస్పాన్సివ్ నియమాలు (షార్క్ 4.1 & 18.4) */
+/* Single-frame mobile / tablet / WebView rules (fits in one frame without page scroll) */
 @media (max-width: 900px) {
   html,
   body {
-    height: auto;
-    min-height: 100dvh;
-    overflow-y: auto;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
   }
 
   .hud-wrapper {
-    height: auto;
-    min-height: 100dvh;
+    height: 100%;
+    max-height: 100dvh;
+    padding: 6px;
+    gap: 6px;
   }
 
   .hud-main-grid {
     grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1.35fr) minmax(0, 0.85fr) minmax(0, 0.75fr);
+    gap: 6px;
+  }
+
+  .col-left {
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 6px;
   }
 
   .left-libraries-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
   }
 
-  .chat {
-    max-height: 220px;
+  .vault-mini-cards {
+    min-height: 18px;
+  }
+
+  .core-matrix-area {
+    grid-template-rows: minmax(0, 1fr) auto auto auto;
+    gap: 5px;
+  }
+
+  #redWaveCanvas {
+    height: 32px;
+  }
+
+  .col-right {
+    grid-template-rows: minmax(0, 1fr) auto;
+    gap: 6px;
+  }
+
+  .rotary-stage {
+    height: 72px;
+  }
+
+  .rotary-track {
+    width: 56px;
+    height: 56px;
+  }
+
+  .key-dial-puck {
+    width: 40px;
+    height: 40px;
+    font-size: 0.6rem;
   }
 
   .bottom-dock-bar {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .dock-slot {
+    font-size: 0.56rem;
+    padding: 6px 2px;
   }
 }
