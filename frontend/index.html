@@ -29,7 +29,7 @@
       <span>HACK_WALL</span> &gt; <span>NEURAL_CORE</span> &gt; <span class="active" id="status-text">SYSTEM ONLINE</span>
     </div>
     <div class="input-inline">
-      <input id="msg" type="text" placeholder="Command or speak, Boss..." autocomplete="off" />
+      <input id="msg" type="text" placeholder="Command or speak, Boss... (e.g. YOUR DIARY LIBRARY [Diary 1])" autocomplete="off" />
       <button id="execute-btn" class="exec-btn">SCAN</button>
     </div>
   </nav>
@@ -69,13 +69,13 @@
             </svg>
             <div class="date-ring-inner">
               <div class="month" id="hudMonth">NOV</div>
-              <div class="day-num" id="hudDayNum">23</div>
+              <div class="day-num" id="hudDayNum">27</div>
             </div>
           </div>
 
           <div class="weekday-box">
-            <div class="day-name" id="hudWeekday">MONDAY</div>
-            <div class="mini-time" id="hudMiniClock">03:18<small>:00</small></div>
+            <div class="day-name" id="hudWeekday">FRIDAY</div>
+            <div class="mini-time" id="hudMiniClock">05:23<small>:00</small></div>
           </div>
         </div>
       </div>
@@ -83,31 +83,31 @@
       <!-- FULL-HEIGHT STACK FOR AI-CONNECTED BOXES 1, 2 & 3 -->
       <div class="left-vault-stack">
 
-        <!-- BOX 1: YOUR DIARY (AI CONNECTED + KEY-DROP ONLY) -->
+        <!-- BOX 1: YOUR DIARY LIBRARY (LIBRARY 1) -->
         <div class="diary-glow-box vault-fill-slot" id="diaryBox" data-expandable="true" data-box-id="diary-panel" data-modal-target="diary-modal">
           <div class="vault-box-header">
-            <span class="diary-glow-title">✦ YOUR DIARY</span>
-            <span class="ai-link-chip">◈ AI LINKED</span>
+            <span class="diary-glow-title">✦ YOUR DIARY LIBRARY</span>
+            <span class="ai-link-chip">LIBRARY 1</span>
           </div>
-          <div class="diary-meta-sub" id="diaryLatestMeta">BOX 1 // TEXT &amp; PHOTOS • AI CONNECTED</div>
+          <div class="diary-meta-sub" id="diaryLatestMeta">LIBRARY 1 // DIARIES &amp; FILES • AI CONNECTED</div>
         </div>
 
-        <!-- BOX 2: MEDIA VAULT (AI CONNECTED + KEY-DROP ONLY) -->
+        <!-- BOX 2: YOUR ALBUM LIBRARY (LIBRARY 2) -->
         <div class="media-vault-box vault-fill-slot" id="mediaBox" data-expandable="true" data-box-id="media-panel" data-modal-target="media-modal">
           <div class="vault-box-header">
-            <span>MEDIA // BOX 2</span>
-            <span class="ai-link-chip">◈ AI LINKED</span>
+            <span>YOUR ALBUM LIBRARY</span>
+            <span class="ai-link-chip">LIBRARY 2</span>
           </div>
-          <div class="vault-mini-preview" id="mediaMiniStrip">PHOTOS &amp; VIDEOS • AI CONNECTED</div>
+          <div class="vault-mini-preview" id="mediaMiniStrip">LIBRARY 2 // ALBUMS, PHOTOS &amp; VIDEOS</div>
         </div>
 
-        <!-- BOX 3: YOUR PERSONAL DETAILS (AI LOCKED — NO PASSCODE SHOWN ON SCREEN) -->
+        <!-- BOX 3: YOUR PERSONAL LIBRARY (LIBRARY 3 + CODE 503020) -->
         <div class="personal-vault-box vault-fill-slot" id="personalBox" data-expandable="true" data-box-id="personal-panel" data-modal-target="personal-modal">
           <div class="vault-box-header">
-            <span>YOUR PERSONAL DETAILS</span>
-            <span id="personalLockBadge" class="ai-link-chip">AI LOCKED</span>
+            <span>YOUR PERSONAL LIBRARY</span>
+            <span id="personalLockBadge" class="ai-link-chip">LIBRARY 3 • LOCKED</span>
           </div>
-          <div class="vault-mini-preview">THIS IS AI LOCKED • AI CONNECTED</div>
+          <div class="vault-mini-preview" id="personalMiniPreview">LIBRARY 3 // SECURE VAULT • CODE PROTECTED</div>
         </div>
 
       </div>
@@ -119,7 +119,7 @@
           <span class="metric-value" id="memCount">0</span>
         </div>
         <div class="metric-chip">
-          <span class="metric-label">MEDIA</span>
+          <span class="metric-label">ALBUM</span>
           <span class="metric-value" id="file3dCount">0</span>
         </div>
         <div class="metric-chip">
@@ -128,7 +128,7 @@
         </div>
       </div>
 
-      <!-- SPECTRUM IDLE BLUE BAR GRAPH (FROM REFERENCE DESIGN) -->
+      <!-- SPECTRUM IDLE BLUE BAR GRAPH -->
       <div class="spectrum-idle-zone" data-expandable="true" data-box-id="spectrum-panel">
         <div class="spectrum-idle-title">SPECTRUM IDLE</div>
         <div class="spectrum-bars-frame" id="spectrumBarsFrame"></div>
@@ -160,11 +160,11 @@
       <!-- CORE MATRIX: MARK VII (CENTER) + SKULL (TOP-RIGHT) + KEY (DOWN-RIGHT) -->
       <div class="core-matrix-area">
 
-        <!-- MARK VII CENTRAL HIGHLIGHT (OLD ARC REACTOR FRAME + SPINNING INNER HEART DESIGN, NO OUTER RING) -->
+        <!-- MARK VII CENTRAL HIGHLIGHT (ARC REACTOR + LEFT IRON MAN + RIGHT TELEMETRY) -->
         <div class="mark-vii-spotlight" id="markViiSpotlight" data-expandable="true" data-box-id="ironman-hud-panel">
           <div class="spotlight-meta">
             <span>MARK VII // CORE</span>
-            <span id="coreArcTime">03:18</span>
+            <span id="coreArcTime">05:23</span>
           </div>
           <div class="ironman-hud-viewport">
             <svg class="jarvis-svg-hud enlarged-figure" viewBox="0 0 720 460">
@@ -190,7 +190,7 @@
 
               <circle cx="360" cy="230" r="210" fill="url(#coreGlow)" />
 
-              <!-- Left Suit Schematic (Enlarged) -->
+              <!-- Left Suit Schematic -->
               <g transform="translate(50, 66) scale(1.16)">
                 <polygon points="45,0 165,48 165,222 68,268 18,195 18,65"
                          fill="url(#hudPanelGrad)" stroke="#8cf3ff" stroke-width="2.2" />
@@ -208,7 +208,7 @@
                 </g>
               </g>
 
-              <!-- Right Flight Telemetry (Enlarged) -->
+              <!-- Right Flight Telemetry -->
               <g transform="translate(466, 94) scale(1.14)">
                 <polygon points="0,35 118,0 148,72 148,162 96,214 0,175"
                          fill="url(#hudPanelGrad)" stroke="#8cf3ff" stroke-width="2.2" />
@@ -227,7 +227,7 @@
                 </g>
               </g>
 
-              <!-- STATIC OUTER ARC REACTOR DESIGN FRAME (FROM OLD PROJECT) -->
+              <!-- STATIC OUTER ARC REACTOR DESIGN FRAME -->
               <circle cx="360" cy="230" r="106" fill="none" stroke="rgba(140, 243, 255, 0.55)" stroke-width="1.6" stroke-dasharray="6 6" />
               <circle cx="360" cy="230" r="95" fill="rgba(4, 24, 46, 0.92)" stroke="#8cf3ff" stroke-width="3.2" />
               <circle cx="360" cy="230" r="85" fill="none" stroke="#3be8ff" stroke-width="2" />
@@ -298,7 +298,7 @@
           </div>
         </div>
 
-        <!-- DOWN-RIGHT OF MARK VII: ENLARGED KEY FRAME (NO SIDE CIRCLE) + VOICE CONTROLS -->
+        <!-- DOWN-RIGHT OF MARK VII: ENLARGED KEY FRAME + GALLERY & JARVIS MODE CONTROLS -->
         <div class="key-down-right">
           <div class="key-ring-stage" id="keyRingStage" data-expandable="true" data-box-id="fx-panel" title="Turn left 3 times to unlock, then drag onto any frame">
             <div class="key-dial-puck enlarged-key" id="keyDialPuck">
@@ -319,8 +319,8 @@
           </div>
 
           <div class="voice-controls-row">
-            <div class="voice-orb" id="mic-btn" title="Toggle Continuous Voice Recognition">
-              MIC<br>LINK
+            <div class="voice-orb" id="mic-btn" onclick="openModal('media-modal')" title="Open Album Library">
+              ALBUM<br>VAULT
             </div>
             <div class="voice-orb" id="rightOrb" onclick="if(typeof toggleJarvisMode==='function') toggleJarvisMode();" title="Toggle Strict Jarvis Mode">
               JARVIS<br>MODE
@@ -353,7 +353,7 @@
 
   <div class="os-task-strip">
     <span>STARK OS v4.2 // MARK VII HACKING HUD</span>
-    <span id="bottomClock">03:18:00</span>
+    <span id="bottomClock">05:23:00</span>
   </div>
 
   <!-- MODAL 1: HISTORY LOG POPUP -->
@@ -368,60 +368,89 @@
     </div>
   </div>
 
-  <!-- MODAL 2: YOUR DIARY (BOX 1 — FULLSCREEN SCROLLABLE TEXT + PHOTO UPLOAD + AI) -->
+  <!-- MODAL 2: BOX 1 — YOUR DIARY LIBRARY // LIBRARY 1 (GRID + UPLOAD PHOTO + SEARCH) -->
   <div id="diary-modal" class="modal">
-    <div class="modal-content neon-flame-box fullscreen-module-card">
-      <div class="modal-header">
-        <h2>YOUR DIARY // BOX 1 (AI CONNECTED)</h2>
-        <span id="close-diary-modal" class="close-btn">&times;</span>
+    <div class="modal-content neon-flame-box fullscreen-module-card library-grid-card">
+      <div class="library-top-header">
+        <div class="library-title-stack">
+          <h2>YOUR DIARY LIBRARY //</h2>
+          <div class="library-sub-code">LIBRARY 1</div>
+        </div>
+        <div class="library-top-actions">
+          <button type="button" class="btn library-upload-btn" onclick="document.getElementById('diary-img-input').click()">UPLOAD PHOTO</button>
+          <span id="close-diary-modal" class="close-btn">&times;</span>
+        </div>
       </div>
-      <div class="memory-body scrollable-module-body">
-        <input type="text" id="diary-search-input" placeholder="Search diary or ask Box 1 AI (e.g. Box 1 File 1)..." />
-        <textarea id="diary-text-input" class="large-scroll-textarea" placeholder="Write your full diary entry here, Boss (scrollable when long, date & time logged automatically)..."></textarea>
-        <div class="modal-action-row">
-          <button type="button" class="btn" onclick="document.getElementById('diary-img-input').click()">+ UPLOAD PHOTO</button>
-          <span id="diaryPendingPhotoBadge" class="upload-status-chip">NO PHOTO</span>
-          <button type="button" id="save-diary-entry" class="neon-btn">SAVE DIARY LOG</button>
-        </div>
-        <div class="ai-sub-assist">
-          <input type="text" id="diary-ai-input" placeholder="Ask Diary AI about Box 1 / File 1..." />
-          <button type="button" id="ask-diary-ai-btn" class="btn">ASK AI</button>
-        </div>
-        <div id="diary-entries-list" class="history-container scrollable-module-body" style="margin-top: 10px;"></div>
+
+      <div id="diaryPendingPhotoBadge" class="upload-status-chip" style="align-self:flex-start;margin-bottom:6px;">NO PHOTO</div>
+
+      <div id="diary-entries-list" class="library-card-grid scrollable-module-body"></div>
+
+      <div class="library-bottom-search">
+        <input type="text" id="diary-search-input" placeholder="Search diary name..." />
+        <button type="button" id="diary-search-btn" class="btn library-search-btn">SEARCH</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL 3: MEDIA VAULT (BOX 2 — FULLSCREEN PHOTO & VIDEO UPLOAD + AI) -->
+  <!-- MODAL 3: BOX 2 — YOUR ALBUM LIBRARY // LIBRARY 2 (GRID + UPLOAD PHOTO/VIDEO + ALBUMS + SEARCH) -->
   <div id="media-modal" class="modal">
-    <div class="modal-content neon-flame-box fullscreen-module-card">
-      <div class="modal-header">
-        <h2>MEDIA VAULT // BOX 2 (AI CONNECTED)</h2>
-        <span id="close-media-modal" class="close-btn">&times;</span>
+    <div class="modal-content neon-flame-box fullscreen-module-card library-grid-card">
+      <div class="library-top-header">
+        <div class="library-title-stack">
+          <h2>YOUR ALBUM LIBRARY //</h2>
+          <div class="library-sub-code">LIBRARY 2</div>
+        </div>
+        <div class="library-top-actions">
+          <button type="button" class="btn library-upload-btn" onclick="document.getElementById('media-files-input').click()">UPLOAD PHOTO</button>
+          <span id="close-media-modal" class="close-btn">&times;</span>
+        </div>
       </div>
-      <div class="memory-body scrollable-module-body">
-        <div class="modal-action-row">
-          <button type="button" class="neon-btn" onclick="document.getElementById('media-files-input').click()">+ UPLOAD PHOTOS / VIDEOS</button>
-        </div>
-        <div class="ai-sub-assist">
-          <input type="text" id="media-ai-input" placeholder="Ask Media AI (e.g. Box 2 File 1)..." />
-          <button type="button" id="ask-media-ai-btn" class="btn">ASK AI</button>
-        </div>
-        <div id="media-gallery-grid" class="media-grid-list"></div>
+
+      <div id="media-gallery-grid" class="library-card-grid scrollable-module-body"></div>
+
+      <div class="library-bottom-search">
+        <input type="text" id="album-search-input" placeholder="Search album name..." />
+        <button type="button" id="album-search-btn" class="btn library-search-btn">SEARCH</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL 4: YOUR PERSONAL DETAILS (BOX 3 — AI LOCKED KEYPAD + AI) -->
+  <!-- MODAL 4: BOX 3 — YOUR PERSONAL LIBRARY // LIBRARY 3 (503020 + 60s LOCKOUT + NEW LIBRARY 3 GRID) -->
   <div id="personal-modal" class="modal">
     <div class="modal-content neon-flame-box fullscreen-module-card">
       <div class="modal-header">
-        <h2>YOUR PERSONAL DETAILS // AI LOCKED</h2>
+        <h2>YOUR PERSONAL LIBRARY // LIBRARY 3</h2>
         <span id="close-personal-modal" class="close-btn">&times;</span>
       </div>
+
       <div id="personal-lock-screen" class="keypad-lock-panel">
-        <div class="keypad-banner">THIS IS AI LOCKED — ENTER SECURITY CODE</div>
-        <div class="keypad-display" id="keypadDisplay">• • • •</div>
+        <div class="keypad-banner">HACKING SECURITY GATEWAY — ANIMATED SENTINEL &amp; CODE REQUIRED</div>
+
+        <!-- ANIMATED SENTINEL OWL + LIVE SPEECH/TYPEWRITER READOUT -->
+        <div class="sentinel-owl-stage" id="sentinelOwlStage">
+          <svg class="sentinel-owl-svg" id="sentinelOwlSvg" viewBox="0 0 180 140" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="90" cy="72" r="54" fill="rgba(14,165,233,0.14)" stroke="#3be8ff" stroke-width="1.5" stroke-dasharray="6 4" />
+            <g class="owl-body-group" id="owlBodyGroup">
+              <ellipse cx="90" cy="84" rx="34" ry="38" fill="rgba(4,26,52,0.92)" stroke="#8cf3ff" stroke-width="2.2" />
+              <polygon points="62,52 54,34 74,46" fill="rgba(14,165,233,0.35)" stroke="#3be8ff" stroke-width="1.8" />
+              <polygon points="118,52 126,34 106,46" fill="rgba(14,165,233,0.35)" stroke="#3be8ff" stroke-width="1.8" />
+              <circle cx="76" cy="68" r="12" fill="#020c18" stroke="#3be8ff" stroke-width="2" />
+              <circle cx="104" cy="68" r="12" fill="#020c18" stroke="#3be8ff" stroke-width="2" />
+              <circle cx="76" cy="68" r="5" fill="#ffffff" />
+              <circle cx="104" cy="68" r="5" fill="#ffffff" />
+              <polygon points="90,74 84,84 96,84" fill="#3be8ff" stroke="#ffffff" stroke-width="1.2" />
+              <path class="owl-wing-left" d="M56,74 Q36,82 42,104 Q52,102 58,94" fill="rgba(59,232,255,0.22)" stroke="#8cf3ff" stroke-width="2" />
+              <path class="owl-wing-right" d="M124,74 Q144,82 138,104 Q128,102 122,94" fill="rgba(59,232,255,0.22)" stroke="#8cf3ff" stroke-width="2" />
+            </g>
+          </svg>
+          <div class="sentinel-line-divider"></div>
+          <div class="sentinel-typewriter-box" id="sentinelTypewriterText">
+            Access denied. You are not the Boss. State your identity immediately. This system is locked down to protect sensitive data from intruders.
+          </div>
+        </div>
+
+        <div class="keypad-display" id="keypadDisplay">• • • • • •</div>
         <div class="flame-keypad-grid" id="flameKeypadGrid">
           <button type="button" class="flame-key-btn" data-digit="1">1</button>
           <button type="button" class="flame-key-btn" data-digit="2">2</button>
@@ -439,19 +468,69 @@
         <div id="personal-danger-alert" class="danger-alert-text"></div>
       </div>
 
-      <div id="personal-unlocked-content" class="scrollable-module-body" style="display:none;">
-        <textarea id="personal-detail-input" class="large-scroll-textarea" placeholder="Store personal details, text, or notes, Boss..."></textarea>
-        <div class="modal-action-row">
-          <button type="button" class="btn" onclick="document.getElementById('personal-img-input').click()">+ UPLOAD PHOTO</button>
-          <span id="personalPendingPhotoBadge" class="upload-status-chip">NO PHOTO</span>
-          <button type="button" id="save-personal-detail" class="neon-btn">SAVE PERSONAL DETAIL</button>
+      <div id="personal-unlocked-content" class="library-grid-card" style="display:none;flex:1;min-height:0;">
+        <div class="library-top-header">
+          <div class="library-title-stack">
+            <h2>YOUR PERSONAL LIBRARY //</h2>
+            <div class="library-sub-code">LIBRARY 3</div>
+          </div>
+          <div class="library-top-actions">
+            <button type="button" class="btn library-upload-btn" onclick="document.getElementById('personal-img-input').click()">UPLOAD PHOTO</button>
+          </div>
         </div>
-        <div class="ai-sub-assist">
-          <input type="text" id="personal-ai-input" placeholder="Ask Personal AI (AI locked until verified)..." />
-          <button type="button" id="ask-personal-ai-btn" class="btn">ASK AI</button>
+
+        <div id="personalPendingPhotoBadge" class="upload-status-chip" style="align-self:flex-start;margin-bottom:6px;">NO PHOTO</div>
+
+        <div id="personal-entries-list" class="library-card-grid scrollable-module-body"></div>
+
+        <div class="library-bottom-search">
+          <input type="text" id="personal-search-input" placeholder="Search personal diary name..." />
+          <button type="button" id="personal-search-btn" class="btn library-search-btn">SEARCH</button>
         </div>
-        <div id="personal-entries-list" class="history-container scrollable-module-body" style="margin-top: 10px;"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: NEW DIARY / PERSONAL ENTRY EDITOR (TOP SAVE + INLINE NAME + AUTO-NUMBERED LINES + BOTTOM BAR) -->
+  <div id="entry-editor-modal" class="modal">
+    <div class="modal-content neon-flame-box fullscreen-module-card entry-editor-card">
+      <div class="editor-top-bar">
+        <div class="editor-name-bracket-wrap">
+          <span class="editor-bracket-lbl">DIARY NAME [</span>
+          <input type="text" id="editor-diary-name-input" class="editor-inline-name-input" placeholder="Type diary name here..." autocomplete="off" />
+          <span class="editor-bracket-lbl">]</span>
+        </div>
+        <div class="editor-top-right-actions">
+          <button type="button" id="editor-save-btn" class="neon-btn editor-save-btn">SAVE</button>
+          <span id="close-entry-editor" class="close-btn">&times;</span>
+        </div>
+      </div>
+
+      <div id="editor-photo-chip" class="upload-status-chip" style="align-self:flex-start;margin-bottom:6px;">NO PHOTO</div>
+
+      <div class="editor-numbered-canvas">
+        <textarea id="editor-numbered-textarea" class="editor-main-textarea" spellcheck="true"></textarea>
+      </div>
+
+      <div class="editor-bottom-bar">
+        <button type="button" id="editor-write-full-btn" class="btn editor-bottom-btn">WRITE YOUR FULL DIARY</button>
+        <button type="button" id="editor-select-btn" class="btn editor-bottom-btn">SELECT</button>
+        <button type="button" id="editor-upload-photo-btn" class="neon-btn editor-bottom-btn">UPLOAD PHOTO</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 8: ALBUM DETAIL / VIEWER (PHOTOS & VIDEOS UPLOAD + PREVIEW) -->
+  <div id="album-detail-modal" class="modal">
+    <div class="modal-content neon-flame-box fullscreen-module-card">
+      <div class="modal-header">
+        <h2 id="albumDetailTitle">ALBUM VIEWER</h2>
+        <span id="close-album-detail" class="close-btn">&times;</span>
+      </div>
+      <div class="modal-action-row">
+        <button type="button" id="album-add-media-btn" class="neon-btn">+ UPLOAD PHOTOS / VIDEOS</button>
+      </div>
+      <div id="album-detail-grid" class="library-card-grid scrollable-module-body"></div>
     </div>
   </div>
 
@@ -497,6 +576,8 @@
   <input id="diary-img-input" type="file" accept="image/*" style="display:none" />
   <input id="media-files-input" type="file" accept="image/*,video/*" multiple style="display:none" />
   <input id="personal-img-input" type="file" accept="image/*" style="display:none" />
+  <input id="editor-img-input" type="file" accept="image/*" style="display:none" />
+  <input id="album-item-files-input" type="file" accept="image/*,video/*" multiple style="display:none" />
 
   <script src="script.js"></script>
 </body>
